@@ -1,6 +1,7 @@
 # CLAUDE.md: rules for AI agents in this repository
 
-@AGENTS.md
+Next.js 16 differs from older versions: read `AGENTS.md` (managed by `next dev`) and the
+bundled docs in `node_modules/next/dist/docs/` before writing Next.js code.
 
 This repo is a **reusable site starter**: a template-owned **core** (admin, auth, DB,
 content system, SEO, i18n, analytics, storage, security) plus a replaceable **project

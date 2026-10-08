@@ -3,11 +3,16 @@
  *
  * - Public site + /access: statically rendered, so no nonces. Next.js inlines
  *   its runtime bootstrap scripts, which requires 'unsafe-inline' for scripts;
- *   everything else is locked down (no third-party origins, no framing, no
- *   plugins). The site itself adds no inline scripts (JSON-LD is not executable).
+ *   everything else is locked down (no framing, no plugins). Third-party
+ *   origins come only from the validated `projectConfig.csp` sources. The site
+ *   itself adds no inline scripts (JSON-LD is not executable).
  * - Admin: rendered per request, so it gets a nonce-based policy with
  *   'strict-dynamic' (set by the proxy).
  */
+
+// Project CSP sources are passed in (`projectConfig.csp`): next.config loads this
+// module outside the bundler, where the `@project/config` alias does not resolve.
+import type { SiteCspSources } from '@/core/project/define';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -45,12 +50,44 @@ function baseDirectives(): Record<string, string[]> {
   };
 }
 
-/** CSP for statically rendered pages (site, /access). */
-export function staticPageCsp(): string {
-  return serialize({
-    ...baseDirectives(),
-    'script-src': ["'self'", "'unsafe-inline'", ...(isDev ? ["'unsafe-eval'"] : [])],
-  });
+const PROJECT_DIRECTIVES: Record<keyof SiteCspSources, string> = {
+  scriptSrc: 'script-src',
+  styleSrc: 'style-src',
+  imgSrc: 'img-src',
+  fontSrc: 'font-src',
+  connectSrc: 'connect-src',
+  frameSrc: 'frame-src',
+  mediaSrc: 'media-src',
+  formAction: 'form-action',
+};
+
+/** Appends the project's CSP sources; directives absent from the base start from 'self'. */
+function withProjectSources(
+  directives: Record<string, string[]>,
+  project: SiteCspSources,
+): Record<string, string[]> {
+  const merged = { ...directives };
+  for (const [key, directive] of Object.entries(PROJECT_DIRECTIVES) as Array<
+    [keyof SiteCspSources, string]
+  >) {
+    const sources = project[key];
+    if (!sources?.length) continue;
+    merged[directive] = [...new Set([...(merged[directive] ?? ["'self'"]), ...sources])];
+  }
+  return merged;
+}
+
+/** CSP for statically rendered pages (site, /access), extended with `projectConfig.csp`. */
+export function staticPageCsp(project: SiteCspSources): string {
+  return serialize(
+    withProjectSources(
+      {
+        ...baseDirectives(),
+        'script-src': ["'self'", "'unsafe-inline'", ...(isDev ? ["'unsafe-eval'"] : [])],
+      },
+      project,
+    ),
+  );
 }
 
 /** CSP for dynamically rendered admin pages. */

@@ -5,9 +5,12 @@ import { AppSidebar } from '@/admin/components/layout/app-sidebar';
 import { GateRefresher } from '@/admin/components/layout/gate-refresher';
 import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from '@/admin/ui/sidebar';
+import { registry } from '@/content';
 import { requireUser } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
 import { readSiteSettings } from '@/core/settings/repository';
+
+const PAGE_LABELS = Object.fromEntries(registry.pages.map((page) => [page.id, page.label]));
 
 /** The admin is per-request (auth-gated); opt out of instant-navigation validation. */
 export const instant = false;
@@ -24,7 +27,7 @@ export default async function AdminPanelLayout({ children }: LayoutProps<'/admin
       <AppSidebar role={user.role} siteName={settings.general.siteName} />
       <SidebarInset>
         <LocalDbBanner />
-        <AdminHeader user={user} status={settings.status} />
+        <AdminHeader user={user} status={settings.status} pageLabels={PAGE_LABELS} />
         <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6">
           {children}
         </div>

@@ -33,24 +33,48 @@ runs in production.
 | `SUPABASE_ANON_KEY`         | optional    | connection check only                   |
 | `SUPABASE_STORAGE_BUCKET`   | optional    | default `media`                         |
 | `CRON_SECRET`               | optional    | enables `/api/cron/maintenance`         |
+| `PREVIEW_DATABASE_ISOLATED` | optional    | `true` lets preview deploys migrate     |
 
 The admin's **Security** page shows which variables are set (values masked).
 
 ## 3. Vercel
 
 1. Import the repository. Framework: Next.js. Install: `pnpm install`.
-2. Add the variables (Project → Settings → Environment Variables) for Production and Preview.
-3. `vercel.json` sets the build command to `pnpm db:migrate && pnpm build`, so migrations
-   run on every deploy (using `DIRECT_URL`), and schedules the daily maintenance cron
-   (Vercel sends `Authorization: Bearer $CRON_SECRET`).
+2. Add the variables (Project → Settings → Environment Variables). Scope the production
+   database variables to **Production** only (see [Preview deploys](#preview-deploys)).
+3. `vercel.json` sets the build command to `pnpm db:migrate:deploy && pnpm build`, so
+   migrations run on production deploys (using `DIRECT_URL`), and schedules the daily
+   maintenance cron (Vercel sends `Authorization: Bearer $CRON_SECRET`).
 
 ## 4. Netlify
 
 1. Import the repository. `netlify.toml` sets the build command
-   (`pnpm db:migrate && pnpm build`) and the functions directory.
-2. Add the variables (Site configuration → Environment variables).
+   (`pnpm db:migrate:deploy && pnpm build`) and the functions directory.
+2. Add the variables (Site configuration → Environment variables), with the production
+   database scoped to the **Production** deploy context.
 3. `netlify/functions/maintenance.mts` is a Scheduled Function that calls
    `/api/cron/maintenance` daily with `CRON_SECRET`.
+
+## Preview deploys
+
+`pnpm db:migrate:deploy` decides whether to migrate from the platform context:
+
+| Context                                                      | Migrates?                                |
+| ------------------------------------------------------------ | ---------------------------------------- |
+| Not on Vercel/Netlify (local, CI, other hosts)               | yes                                      |
+| Vercel `VERCEL_ENV=production`, Netlify `CONTEXT=production` | yes                                      |
+| Any preview / branch deploy                                  | only if `PREVIEW_DATABASE_ISOLATED=true` |
+
+A preview branch must never change the production schema: a migration from an unmerged
+branch would break the live site. Two safe setups:
+
+- **No database for previews** (simplest): give the database variables only to the
+  Production scope. Previews skip migrations and need their own `DATABASE_URL` to render.
+- **Separate preview database:** create a second Supabase project (or a Supabase branch),
+  set its `DATABASE_URL`/`DIRECT_URL` for the Preview scope only, and set
+  `PREVIEW_DATABASE_ISOLATED=true` there. Previews then migrate their own database.
+
+The build log always prints the decision and its reason.
 
 ## 5. First admin in production
 

@@ -3,6 +3,8 @@ import { expect, type Page, test } from '@playwright/test';
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
 
+const RAW_USER_TARGET = /user:[0-9a-f]{8}-/;
+
 const usersTable = (page: Page) => page.getByRole('table', { name: 'Users' });
 const rowFor = (page: Page, email: string) =>
   usersTable(page).getByRole('row').filter({ hasText: email });
@@ -118,7 +120,14 @@ test.describe.serial('managers', () => {
     await page.getByRole('button', { name: 'Filter' }).click();
     await expect(audit).toContainText('Signed in');
     await expect(audit).not.toContainText('Deleted a user');
-    // Secrets are never shown in full.
-    expect(await env.textContent()).not.toMatch(/ci-only-secret|e2e-production-secret/);
+    // Secrets are never shown in full, and masks stay readable (no percent-encoding).
+    const envText = (await env.textContent()) ?? '';
+    expect(envText).not.toMatch(/ci-only-secret|e2e-production-secret/);
+    expect(envText).not.toContain('%E2%80%A2');
+    // Audit targets show names, not raw ids.
+    expect(await audit.textContent()).not.toMatch(RAW_USER_TARGET);
+    await page.goto('/admin');
+    await expect(page.getByText('Recent activity')).toBeVisible();
+    expect(await page.locator('main').textContent()).not.toMatch(RAW_USER_TARGET);
   });
 });

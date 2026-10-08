@@ -21,6 +21,14 @@ test.describe('admin shell', () => {
     }
   });
 
+  test('breadcrumbs show page labels, not ids', async ({ page }) => {
+    await login(page, E2E_ADMIN);
+    await page.goto('/admin/pages/home');
+    const crumbs = page.getByRole('navigation', { name: 'breadcrumb' });
+    await expect(crumbs).toContainText('Pages');
+    await expect(crumbs.locator('[data-slot="breadcrumb-page"]')).toHaveText('Home');
+  });
+
   test('admin sees every section in the sidebar', async ({ page }) => {
     await login(page, E2E_ADMIN);
     const nav = sidebar(page);

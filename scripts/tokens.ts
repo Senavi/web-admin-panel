@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { groupTokens, parseCustomProperties, resolveTokens } from '@/core/design/token-parse';
+import { buildCatalog, parseUtilityNames } from '@/core/design/token-classes';
 import { scanSource, TOKEN_RULE_HELP, type TokenViolation } from '@/core/design/token-scan';
 
 const ROOT = process.cwd();
@@ -41,8 +42,14 @@ function listFiles(dir: string): string[] {
 }
 
 function check(): void {
+  const tokensCss = fs.readFileSync(TOKENS_CSS, 'utf8');
+  const siteCss = fs.readFileSync(path.join(THEME_DIR, 'site.css'), 'utf8');
+  const catalog = buildCatalog(
+    parseCustomProperties(tokensCss),
+    parseUtilityNames(`${tokensCss}\n${siteCss}`),
+  );
   const violations: TokenViolation[] = SCAN_DIRS.flatMap(listFiles).flatMap((file) =>
-    scanSource(path.relative(ROOT, file), fs.readFileSync(file, 'utf8')),
+    scanSource(path.relative(ROOT, file), fs.readFileSync(file, 'utf8'), catalog),
   );
   const stale =
     !fs.existsSync(GENERATED) || fs.readFileSync(GENERATED, 'utf8') !== renderGenerated();

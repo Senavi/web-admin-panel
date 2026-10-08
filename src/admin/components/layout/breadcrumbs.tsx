@@ -15,11 +15,13 @@ import {
 } from '@/admin/ui/breadcrumb';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 
+const PAGES_SEGMENT = AdminRoute.Pages.slice(1);
+
 /**
- * Breadcrumbs derived from the URL. Screens can label dynamic segments (e.g. a
- * page id) by passing `labels`.
+ * Breadcrumbs derived from the URL. The segment after `pages` is a page id and
+ * is shown with its registry label (`pageLabels`).
  */
-export function Breadcrumbs({ labels = {} }: { labels?: Record<string, string> }) {
+export function Breadcrumbs({ pageLabels = {} }: { pageLabels?: Record<string, string> }) {
   const pathname = usePathname();
   const base = adminHref(AdminRoute.Overview);
   const segments = pathname.slice(base.length).split('/').filter(Boolean);
@@ -28,7 +30,10 @@ export function Breadcrumbs({ labels = {} }: { labels?: Record<string, string> }
     { href: base, label: 'Overview' },
     ...segments.map((segment, index) => ({
       href: `${base}/${segments.slice(0, index + 1).join('/')}`,
-      label: labels[segment] ?? SEGMENT_LABELS[segment] ?? decodeURIComponent(segment),
+      label:
+        (segments[index - 1] === PAGES_SEGMENT ? pageLabels[segment] : undefined) ??
+        SEGMENT_LABELS[segment] ??
+        decodeURIComponent(segment),
     })),
   ];
 

@@ -14,6 +14,9 @@ export const projectConfig = defineProjectConfig({
   adminPath: '/admin',
   // Public routes outside the content registry (e.g. '/legal', '/blog/:slug'). Others → 404.
   siteRoutes: [],
+  // Extra Content-Security-Policy sources for the public site (third-party scripts, embeds…).
+  // e.g. csp: { scriptSrc: ['https://www.googletagmanager.com'], frameSrc: ['https://www.youtube-nocookie.com'] },
+  csp: {},
   brand: {
     // Used for the browser UI theme color until one is set in Settings → Branding.
     themeColor: '#1d4ed8',

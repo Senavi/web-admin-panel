@@ -85,3 +85,31 @@ describe('branding assets', () => {
     expect(buildIco([]).length).toBe(6);
   });
 });
+
+describe('project CSP extension', () => {
+  it('rejects unsafe CSP sources in project config', async () => {
+    const { defineProjectConfig } = await import('@/core/project/define');
+    const base = {
+      name: 'x',
+      supportedLocales: [{ code: 'en', label: 'English' }],
+      defaultLocale: 'en',
+    } as const;
+    expect(() =>
+      defineProjectConfig({ ...base, csp: { frameSrc: ['https://www.youtube-nocookie.com'] } }),
+    ).not.toThrow();
+    expect(() =>
+      defineProjectConfig({ ...base, csp: { scriptSrc: ['https://a.com; script-src *'] } }),
+    ).toThrow(/invalid CSP source/);
+    expect(() =>
+      defineProjectConfig({ ...base, csp: { scriptSrc: ['https://a.com https://b.com'] } }),
+    ).toThrow(/invalid CSP source/);
+    expect(() => defineProjectConfig({ ...base, csp: { scriptSrc: ['*'] } })).toThrow();
+    expect(() => defineProjectConfig({ ...base, csp: { scriptSrc: ["'unsafe-eval'"] } })).toThrow(
+      /unsafe CSP source/,
+    );
+    expect(() => defineProjectConfig({ ...base, csp: { scriptSrc: ['https:'] } })).toThrow(
+      /unsafe CSP source/,
+    );
+    expect(() => defineProjectConfig({ ...base, csp: { imgSrc: ['data:'] } })).not.toThrow();
+  });
+});

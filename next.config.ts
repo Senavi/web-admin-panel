@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
       // Static pages: CSP without nonces. Admin pages get a nonce CSP from the proxy.
       {
         source: `/((?!${admin}(?:/|$)|_next/static|_next/image).*)`,
-        headers: [{ key: CSP_HEADER, value: staticPageCsp() }],
+        headers: [{ key: CSP_HEADER, value: staticPageCsp(projectConfig.csp) }],
       },
     ];
   },

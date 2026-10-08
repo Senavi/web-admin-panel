@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { migrationDecision } from '@/core/db/deploy-context';
 import { parseEnv, resolveStorageDriver, StorageDriver } from '@/core/env-schema';
 
 const PROD_BASE = {
@@ -44,5 +45,22 @@ describe('env schema', () => {
     expect(() => parseEnv({ NODE_ENV: 'development', AUTH_SECRET: 'short' })).toThrowError(
       /AUTH_SECRET/,
     );
+  });
+});
+
+describe('deploy migrations', () => {
+  it('migrate only in production deploys or isolated previews', () => {
+    expect(migrationDecision({}).migrate).toBe(true);
+    expect(migrationDecision({ VERCEL_ENV: 'production' }).migrate).toBe(true);
+    expect(migrationDecision({ VERCEL_ENV: 'preview' }).migrate).toBe(false);
+    expect(migrationDecision({ NETLIFY: 'true', CONTEXT: 'production' }).migrate).toBe(true);
+    expect(migrationDecision({ NETLIFY: 'true', CONTEXT: 'deploy-preview' }).migrate).toBe(false);
+    expect(
+      migrationDecision({
+        NETLIFY: 'true',
+        CONTEXT: 'branch-deploy',
+        PREVIEW_DATABASE_ISOLATED: 'true',
+      }).migrate,
+    ).toBe(true);
   });
 });

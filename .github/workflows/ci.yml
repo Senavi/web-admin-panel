@@ -9,19 +9,15 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
-
 jobs:
   checks:
     name: Typecheck, lint, unit, content and token checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-      - run: corepack enable pnpm
+      # Installs the pnpm version from package.json#packageManager before setup-node
+      # (setup-node's pnpm cache needs pnpm on PATH).
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -60,10 +56,9 @@ jobs:
       E2E_BASE_URL: http://localhost:3100
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-      - run: corepack enable pnpm
+      # Installs the pnpm version from package.json#packageManager before setup-node
+      # (setup-node's pnpm cache needs pnpm on PATH).
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

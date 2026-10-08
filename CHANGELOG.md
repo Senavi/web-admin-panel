@@ -6,6 +6,24 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- CI: install pnpm (`pnpm/action-setup`) before `setup-node` caches the pnpm store.
+- `pnpm typecheck` works on a fresh clone (`next typegen` before `tsc`).
+- Private/maintenance mode fails closed: public pages return 503 when the site state is
+  unknown instead of being served (D-057).
+- Deploy builds migrate only in production contexts; previews need
+  `PREVIEW_DATABASE_ISOLATED=true` and their own database (D-058).
+- Admin: masked database URLs show `****` instead of `%E2%80%A2`; Recent activity and the
+  audit log show user names and page labels instead of ids; breadcrumbs show page labels.
+- CLAUDE.md no longer includes the Next.js agent notes twice.
+
+### Added
+
+- `projectConfig.csp`: validated third-party sources for the site CSP (D-059).
+- `tokens:check` fails on classes without a matching token, e.g. `text-sm`, `shadow-xl`
+  (D-060).
+
 ## [1.0.0] - 2026-10-08
 
 ### Added

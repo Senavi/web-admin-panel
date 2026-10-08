@@ -28,6 +28,12 @@ export interface ProjectConfigInput<TLocale extends string = string> {
    */
   readonly siteRoutes?: readonly string[];
   /**
+   * Extra sources for the public site's Content-Security-Policy (third-party
+   * analytics, video embeds, maps, form widgets…). The admin CSP is not affected.
+   * Example: `{ scriptSrc: ['https://www.googletagmanager.com'], frameSrc: ['https://www.youtube-nocookie.com'] }`.
+   */
+  readonly csp?: SiteCspSources;
+  /**
    * Extension point: called (server-side) after an admin creates a user or resets
    * a password, e.g. to email an invite. Without it the temporary password is
    * only shown once in the admin.
@@ -41,6 +47,17 @@ export interface ProjectConfigInput<TLocale extends string = string> {
   };
 }
 
+export interface SiteCspSources {
+  readonly scriptSrc?: readonly string[];
+  readonly styleSrc?: readonly string[];
+  readonly imgSrc?: readonly string[];
+  readonly fontSrc?: readonly string[];
+  readonly connectSrc?: readonly string[];
+  readonly frameSrc?: readonly string[];
+  readonly mediaSrc?: readonly string[];
+  readonly formAction?: readonly string[];
+}
+
 export interface UserInvite {
   readonly email: string;
   readonly name: string;
@@ -50,9 +67,10 @@ export interface UserInvite {
 }
 
 export interface ProjectConfig<TLocale extends string = string> extends Required<
-  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited'>
+  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited' | 'csp'>
 > {
   readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
+  readonly csp: SiteCspSources;
   readonly brand: { readonly themeColor: string; readonly backgroundColor: string };
   readonly localeCodes: readonly TLocale[];
 }
@@ -89,10 +107,38 @@ export function defineProjectConfig<const TLocale extends string>(
     adminPath,
     siteRoutes: input.siteRoutes ?? [],
     onUserInvited: input.onUserInvited,
+    csp: validateCsp(input.csp ?? {}),
     brand: {
       themeColor: input.brand?.themeColor ?? DEFAULT_THEME_COLOR,
       backgroundColor: input.brand?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
     },
     localeCodes,
   };
+}
+
+/** CSP sources: origins (`https://example.com`, `https://*.example.com`), schemes (`data:`) or quoted keywords. */
+const CSP_SOURCE =
+  /^(?:'[a-z0-9-]+'|[a-z][a-z0-9+.-]*:|(?:https?|wss?):\/\/(?:\*\.)?[a-z0-9.-]+(?::\d+)?(?:\/[^\s;,']*)?)$/i;
+
+/** Sources that would defeat the CSP: eval, and scheme-wide script origins (`https:`, `data:`). */
+const UNSAFE_CSP_KEYWORDS = new Set(["'unsafe-eval'", "'unsafe-hashes'"]);
+const SCHEME_SOURCE = /^[a-z][a-z0-9+.-]*:$/i;
+
+function validateCsp(csp: SiteCspSources): SiteCspSources {
+  for (const [directive, sources] of Object.entries(csp) as Array<
+    [string, readonly string[] | undefined]
+  >) {
+    for (const source of sources ?? []) {
+      if (!CSP_SOURCE.test(source)) {
+        throw new Error(`project.config: invalid CSP source "${source}" in csp.${directive}.`);
+      }
+      const unsafe =
+        UNSAFE_CSP_KEYWORDS.has(source.toLowerCase()) ||
+        (directive === 'scriptSrc' && SCHEME_SOURCE.test(source));
+      if (unsafe) {
+        throw new Error(`project.config: unsafe CSP source "${source}" in csp.${directive}.`);
+      }
+    }
+  }
+  return csp;
 }

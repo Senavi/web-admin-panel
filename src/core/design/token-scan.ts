@@ -1,3 +1,5 @@
+import { classTokens, type TokenCatalog, unknownTokenReason } from './token-classes';
+
 /**
  * Rules behind `pnpm tokens:check`: site components must use semantic tokens
  * and text-style utilities from `src/site/theme`, never raw visual values.
@@ -17,6 +19,7 @@ export const TokenRule = {
   TypographyValue: 'raw-typography-value',
   InlineStyle: 'inline-visual-style',
   PrimitiveColor: 'primitive-color-class',
+  UnknownToken: 'unknown-token-class',
 } as const;
 export type TokenRule = (typeof TokenRule)[keyof typeof TokenRule];
 
@@ -31,6 +34,8 @@ export const TOKEN_RULE_HELP: Record<TokenRule, string> = {
     'Inline styles may only set CSS custom properties (e.g. style={{ "--accent": value }}).',
   [TokenRule.PrimitiveColor]:
     'Components use semantic colors only (primary, surface…), not palette primitives.',
+  [TokenRule.UnknownToken]:
+    'This class has no matching token in src/site/theme (Tailwind defaults are reset). Use an existing token or add one.',
 };
 
 const COLOR_LITERAL =
@@ -46,7 +51,7 @@ const STYLE_PROPERTY = /(?:^|,)\s*(['"]?)([\w-]+)\1\s*:/g;
 const PRIMITIVE_CLASS =
   /\b(?:text|bg|border|ring|fill|stroke|from|via|to|outline|decoration|divide|placeholder|caret|accent|shadow)-(?:brand|neutral|green|amber|red|white|black|slate|gray|zinc|stone|orange|yellow|lime|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)(?:-\d{2,3})?\b/;
 
-export function scanSource(file: string, source: string): TokenViolation[] {
+export function scanSource(file: string, source: string, catalog?: TokenCatalog): TokenViolation[] {
   const violations: TokenViolation[] = [];
   const isCss = file.endsWith('.css');
   const lines = source.split('\n');
@@ -64,6 +69,15 @@ export function scanSource(file: string, source: string): TokenViolation[] {
       push(TokenRule.TypographyValue);
     if (!isCss && PRIMITIVE_CLASS.test(text)) push(TokenRule.PrimitiveColor);
   });
+
+  if (!isCss && catalog) {
+    for (const { token, index } of classTokens(source)) {
+      const reason = unknownTokenReason(token, catalog);
+      if (!reason) continue;
+      const line = source.slice(0, index).split('\n').length;
+      violations.push({ file, line, rule: TokenRule.UnknownToken, excerpt: `${token}: ${reason}` });
+    }
+  }
 
   if (!isCss) {
     for (const match of source.matchAll(INLINE_STYLE)) {

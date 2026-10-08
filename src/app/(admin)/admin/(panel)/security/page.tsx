@@ -22,6 +22,7 @@ import { DbMode } from '@/core/db/types';
 import { isProduction } from '@/core/env';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 import { envStatus } from '@/core/security/env-catalog';
+import { describeAuditTargets } from '@/core/security/audit-targets';
 import { checkDatabase, checkStorage } from '@/core/security/health';
 
 export const metadata: Metadata = { title: 'Security' };
@@ -79,6 +80,11 @@ export default async function SecurityPage({ searchParams }: PageProps<'/admin/s
       .limit(PAGE_SIZE + 1)
       .offset((page - 1) * PAGE_SIZE),
   ]);
+
+  const targetLabels = await describeAuditTargets(
+    db,
+    auditRows.map((row) => row.target),
+  );
 
   return (
     <>
@@ -186,7 +192,7 @@ export default async function SecurityPage({ searchParams }: PageProps<'/admin/s
             ts: row.ts.toISOString(),
             action: row.action,
             actorEmail: row.actorEmail,
-            target: row.target,
+            target: row.target ? (targetLabels.get(row.target) ?? row.target) : null,
             summary: row.summary ? JSON.stringify(row.summary) : null,
           }))}
           group={group}

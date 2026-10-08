@@ -31,6 +31,9 @@ summarized in CLAUDE.md.
   session version must match the published staff list. Forged, expired, outdated (password
   changed, disabled, role changed) cookies are rejected.
 - The internal `/api/site-state` endpoint requires an HMAC key derived from `AUTH_SECRET`.
+- **Fails closed:** if the proxy cannot load the site state (cold instance, database down)
+  and has no last-known state, public pages return `503` with `Retry-After` instead of
+  being served. Private or maintenance mode can never be skipped by an outage.
 
 ## Input & content
 
@@ -61,6 +64,8 @@ CSP: static site pages `default-src 'self'`, `script-src 'self' 'unsafe-inline'`
 inline runtime; no nonces are possible on static pages), `object-src 'none'`,
 `frame-ancestors 'none'`, `base-uri`/`form-action 'self'`, `upgrade-insecure-requests`.
 Admin: per-request nonce with `'strict-dynamic'`. An e2e test fails on CSP violations.
+Projects add third-party sources to the **site** CSP only, via `projectConfig.csp`
+(validated; see CUSTOMIZING.md).
 
 Admin responses: `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`.
 

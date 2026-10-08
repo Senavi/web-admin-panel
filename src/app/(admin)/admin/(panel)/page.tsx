@@ -14,6 +14,7 @@ import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
 import { getDb, getDbInfo } from '@/core/db/client';
 import { auditLog } from '@/core/db/schema';
+import { describeAuditTargets } from '@/core/security/audit-targets';
 import { readSiteSettings } from '@/core/settings/repository';
 
 export const metadata: Metadata = { title: 'Overview' };
@@ -32,6 +33,10 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
     db.select().from(auditLog).orderBy(desc(auditLog.ts)).limit(RECENT_ACTIVITY),
   ]);
   const { current, previous, breakdowns } = overview;
+  const targetLabels = await describeAuditTargets(
+    db,
+    activity.map((row) => row.target),
+  );
 
   return (
     <>
@@ -68,7 +73,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
             ts: row.ts.toISOString(),
             action: row.action,
             actorEmail: row.actorEmail,
-            target: row.target,
+            target: row.target ? (targetLabels.get(row.target) ?? row.target) : null,
           }))}
         />
       </section>

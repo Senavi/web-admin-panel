@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { projectConfig } from '@project/config';
 
 import { hasSessionCookie } from '@/core/auth/cookies';
 import { can } from '@/core/auth/permissions';
@@ -33,6 +34,7 @@ const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const UNGATED_PREFIXES = ['/api/', ACCESS_PATH];
 /** Marks the proxy's internal subrequests (value: the HMAC site-state key). */
 const INTERNAL_HEADER = 'x-site-internal';
+const UNKNOWN_STATE_RETRY_AFTER_SECONDS = 30;
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
@@ -65,6 +67,8 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
   if (request.headers.get(INTERNAL_HEADER) === (await siteStateKey()))
     return next(request, pathname);
   const state = await getSiteState(origin);
+  // Unknown site state (cold instance, state endpoint unreachable): fail closed.
+  if (!state) return unavailableResponse();
   const staff = await isStaffToken(
     getAuthSecret(),
     request.cookies.get(GATE_COOKIE_NAME)?.value,
@@ -138,6 +142,19 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
   return withSiteHeaders(response, state, request, staff);
 }
 
+/** 503 when the site state can't be determined (never serve possibly-private content). */
+function unavailableResponse(): NextResponse {
+  return new NextResponse('Service temporarily unavailable. Please try again shortly.', {
+    status: 503,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Retry-After': String(UNKNOWN_STATE_RETRY_AFTER_SECONDS),
+      [HeaderName.CacheControl]: NO_STORE,
+      [HeaderName.RobotsTag]: ROBOTS_NOINDEX,
+    },
+  });
+}
+
 /**
  * Serves an internal page (maintenance, 404, admin "not allowed") with a specific status.
  * In production Next.js ignores the status of a rewrite to a static page, so
@@ -159,7 +176,7 @@ async function staticPageResponse(
       headers: {
         'Content-Type': page.headers.get('content-type') ?? 'text/html; charset=utf-8',
         [HeaderName.CacheControl]: NO_STORE,
-        [CSP_HEADER]: page.headers.get(CSP_HEADER) ?? staticPageCsp(),
+        [CSP_HEADER]: page.headers.get(CSP_HEADER) ?? staticPageCsp(projectConfig.csp),
       },
     });
   } catch {
@@ -227,7 +244,8 @@ async function isForbiddenAdminPath(request: NextRequest, pathname: string): Pro
   if (!token) return false;
   // Only trust the role if the token is still current (role changes bump the session version).
   const state = await getSiteState(request.nextUrl.origin);
-  return state.staff[token.uid] === token.v && !can(token.role, permission);
+  // Without state, leave the decision to the server-side page guard.
+  return state !== null && state.staff[token.uid] === token.v && !can(token.role, permission);
 }
 
 function next(request: NextRequest, pathname: string): NextResponse {

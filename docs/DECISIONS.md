@@ -380,3 +380,41 @@ falls back to the body font); projects can add a heading font in `fonts.ts`.
 `pnpm check:bundles` reads the prerendered site HTML, follows every referenced chunk and
 fails if admin-only code (Tiptap, Recharts, react-hook-form, Base UI, Better Auth, Drizzle,
 admin modules) appears. It runs in CI.
+
+## Post-1.0 review
+
+### D-057 Site state fails closed
+
+The proxy has no database access and reads `/api/site-state`. If that request fails (cold
+instance, database outage) and no last-known state is cached, public pages return `503`
+with `Retry-After: 30`. The old fallback (default state = public) could expose a private
+or maintenance-mode site during an outage. Staff checks in the admin also require a known
+state. A successful state is cached for `SITE_STATE_TTL_MS` (3 s); after that the
+last-known state is reused if a refresh fails.
+
+### D-058 Migrations run only for production deploys
+
+`pnpm db:migrate:deploy` (used by `vercel.json` and `netlify.toml`) migrates outside
+Vercel/Netlify and on production contexts (`VERCEL_ENV=production`, Netlify
+`CONTEXT=production`). Preview deploys skip migrations unless
+`PREVIEW_DATABASE_ISOLATED=true` says they have their own database, so an unmerged
+branch can never change the production schema.
+
+### D-059 Project CSP sources live in `project.config.ts`
+
+Third-party embeds and scripts need CSP sources, but `src/core/security/headers.ts` is
+core. `projectConfig.csp` adds sources to the site CSP only (never the admin), and they
+are validated at startup: no `*`, eval keywords or scheme-wide script sources.
+
+### D-060 `tokens:check` rejects classes without a token
+
+Tailwind's default theme is reset, so `text-sm` or `shadow-xl` compile to nothing and fail
+silently. The check builds a catalog from `tokens.css` theme variables and `@utility`
+blocks and flags color, shadow, radius, font, container, aspect, easing and spacing
+classes with no matching token, plus all `leading-*`/`tracking-*` (text styles own them).
+
+### D-061 `typecheck` runs `next typegen` first
+
+`tsc` needs Next's generated route types (`PageProps`, `LayoutProps`), which normally only
+exist after `next dev`/`next build`. `pnpm typecheck` runs `next typegen && tsc --noEmit`
+so it works on a fresh clone and in CI.

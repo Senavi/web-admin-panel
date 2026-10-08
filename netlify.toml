@@ -1,6 +1,7 @@
 # Netlify: the Next.js runtime is detected automatically (OpenNext adapter).
 [build]
-  command = "pnpm db:migrate && pnpm build"
+  # Migrations run only for production deploys (see docs/DEPLOYMENT.md § Preview deploys).
+  command = "pnpm db:migrate:deploy && pnpm build"
   publish = ".next"
 
 [functions]

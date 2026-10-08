@@ -89,7 +89,11 @@ Not allowed in `src/site/**` (outside `src/site/theme/`) or `src/app/(site)/**`:
 - arbitrary Tailwind values (`text-[17px]`, `bg-[#123456]`, `p-[13px]`, `[&>p]:…`);
 - inline `style` with visual properties. Only CSS custom properties are allowed, for values
   that come from content: `style={{ '--person-accent': person.accent }}`;
-- palette primitives in classes (`text-brand-500`, `bg-white`, `bg-blue-600`).
+- palette primitives in classes (`text-brand-500`, `bg-white`, `bg-blue-600`);
+- classes without a matching token (`text-sm`, `shadow-xl`, `rounded-3xl`, `max-w-8xl`,
+  `p-gutter-wide`, `leading-*`, `tracking-*`). Tailwind's defaults are reset, so these would
+  silently produce no CSS. The check reads the token names from `tokens.css` and the
+  `@utility` blocks in `tokens.css`/`site.css`.
 
 `tokens:check` also fails when `tokens.generated.ts` is stale.
 

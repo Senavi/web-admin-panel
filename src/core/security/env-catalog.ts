@@ -76,6 +76,12 @@ export const ENV_CATALOG: readonly EnvVariable[] = [
     secret: true,
   },
   {
+    name: 'PREVIEW_DATABASE_ISOLATED',
+    description: '`true` lets preview deploys migrate their own (non-production) database.',
+    requirement: 'optional',
+    secret: false,
+  },
+  {
     name: 'SEED_ADMIN_EMAIL',
     description: 'Development only: initial admin email.',
     requirement: 'development',
@@ -94,8 +100,9 @@ export function maskEnvValue(value: string, secret: boolean): string {
   try {
     const url = new URL(value);
     if (url.password || url.username) {
-      url.password = url.password ? '••••' : '';
-      url.username = url.username ? '••••' : '';
+      // ASCII only: URL serialization would percent-encode bullets (%E2%80%A2).
+      url.password = url.password ? '****' : '';
+      url.username = url.username ? '****' : '';
       return url.toString();
     }
     if (!secret) return value;

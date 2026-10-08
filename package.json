@@ -13,7 +13,7 @@
     "dev": "tsx --conditions=react-server scripts/dev.ts",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -33,7 +33,8 @@
     "dev:next": "next dev",
     "db:serve": "tsx --conditions=react-server scripts/db-serve.ts",
     "e2e:prod": "tsx scripts/e2e-prod.ts",
-    "check:bundles": "tsx scripts/check-bundles.ts"
+    "check:bundles": "tsx scripts/check-bundles.ts",
+    "db:migrate:deploy": "tsx scripts/db-migrate-deploy.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -87,6 +87,7 @@ data to Supabase with **Security → Connect Supabase**.
 | ---------------------------------------------------- | -------------------------------------------------------------------- |
 | Project name, locales, admin URL, non-content routes | `project.config.ts`                                                  |
 | Invite / password-reset emails                       | `projectConfig.onUserInvited`                                        |
+| Third-party scripts, embeds, fonts (CSP sources)     | `projectConfig.csp`                                                  |
 | Pages, fields, seed content                          | `src/content/**`                                                     |
 | New field type                                       | docs/CONTENT_SCHEMA.md § Adding a field type (core change, upstream) |
 | Custom JSON-LD per page                              | `definePage({ structuredData })`                                     |
@@ -95,6 +96,26 @@ data to Supabase with **Security → Connect Supabase**.
 | Maintenance page                                     | `src/site/maintenance/index.tsx`                                     |
 | Default OG image                                     | `src/site/theme/og-image.tsx`                                        |
 | UI strings                                           | `src/site/messages/*.json`                                           |
+
+### Content Security Policy for third parties
+
+The site CSP allows only the site's own origin. To embed a map, a video or an analytics
+script, add its sources in `project.config.ts`; they are merged into the site CSP (the
+admin CSP is not affected):
+
+```ts
+csp: {
+  scriptSrc: ['https://plausible.io'],
+  connectSrc: ['https://plausible.io'],
+  frameSrc: ['https://www.youtube-nocookie.com', 'https://www.google.com'],
+},
+```
+
+Directives: `scriptSrc`, `styleSrc`, `imgSrc`, `fontSrc`, `connectSrc`, `frameSrc`,
+`mediaSrc`, `formAction`. Sources are validated at startup (origins like
+`https://*.example.com`, schemes like `data:`, quoted keywords). A bare `*`,
+`'unsafe-eval'`, `'unsafe-hashes'`, scheme-wide script sources (`https:`, `data:` in
+`scriptSrc`) and malformed values fail at startup with a clear error.
 
 ## Pulling template updates
 

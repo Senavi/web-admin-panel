@@ -60,7 +60,9 @@ describe('env masking', () => {
   it('never reveals full secrets or URL credentials', () => {
     expect(maskEnvValue('super-secret-value-1234', true)).toBe('••••1234');
     expect(maskEnvValue('short', true)).toBe('••••');
-    expect(maskEnvValue('postgres://user:pw@db.example.com:5432/x', true)).not.toContain('pw');
+    expect(maskEnvValue('postgres://user:pw@db.example.com:5432/x', true)).toBe(
+      'postgres://****:****@db.example.com:5432/x',
+    );
     expect(maskEnvValue('https://example.com', false)).toBe('https://example.com');
   });
 });

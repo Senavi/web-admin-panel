@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
+import { buildCatalog, parseUtilityNames, unknownTokenReason } from '@/core/design/token-classes';
 import { groupTokens, parseCustomProperties, resolveTokens } from '@/core/design/token-parse';
 import { scanSource, TokenRule } from '@/core/design/token-scan';
 
@@ -74,5 +75,62 @@ describe('token parsing', () => {
       resolveTokens(parseCustomProperties(fs.readFileSync('src/site/theme/tokens.css', 'utf8'))),
     );
     expect(generated).toContain(JSON.stringify(tokens, null, 2));
+  });
+});
+
+describe('tokens:check unknown token utilities', () => {
+  const css = fs.readFileSync('src/site/theme/tokens.css', 'utf8');
+  const catalog = buildCatalog(parseCustomProperties(css), parseUtilityNames(css));
+  const reason = (cls: string) => unknownTokenReason(cls, catalog);
+
+  it('flags utilities whose default Tailwind token was reset', () => {
+    for (const cls of [
+      'text-sm',
+      'shadow-xl',
+      'font-bold',
+      'leading-tight',
+      'tracking-wide',
+      'rounded',
+      'rounded-2xl',
+      'max-w-7xl',
+      'py-hero',
+      'bg-sky',
+      'md:text-lg',
+    ]) {
+      expect(reason(cls), cls).not.toBeNull();
+    }
+  });
+
+  it('accepts project tokens, keywords and the spacing scale', () => {
+    for (const cls of [
+      'text-h1',
+      'text-foreground',
+      'text-center',
+      'bg-primary',
+      'hover:bg-primary-hover',
+      'border-border',
+      'border-thin',
+      'shadow-md',
+      'rounded-lg',
+      'font-heading',
+      'max-w-prose',
+      'px-gutter',
+      'py-section',
+      'gap-x-6',
+      'inset-x-0',
+      'w-full',
+      'size-11',
+      'aspect-hero',
+      'ease-standard',
+      'z-header',
+      'bg-overlay/50',
+    ]) {
+      expect(reason(cls), cls).toBeNull();
+    }
+  });
+
+  it('scans class strings in components', () => {
+    const violations = scanSource('src/site/x.tsx', '<p className="text-body text-sm" />', catalog);
+    expect(violations.map((violation) => violation.rule)).toEqual([TokenRule.UnknownToken]);
   });
 });

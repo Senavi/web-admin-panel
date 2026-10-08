@@ -6,5 +6,5 @@
       "schedule": "17 3 * * *"
     }
   ],
-  "buildCommand": "pnpm db:migrate && pnpm build"
+  "buildCommand": "pnpm db:migrate:deploy && pnpm build"
 }
