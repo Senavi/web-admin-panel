@@ -30,35 +30,63 @@ import {
   twoFactorCodeSchema,
 } from './validation';
 
-export type LoginStep = { readonly step: 'two-factor' };
+export interface LoginState {
+  readonly step: 'password' | 'two-factor';
+  readonly error: string | null;
+  /** Echoed back so the email field keeps its value after an error. */
+  readonly email: string;
+  /** Incremented on every response (resets the code input after a failed attempt). */
+  readonly attempt: number;
+}
 
 const defaultAfterLogin = () => adminHref(AdminRoute.Overview);
 
-export async function loginAction(input: unknown): Promise<ActionResult<LoginStep>> {
-  const parsed = loginSchema.safeParse(input);
-  if (!parsed.success) return fail('Invalid email or password.', ActionErrorCode.Validation);
+/**
+ * Login form action (works without JavaScript via `useActionState`):
+ * `intent=password` checks email + password, `intent=two-factor` verifies a TOTP
+ * or backup code. Redirects to `next` on success.
+ */
+export async function loginFormAction(
+  previous: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
+  const intent = formData.get('intent');
+  const next = formData.get('next');
+  const attempt = previous.attempt + 1;
+
+  if (intent === 'two-factor') {
+    const parsed = twoFactorCodeSchema.safeParse({
+      code: formData.get('code'),
+      method: formData.get('method'),
+      next,
+    });
+    if (!parsed.success)
+      return { ...previous, attempt, step: 'two-factor', error: 'Invalid verification code.' };
+    const outcome = await verifySecondFactor(parsed.data.code, parsed.data.method);
+    if (outcome.status !== 'success') {
+      return {
+        ...previous,
+        attempt,
+        step: 'two-factor',
+        error: outcome.status === 'error' ? outcome.message : 'Invalid code.',
+      };
+    }
+    redirect(safeRedirectPath(parsed.data.next, defaultAfterLogin()));
+  }
+
+  const email = typeof formData.get('email') === 'string' ? String(formData.get('email')) : '';
+  const parsed = loginSchema.safeParse({ email, password: formData.get('password'), next });
+  if (!parsed.success)
+    return { step: 'password', error: 'Invalid email or password.', email, attempt };
   const outcome = await signInWithPassword(parsed.data.email, parsed.data.password);
   switch (outcome.status) {
     case 'error':
-      return fail(outcome.message, ActionErrorCode.Unauthorized);
+      return { step: 'password', error: outcome.message, email, attempt };
     case 'two-factor':
-      return ok({ step: 'two-factor' });
+      return { step: 'two-factor', error: null, email, attempt };
     case 'success':
       redirect(safeRedirectPath(parsed.data.next, defaultAfterLogin()));
   }
-}
-
-export async function verifyTwoFactorAction(input: unknown): Promise<ActionResult> {
-  const parsed = twoFactorCodeSchema.safeParse(input);
-  if (!parsed.success) return fail('Invalid verification code.', ActionErrorCode.Validation);
-  const outcome = await verifySecondFactor(parsed.data.code, parsed.data.method);
-  if (outcome.status !== 'success') {
-    return fail(
-      outcome.status === 'error' ? outcome.message : 'Invalid code.',
-      ActionErrorCode.Unauthorized,
-    );
-  }
-  redirect(safeRedirectPath(parsed.data.next, defaultAfterLogin()));
 }
 
 export async function signOutAction(): Promise<void> {

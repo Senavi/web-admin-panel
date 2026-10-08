@@ -41,7 +41,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
 
   if (enabled) {
     return (
-      <form onSubmit={onSubmit(disable.run)} noValidate>
+      <form method="post" onSubmit={onSubmit(disable.run)} noValidate>
         <FieldGroup>
           <div className="flex items-center gap-2">
             <Badge>On</Badge>
@@ -77,7 +77,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
 
   if (setup) {
     return (
-      <form onSubmit={onSubmit(confirm.run)} noValidate>
+      <form method="post" onSubmit={onSubmit(confirm.run)} noValidate>
         <FieldGroup>
           <p className="text-sm">
             1. Scan this QR code with an authenticator app (1Password, Google Authenticator,
@@ -126,7 +126,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
   }
 
   return (
-    <form onSubmit={onSubmit(start.run)} noValidate>
+    <form method="post" onSubmit={onSubmit(start.run)} noValidate>
       <FieldGroup>
         <div className="flex items-center gap-2">
           <Badge variant="secondary">Off</Badge>

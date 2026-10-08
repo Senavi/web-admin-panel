@@ -111,7 +111,7 @@ function listItemSchema(of: ListItemFields) {
 }
 
 /** Validator for a full page's content in one locale (shared + localized values merged). */
-export function pageContentSchema(page: AnyPage) {
+export function pageContentSchema(page: Pick<AnyPage, 'sections'>) {
   const sections: Record<string, z.ZodType> = {};
   for (const section of page.sections) {
     const shape: Record<string, z.ZodType> = {};

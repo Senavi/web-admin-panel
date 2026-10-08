@@ -198,3 +198,40 @@ demo images are abstract gradients generated with sharp, so there are no licensi
 The storage adapter (local `.data/uploads` served by `/api/media/[...key]`, or Supabase
 Storage) and the image ingest pipeline (magic bytes, sharp re-encode to WebP, metadata
 stripped, limits, blur placeholder) arrived with the content system because seeds need them.
+
+## Pages editor
+
+### D-031 react-hook-form + Zod schemas generated from the page
+
+The editor uses react-hook-form with `zodResolver` over the same `pageContentSchema` the
+server action validates with. Server-side field errors come back as `content.<section>.<field>`
+paths and are mapped onto the form.
+
+### D-032 List reordering with buttons, no drag-and-drop library
+
+Items move with "Move up / Move down" buttons (keyboard and screen-reader friendly, no
+extra dependency). A drag handle can be added later without changing the data model.
+
+### D-033 Tiptap limited to the allowed schema
+
+Tiptap's StarterKit is configured without blockquote, code, strike, underline and rules,
+with headings h2–h4, so editors cannot produce content the rich-text schema rejects
+(nested lists are still caught by validation).
+
+### D-034 Optimistic concurrency per row
+
+Shared values, localized values and SEO each carry a `version`. A save writes only the rows
+that changed and only if their version still matches what the editor loaded. Otherwise the
+transaction rolls back and the editor shows a conflict with a reload option.
+
+### D-035 Upload size limit of 4 MB
+
+Serverless request bodies are limited (Vercel ≈ 4.5 MB), so image uploads go through
+`/api/media` with a 4 MB cap. Larger uploads would need direct-to-storage signed URLs,
+which is a possible future extension.
+
+### D-036 Forms that never leak secrets in URLs
+
+The login form is a server-action form (`useActionState`), so it works before hydration
+and without JavaScript. Every other admin form sets `method="post"`, so a submit before
+hydration can't put passwords in the query string.

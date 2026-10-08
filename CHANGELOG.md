@@ -25,3 +25,8 @@ All notable changes to this template are documented here. The format follows
 - Demo site (Home, About, About → Team, Contact) in English and Ukrainian, locale routing
   in the proxy with first-visit language detection, storage adapters and image pipeline.
 - `pnpm dev` serves the local PGlite database to all Next.js worker processes.
+- Pages editor: searchable page tree with per-locale completeness, schema-generated forms for
+  every field type (Tiptap rich text, image upload with per-locale alt text, reorderable
+  lists), SEO tab with search preview and Open Graph fields, locale switch, revisions
+  (preview + restore), optimistic concurrency, unsaved-changes guard, tag revalidation.
+- Login form works without JavaScript (server action form).

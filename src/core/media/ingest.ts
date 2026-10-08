@@ -10,7 +10,8 @@ import { detectImageType, RASTER_IMAGE_TYPES } from './detect';
 
 /** Upload limits (docs/SECURITY.md § Uploads). */
 export const IMAGE_LIMITS = {
-  maxBytes: 10 * 1024 * 1024,
+  /** Serverless request bodies are limited (Vercel ~4.5 MB), so uploads are capped below that. */
+  maxBytes: 4 * 1024 * 1024,
   /** Decompression-bomb guard. */
   maxInputPixels: 40_000_000,
   /** Longest edge after re-encoding. */

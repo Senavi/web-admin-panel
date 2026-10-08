@@ -29,7 +29,7 @@ export function ChangePasswordForm({ redirectTo }: { redirectTo?: string }) {
   };
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form method="post" onSubmit={submit} noValidate>
       <FieldGroup>
         <TextField
           name="currentPassword"

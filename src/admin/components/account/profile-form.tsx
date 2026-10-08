@@ -16,7 +16,7 @@ export function ProfileForm({ name, email }: { name: string; email: string }) {
     void action.run(formToObject(event.currentTarget));
   };
   return (
-    <form onSubmit={submit} noValidate>
+    <form method="post" onSubmit={submit} noValidate>
       <FieldGroup>
         <TextField name="email" label="Email" value={email} readOnly disabled />
         <TextField
