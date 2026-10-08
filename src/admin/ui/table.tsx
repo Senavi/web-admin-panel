@@ -8,7 +8,7 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table
         data-slot="table"
-        className={cn('w-full caption-bottom text-sm', className)}
+        className={cn('text-sm w-full caption-bottom', className)}
         {...props}
       />
     </div>
@@ -33,7 +33,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
   return (
     <tfoot
       data-slot="table-footer"
-      className={cn('bg-muted/50 border-t font-medium [&>tr]:last:border-b-0', className)}
+      className={cn('bg-muted/50 font-medium border-t [&>tr]:last:border-b-0', className)}
       {...props}
     />
   );
@@ -57,7 +57,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+        'font-medium h-10 px-2 text-left align-middle whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0',
         className,
       )}
       {...props}
@@ -79,7 +79,7 @@ function TableCaption({ className, ...props }: React.ComponentProps<'caption'>) 
   return (
     <caption
       data-slot="table-caption"
-      className={cn('text-muted-foreground mt-4 text-sm', className)}
+      className={cn('text-sm mt-4 text-muted-foreground', className)}
       {...props}
     />
   );

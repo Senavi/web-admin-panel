@@ -17,3 +17,11 @@ All notable changes to this template are documented here. The format follows
 - Admin shell: shadcn sidebar (collapsible, sheet on mobile) filtered by role, header with
   breadcrumbs, status chips, View site, light/dark toggle and user menu, local database
   banner, admin 404, 2FA policy enforcement for admins.
+- Content system: typed `definePage` / `defineSection` / `f.*` builders, registry, Zod
+  validators, shared/localized storage with fallbacks, cached + tagged loaders,
+  `content:sync`, `content:check`, safe rich text renderer.
+- Design tokens: `tokens.css` (primitives → semantic → text styles), `fonts.ts`,
+  generated `tokens.generated.ts`, `tokens:check` scanner.
+- Demo site (Home, About, About → Team, Contact) in English and Ukrainian, locale routing
+  in the proxy with first-visit language detection, storage adapters and image pipeline.
+- `pnpm dev` serves the local PGlite database to all Next.js worker processes.

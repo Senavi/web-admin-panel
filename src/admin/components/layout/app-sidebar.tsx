@@ -35,12 +35,12 @@ export function AppSidebar({ role, siteName }: { role: Role; siteName: string })
               render={<Link href={adminHref(AdminRoute.Overview)} />}
               tooltip={siteName}
             >
-              <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold">
+              <span className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold flex size-8 shrink-0 items-center justify-center rounded-md">
                 {siteName.slice(0, 1).toUpperCase()}
               </span>
-              <span className="flex flex-col leading-tight">
-                <span className="truncate font-medium">{siteName}</span>
-                <span className="text-muted-foreground text-xs">Admin</span>
+              <span className="leading-tight flex flex-col">
+                <span className="font-medium truncate">{siteName}</span>
+                <span className="text-xs text-muted-foreground">Admin</span>
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>

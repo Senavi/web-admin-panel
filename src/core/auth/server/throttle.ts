@@ -84,7 +84,7 @@ export async function recordFailure(
       .onConflictDoUpdate({
         target: loginThrottle.key,
         set: {
-          failures: sql`case when ${loginThrottle.lastFailureAt} < ${resetBefore} then 1 else ${loginThrottle.failures} + 1 end`,
+          failures: sql`case when ${loginThrottle.lastFailureAt} < ${resetBefore.toISOString()}::timestamptz then 1 else ${loginThrottle.failures} + 1 end`,
           lastFailureAt: now,
         },
       })

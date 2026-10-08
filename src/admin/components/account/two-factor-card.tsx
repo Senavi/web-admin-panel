@@ -45,7 +45,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
         <FieldGroup>
           <div className="flex items-center gap-2">
             <Badge>On</Badge>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               Sign-in requires a code from your authenticator app.
             </span>
           </div>
@@ -84,13 +84,13 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
             Authy…).
           </p>
           <div
-            className="w-44 rounded-md bg-white p-2"
+            className="bg-white w-44 rounded-md p-2"
             aria-label="Two-factor QR code"
             role="img"
             // SVG generated server-side by the `qrcode` library from the TOTP URI.
             dangerouslySetInnerHTML={{ __html: setup.qrSvg }}
           />
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             Can’t scan it? Enter this key manually:{' '}
             <code className="font-mono break-all" data-testid="totp-secret">
               {new URL(setup.secretUri).searchParams.get('secret')}
@@ -99,7 +99,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
           <p className="text-sm">
             2. Store these backup codes somewhere safe. Each code works once.
           </p>
-          <ul className="grid grid-cols-2 gap-1 rounded-md border p-3 font-mono text-sm">
+          <ul className="text-sm grid grid-cols-2 gap-1 rounded-md border p-3 font-mono">
             {setup.backupCodes.map((code) => (
               <li key={code}>{code}</li>
             ))}

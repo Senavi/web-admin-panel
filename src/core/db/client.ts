@@ -27,6 +27,15 @@ async function connect(): Promise<Database> {
     throw new Error('DATABASE_URL is required in production. PGlite only runs in development.');
   }
 
+  // `pnpm dev` owns the PGlite database and serves it to every Next.js worker process.
+  const { findLocalServerUrl } = await import('./drivers/local-server-info');
+  const localUrl = findLocalServerUrl();
+  if (localUrl) {
+    const { openPostgres } = await import('./drivers/postgres');
+    return openPostgres(localUrl, { max: 3 }).db;
+  }
+
+  // Single-process fallback (e.g. `next dev` started directly): open PGlite in-process.
   const { openPglite } = await import('./drivers/pglite');
   const { db } = await openPglite();
   await runSeed(db, { seedDevAdmin: true });

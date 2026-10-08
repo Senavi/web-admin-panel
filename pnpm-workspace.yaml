@@ -1,5 +1,8 @@
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+  # Optional native build steps of next-intl's tooling; prebuilt binaries are used.
+  '@parcel/watcher': false
+  '@swc/core': false
 minimumReleaseAgeExclude:
   - drizzle-orm@0.45.4

@@ -17,4 +17,9 @@ export const DATA_DIR = path.resolve(
 );
 export const PGLITE_DIR = path.join(DATA_DIR, 'pglite');
 export const PGLITE_LOCK_FILE = path.join(DATA_DIR, 'pglite.lock');
+/** Written by `pnpm dev` while it serves PGlite to Next.js workers and CLI scripts. */
+export const PGLITE_SERVER_FILE = path.join(DATA_DIR, 'pglite-server.json');
 export const MIGRATIONS_DIR = path.join(/*turbopackIgnore: true*/ ROOT, 'src/core/db/migrations');
+
+/** Project convention: seed images referenced by page seeds (`{ asset: 'hero.webp' }`). */
+export const SEED_ASSETS_DIR = path.join(/*turbopackIgnore: true*/ ROOT, 'src/content/seed/assets');

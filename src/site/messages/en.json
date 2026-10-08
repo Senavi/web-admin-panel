@@ -1,0 +1,30 @@
+{
+  "common": {
+    "skipToContent": "Skip to content",
+    "menu": "Menu",
+    "mainNavigation": "Main navigation",
+    "language": "Language",
+    "home": "Home"
+  },
+  "nav": {
+    "about": "About",
+    "team": "Team",
+    "contact": "Contact"
+  },
+  "footer": {
+    "rights": "All rights reserved.",
+    "demoNotice": "Demo site of the Next.js site starter."
+  },
+  "contact": {
+    "detailsTitle": "Contact details",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "hours": "Opening hours"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you are looking for doesn’t exist or has been moved.",
+    "back": "Back to the home page"
+  }
+}

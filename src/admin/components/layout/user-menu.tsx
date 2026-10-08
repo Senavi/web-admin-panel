@@ -47,8 +47,8 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
           <DropdownMenuLabel>
             <div className="flex flex-col">
               <span className="truncate">{name}</span>
-              <span className="text-muted-foreground truncate text-xs font-normal">{email}</span>
-              <span className="text-muted-foreground text-xs font-normal">{ROLE_LABELS[role]}</span>
+              <span className="text-xs font-normal truncate text-muted-foreground">{email}</span>
+              <span className="text-xs font-normal text-muted-foreground">{ROLE_LABELS[role]}</span>
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>

@@ -290,7 +290,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        'bg-background relative flex w-full flex-1 flex-col md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
+        'relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
         className,
       )}
       {...props}
@@ -303,7 +303,7 @@ function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input
     <Input
       data-slot="sidebar-input"
       data-sidebar="input"
-      className={cn('bg-background h-8 w-full shadow-none', className)}
+      className={cn('h-8 w-full bg-background shadow-none', className)}
       {...props}
     />
   );
@@ -420,7 +420,7 @@ function SidebarGroupContent({ className, ...props }: React.ComponentProps<'div'
     <div
       data-slot="sidebar-group-content"
       data-sidebar="group-content"
-      className={cn('w-full text-sm', className)}
+      className={cn('text-sm w-full', className)}
       {...props}
     />
   );
@@ -560,7 +560,7 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>) 
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(
-        'text-sidebar-foreground peer-hover/menu-button:text-sidebar-accent-foreground peer-data-active/menu-button:text-sidebar-accent-foreground pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums select-none group-data-[collapsible=icon]:hidden peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1',
+        'text-sidebar-foreground peer-hover/menu-button:text-sidebar-accent-foreground peer-data-active/menu-button:text-sidebar-accent-foreground text-xs font-medium pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 tabular-nums select-none group-data-[collapsible=icon]:hidden peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1',
         className,
       )}
       {...props}

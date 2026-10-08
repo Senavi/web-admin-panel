@@ -148,3 +148,53 @@ not-found UI. Admin isn't a candidate for static shells anyway.
 `eslint-plugin-import`'s `import/order` crashes on ESLint 10 (`getTokenOrCommentBefore`).
 Import grouping stays a convention (builtin → external → `@project` / `@/` → relative).
 **Revisit** when the plugin supports ESLint 10.
+
+## Content, site and tokens
+
+### D-024 `pnpm dev` owns PGlite and serves it to Next.js workers
+
+Next.js 16 runs `'use cache'` functions and `generateStaticParams` in separate worker
+processes, but PGlite is single-process. `scripts/dev.ts` opens `.data/pglite`, migrates,
+seeds and serves it on 127.0.0.1 over the Postgres protocol (pglite-socket). `next dev`
+receives `PGLITE_SERVER_URL` and every worker uses postgres-js. pglite-socket's own queue
+isolates only transactions, so our `SessionQueue` locks the database to one connection
+until its extended-protocol pipeline ends (`Sync`/`Query`). Covered by a concurrency test.
+CLI scripts reuse the running server via `.data/pglite-server.json`. `pnpm db:serve`
+exposes the same database for local production builds.
+
+### D-025 File-based site routes + `createPageRoute`
+
+Each page has a normal Next.js route file that calls `createPageRoute('<id>', View)`.
+It's idiomatic, easy for agents to follow, and `content:check` can verify it statically
+(regex on the call + the folder path). A catch-all `[...rest]` route renders the localized 404.
+
+### D-026 Own locale routing in the proxy; next-intl only for UI strings
+
+The default locale and enabled locales are **settings** (changeable at runtime), but
+next-intl's routing/middleware is configured statically. The proxy implements the small
+rule set itself (`src/core/i18n/routing.ts`, unit-tested). next-intl provides messages via
+`src/site/i18n/request.ts`, which reads the locale with `next/root-params`.
+
+### D-027 Rich text as validated JSON
+
+Tiptap/ProseMirror-compatible JSON with a strict Zod allowlist, rendered by our own
+JSON→React renderer. No HTML sanitizer is needed because no HTML is stored or injected.
+
+### D-028 Tokens: CSS is the source, TypeScript is generated
+
+`tokens.css` (Tailwind v4 `@theme` + `:root`) holds every raw value. Tailwind's default
+namespaces are reset so only project tokens exist. `tokens.generated.ts` is produced by
+`pnpm tokens:generate` and checked for staleness by `pnpm tokens:check`, together with a
+scanner for raw values in site code.
+
+### D-029 Seed images and demo artwork
+
+Seed content references images by file name (`{ asset: 'hero.webp' }`). `content:sync`
+imports them once through the normal upload pipeline (`media.seed_asset` marks them). The
+demo images are abstract gradients generated with sharp, so there are no licensing concerns.
+
+### D-030 Storage adapters early
+
+The storage adapter (local `.data/uploads` served by `/api/media/[...key]`, or Supabase
+Storage) and the image ingest pipeline (magic bytes, sharp re-encode to WebP, metadata
+stripped, limits, blur placeholder) arrived with the content system because seeds need them.

@@ -13,7 +13,7 @@ export function LocalDbBanner() {
     <div
       role="status"
       data-testid="local-db-banner"
-      className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-900 dark:text-amber-200"
+      className="border-amber-500/30 bg-amber-500/10 text-sm text-amber-900 dark:text-amber-200 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b px-4 py-2"
     >
       <span className="flex items-center gap-2">
         <DatabaseIcon className="size-4 shrink-0" aria-hidden />

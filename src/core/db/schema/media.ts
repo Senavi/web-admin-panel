@@ -16,6 +16,8 @@ export const media = pgTable(
     /** Tiny base64 data URL used as `next/image` blur placeholder. */
     placeholder: text('placeholder'),
     originalName: text('original_name'),
+    /** Set for images imported from `src/content/seed/assets` by `content:sync`. */
+    seedAsset: text('seed_asset').unique(),
     uploadedBy: text('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -31,6 +31,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm test
+      - run: pnpm content:check
+      - run: pnpm tokens:check
       - name: Dependency audit (non-blocking)
         run: pnpm audit --audit-level=moderate
         continue-on-error: true

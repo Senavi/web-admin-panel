@@ -1,4 +1,5 @@
 import { seedDevAdmin } from '@/core/auth/server/seed-admin';
+import { syncContent } from '@/core/content/sync';
 import { seedSettings } from '@/core/settings/seed';
 
 import type { Database } from './types';
@@ -19,6 +20,13 @@ export interface SeedStep {
  */
 export const seedSteps: SeedStep[] = [
   { name: 'settings', run: (db) => seedSettings(db) },
+  {
+    name: 'content',
+    run: async (db) => {
+      const { getStorage } = await import('@/core/storage');
+      await syncContent(db, getStorage());
+    },
+  },
   {
     name: 'dev-admin',
     run: (db, options) => (options.seedDevAdmin ? seedDevAdmin(db) : Promise.resolve()),

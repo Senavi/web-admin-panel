@@ -1,5 +1,6 @@
 import './load-env';
 
+import { findLocalServerUrl } from '@/core/db/drivers/local-server-info';
 import { openPglite } from '@/core/db/drivers/pglite';
 import { openPostgres } from '@/core/db/drivers/postgres';
 import type { Database } from '@/core/db/types';
@@ -18,6 +19,12 @@ export async function openScriptDb(): Promise<ScriptDb> {
   if (url) {
     const { db, close } = openPostgres(url, { max: 1 });
     return { db, label: 'Postgres', close };
+  }
+  // While `pnpm dev` runs, it owns PGlite: connect through its local server.
+  const localUrl = findLocalServerUrl();
+  if (localUrl) {
+    const { db, close } = openPostgres(localUrl, { max: 1 });
+    return { db, label: 'local PGlite (via the running dev server)', close };
   }
   const { db, client } = await openPglite();
   return { db, label: 'local PGlite (.data/pglite)', close: () => client.close() };

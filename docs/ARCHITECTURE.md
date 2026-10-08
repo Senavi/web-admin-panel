@@ -64,3 +64,30 @@ Enforced by ESLint (`eslint.config.mjs`):
 sets `x-site-pathname`, redirects admin requests without a session cookie to the login page
 (with `?next=`), and adds `Cache-Control: no-store` + `X-Robots-Tag: noindex` to admin
 responses. Site-gate logic is added in the Settings & site gate phase.
+
+## Content system
+
+See docs/CONTENT_SCHEMA.md. In short: `src/content` defines pages with `definePage` and
+`f.*` fields. `src/core/content` derives types, Zod validators, storage splitting
+(shared vs localized), fallbacks, sync and route checks. `getPageContent()` is cached with
+tags `content:{id}` / `content:{id}:{locale}`.
+
+## Local development database
+
+`pnpm dev` (scripts/dev.ts) owns `.data/pglite`, migrates + seeds it and serves it over the
+Postgres protocol on 127.0.0.1. Next.js workers and CLI scripts connect with postgres-js
+(D-024). With `DATABASE_URL` set, `pnpm dev` just runs `next dev`.
+
+## i18n routing
+
+The proxy rewrites unprefixed URLs to the default locale (`/about` → `/en/about`
+internally), passes prefixed non-default locales (`/uk/about`), redirects
+`/en/about` → `/about`, and on the first visit to `/` redirects humans (not bots) to their
+`Accept-Language` locale, remembering the choice in the `site_locale` cookie. Disabled
+locales render the localized 404. Rules: `src/core/i18n/routing.ts`.
+
+## Public site rendering
+
+`src/app/(site)/[locale]/layout.tsx` is the site's root layout (own `<html>`, `site.css`,
+fonts). Pages are prerendered for every enabled locale (`generateStaticParams`) and
+revalidated through cache tags. No admin code, auth or DB driver reaches the client.
