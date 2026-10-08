@@ -51,3 +51,34 @@ shadcn's theme independent of the site's design tokens.
 One secret signs Better Auth sessions and the site-gate cookie (sub-keys are derived
 with HMAC and a purpose label). This means fewer variables to configure and rotate. In development
 a random secret is generated into `.data/` so zero-config works.
+
+## Database
+
+### D-009 One schema, explicit column names
+
+Drizzle tables use explicit snake_case column names. Better Auth's tables keep its
+field names as TypeScript properties, and the adapter maps models to our plural table
+names (`users`, `sessions`, …). The same drizzle-kit migrations run on PGlite and Postgres.
+
+### D-010 Settings as validated JSON
+
+`settings` is a singleton row (`CHECK id = 1`) and `settings_localized` has one row per
+locale. Both store JSONB validated by Zod schemas with defaults for every field. Adding
+a setting needs no migration, and older rows are completed by `parse()`.
+
+### D-011 PGlite process lock
+
+PGlite is single-process. A pid lock file (`.data/pglite.lock`) turns concurrent access
+(e.g. a CLI script while `pnpm dev` runs) into a clear error instead of corruption.
+
+### D-012 Postgres-mode tests without Docker
+
+Unit tests exercise the postgres-js driver against PGlite over the Postgres wire
+protocol (`@electric-sql/pglite-socket`). CI additionally runs build + e2e against a
+real `postgres:17` service container.
+
+### D-013 Analytics visits = daily unique visitors
+
+Without cookies, a "visit" is approximated as one daily-rotating visitor hash.
+"Pages per visit" = page views / unique visitors for the period. Because hashes rotate
+daily, summing daily unique visitors across days is correct by construction.
