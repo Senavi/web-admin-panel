@@ -47,3 +47,8 @@ All notable changes to this template are documented here. The format follows
   Vercel Cron and Netlify Scheduled Function configs.
 - Overview dashboard: date range, KPIs with change vs previous period, traffic chart,
   top pages/referrers/devices/browsers/countries, site status and recent activity.
+- Managers: user table (search, role filter), add user with a one-time temporary password,
+  edit name/role, disable/enable, reset password, revoke sessions, delete, all with the
+  self/last-admin guards; `onUserInvited` extension point.
+- Security: database and storage health, environment checklist with masked values, all
+  active sessions (revoke one/all), filterable audit log, Connect Supabase wizard (dev).

@@ -329,3 +329,30 @@ beacons and when the Overview opens, and on demand via `/api/cron/maintenance`
 (`Authorization: Bearer $CRON_SECRET`). `vercel.json` and
 `netlify/functions/maintenance.mts` schedule it daily, but the app works without them.
 Raw events older than the retention period are deleted; daily totals are kept.
+
+## Managers & Security
+
+### D-050 User guards as a pure function
+
+`userChangeViolation()` encodes the §7 rules (no self delete/disable/demote, last active
+admin protected) and is unit-tested. Server actions enforce it. Role and status changes
+bump `session_version` so signed gate cookies with an old role stop working.
+
+### D-051 TanStack Table v8
+
+shadcn's DataTable pattern targets `@tanstack/react-table` v8. v9 (current) has a new
+API, so we pin v8. **Revisit** when shadcn's pattern moves to v9.
+
+### D-052 Connect Supabase runs in development only
+
+The wizard tests credentials (pooled + direct Postgres, storage with the service role, anon
+key), applies migrations via the direct URL, copies users/settings/content/revisions/media
+(idempotent, FK order) and uploaded files, enables RLS on every app table with no
+policies, creates a public-read bucket, and writes `.env.local`. In production the Security
+page shows a read-only environment checklist, because hosting platforms own env vars and
+secrets are never stored in the database.
+
+### D-053 Invite emails as an extension point
+
+`projectConfig.onUserInvited` is called after creating a user or resetting a password.
+Without it, the temporary password is shown once in the admin (no email service needed).

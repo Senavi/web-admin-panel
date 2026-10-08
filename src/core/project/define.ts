@@ -27,6 +27,12 @@ export interface ProjectConfigInput<TLocale extends string = string> {
    * `/blog/:slug`, `/docs/*`). Any other unknown URL gets the localized 404.
    */
   readonly siteRoutes?: readonly string[];
+  /**
+   * Extension point: called (server-side) after an admin creates a user or resets
+   * a password, e.g. to email an invite. Without it the temporary password is
+   * only shown once in the admin.
+   */
+  readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
   /** Brand defaults used before an admin uploads branding in Settings. */
   readonly brand?: {
     readonly themeColor?: string;
@@ -35,9 +41,18 @@ export interface ProjectConfigInput<TLocale extends string = string> {
   };
 }
 
+export interface UserInvite {
+  readonly email: string;
+  readonly name: string;
+  readonly temporaryPassword: string;
+  readonly loginUrl: string;
+  readonly reason: 'created' | 'password-reset';
+}
+
 export interface ProjectConfig<TLocale extends string = string> extends Required<
-  Omit<ProjectConfigInput<TLocale>, 'brand'>
+  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited'>
 > {
+  readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
   readonly brand: { readonly themeColor: string; readonly backgroundColor: string };
   readonly localeCodes: readonly TLocale[];
 }
@@ -73,6 +88,7 @@ export function defineProjectConfig<const TLocale extends string>(
     defaultLocale: input.defaultLocale,
     adminPath,
     siteRoutes: input.siteRoutes ?? [],
+    onUserInvited: input.onUserInvited,
     brand: {
       themeColor: input.brand?.themeColor ?? DEFAULT_THEME_COLOR,
       backgroundColor: input.brand?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 
 import { useAction } from '@/admin/hooks/use-action';
 import { formatDateTime } from '@/admin/lib/format';
+import { describeAgent } from '@/admin/lib/user-agent';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { revokeOtherSessionsAction, revokeOwnSessionAction } from '@/core/auth/actions';
@@ -62,30 +63,4 @@ export function SessionsList({ sessions }: { sessions: SessionRow[] }) {
       ) : null}
     </div>
   );
-}
-
-/** Rough, dependency-free user agent summary for display only. */
-export function describeAgent(userAgent: string | null): string {
-  if (!userAgent) return 'Unknown device';
-  const browser = /Edg\//.test(userAgent)
-    ? 'Edge'
-    : /Firefox\//.test(userAgent)
-      ? 'Firefox'
-      : /Chrome\//.test(userAgent)
-        ? 'Chrome'
-        : /Safari\//.test(userAgent)
-          ? 'Safari'
-          : 'Browser';
-  const os = /Windows/.test(userAgent)
-    ? 'Windows'
-    : /iPhone|iPad/.test(userAgent)
-      ? 'iOS'
-      : /Android/.test(userAgent)
-        ? 'Android'
-        : /Mac OS X/.test(userAgent)
-          ? 'macOS'
-          : /Linux/.test(userAgent)
-            ? 'Linux'
-            : 'Unknown OS';
-  return `${browser} on ${os}`;
 }

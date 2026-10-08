@@ -16,6 +16,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   timeout: 60_000,
+  // `next dev` compiles routes on first use; production builds don't need the extra time.
+  expect: { timeout: process.env.E2E_BASE_URL ? 5_000 : 15_000 },
   use: {
     baseURL,
     trace: 'retain-on-failure',
