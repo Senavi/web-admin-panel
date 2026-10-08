@@ -6,7 +6,9 @@ import { media } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import type { StorageAdapter } from '@/core/storage/types';
 
-import { detectImageType, RASTER_IMAGE_TYPES } from './detect';
+import { detectImageType, ImageType, RASTER_IMAGE_TYPES } from './detect';
+import { faviconKey, generateFavicons } from './favicon';
+import { sanitizeSvg, SvgRejectedError } from './svg';
 
 /** Upload limits (docs/SECURITY.md § Uploads). */
 export const IMAGE_LIMITS = {
@@ -108,5 +110,63 @@ export async function ingestImage(
     })
     .returning();
   if (!row) throw new Error('Failed to save media record.');
+  return row;
+}
+
+/** Logos may be SVG (sanitized and stored as-is) or raster (normal pipeline). */
+export async function ingestLogo(
+  db: Database,
+  storage: StorageAdapter,
+  input: Omit<IngestInput, 'kind'>,
+): Promise<MediaRow> {
+  if (detectImageType(input.bytes) !== ImageType.Svg)
+    return ingestImage(db, storage, { ...input, kind: 'logo' });
+  let svg: string;
+  try {
+    svg = sanitizeSvg(new TextDecoder().decode(input.bytes));
+  } catch (error) {
+    throw new UploadError(error instanceof SvgRejectedError ? error.message : 'Invalid SVG.');
+  }
+  const bytes = new TextEncoder().encode(svg);
+  const metadata = await sharp(Buffer.from(bytes))
+    .metadata()
+    .catch(() => null);
+  const key = `logos/${crypto.randomUUID()}.svg`;
+  await storage.put(key, bytes, ImageType.Svg);
+  const [row] = await db
+    .insert(media)
+    .values({
+      kind: 'logo',
+      storageKey: key,
+      mime: ImageType.Svg,
+      size: bytes.byteLength,
+      width: metadata?.width ?? null,
+      height: metadata?.height ?? null,
+      originalName: input.originalName.slice(0, 200),
+      uploadedBy: input.uploadedBy,
+    })
+    .returning();
+  if (!row) throw new Error('Failed to save media record.');
+  return row;
+}
+
+/** Favicon: raster pipeline for the preview + generated icon set next to it. */
+export async function ingestFavicon(
+  db: Database,
+  storage: StorageAdapter,
+  input: Omit<IngestInput, 'kind'>,
+  appleBackground: string,
+): Promise<MediaRow> {
+  const row = await ingestImage(db, storage, { ...input, kind: 'favicon' });
+  const files = await generateFavicons(input.bytes, appleBackground);
+  await Promise.all(
+    [...files].map(([name, data]) =>
+      storage.put(
+        faviconKey(row.id, name),
+        new Uint8Array(data),
+        name.endsWith('.ico') ? 'image/x-icon' : 'image/png',
+      ),
+    ),
+  );
   return row;
 }

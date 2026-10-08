@@ -1,22 +1,29 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { hasSessionCookie } from '@/core/auth/cookies';
+import { getAuthSecret } from '@/core/auth/secret';
 import { isBotUserAgent } from '@/core/http/bots';
 import { HeaderName, NO_STORE, ROBOTS_NOINDEX } from '@/core/http/headers';
-import { decideLocaleRoute, LOCALE_COOKIE } from '@/core/i18n/routing';
+import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
 import { ACCESS_PATH, adminHref, AdminRoute, isAdminPath } from '@/core/project/paths';
-import { defaultSiteState } from '@/core/site-gate/state';
+import { SITE_NOTICE_COOKIE, SiteNotice } from '@/core/site-gate/notice';
+import { decideGate, isStaffToken, MAINTENANCE_RETRY_AFTER_SECONDS } from '@/core/site-gate/staff';
+import { isNoindex, type SiteState } from '@/core/site-gate/state';
+import { getSiteState } from '@/core/site-gate/state-client';
+import { GATE_COOKIE_NAME } from '@/core/site-gate/token';
 
 /**
- * Request proxy (Next.js 16 "proxy", formerly middleware). Stays lightweight:
- * no database driver. See docs/ARCHITECTURE.md § Request proxy.
+ * Request proxy (Next.js 16 "proxy", formerly middleware). Lightweight: no
+ * database driver. Site flags come from the cached /api/site-state endpoint and
+ * staff are recognized by a signed cookie. docs/ARCHITECTURE.md § Site gate.
  */
 const PUBLIC_ADMIN_PATHS = new Set([adminHref(AdminRoute.Login)]);
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
-/** Paths handled by core routes, never locale-routed. */
-const NON_SITE_PREFIXES = ['/api/', ACCESS_PATH];
+/** Core routes that are never gated or locale-routed. */
+const UNGATED_PREFIXES = ['/api/', ACCESS_PATH];
+const MAINTENANCE_SEGMENT = '/maintenance-mode';
 
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
 
   if (isAdminPath(pathname)) {
@@ -29,44 +36,103 @@ export function proxy(request: NextRequest): NextResponse {
     return withAdminHeaders(next(request, pathname));
   }
 
-  if (NON_SITE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) {
+  if (UNGATED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) {
     return next(request, pathname);
   }
 
   return routeSite(request);
 }
 
-function routeSite(request: NextRequest): NextResponse {
-  const { pathname, search } = request.nextUrl;
-  const state = defaultSiteState();
+async function routeSite(request: NextRequest): Promise<NextResponse> {
+  const { pathname, search, origin } = request.nextUrl;
+  const state = await getSiteState(origin);
+  const staff = await isStaffToken(
+    getAuthSecret(),
+    request.cookies.get(GATE_COOKIE_NAME)?.value,
+    state,
+  );
+  const gate = decideGate(state, staff);
+
+  if (gate.type === 'private') {
+    const accessUrl = new URL(ACCESS_PATH, request.url);
+    accessUrl.searchParams.set('next', `${pathname}${search}`);
+    return withSiteHeaders(NextResponse.redirect(accessUrl), state, request, staff);
+  }
+  if (gate.type === 'maintenance') {
+    const locale = splitLocale(pathname, state.enabledLocales).locale ?? state.defaultLocale;
+    const response = NextResponse.rewrite(
+      new URL(`/${locale}${MAINTENANCE_SEGMENT}`, request.url),
+      { status: 503 },
+    );
+    response.headers.set('Retry-After', String(MAINTENANCE_RETRY_AFTER_SECONDS));
+    response.headers.set(HeaderName.CacheControl, NO_STORE);
+    return withSiteHeaders(response, state, request, staff);
+  }
+
   const decision = decideLocaleRoute(pathname, state, {
     acceptLanguage: request.headers.get('accept-language'),
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value,
     isBot: isBotUserAgent(request.headers.get('user-agent')),
   });
 
+  let response: NextResponse;
   switch (decision.type) {
-    case 'redirect': {
-      const url = new URL(`${decision.pathname}${search}`, request.url);
-      return rememberLocale(request, NextResponse.redirect(url, 307), decision.locale);
-    }
-    case 'rewrite': {
-      const url = new URL(`${decision.pathname}${search}`, request.url);
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.set(HeaderName.Pathname, pathname);
-      return rememberLocale(
+    case 'redirect':
+      response = rememberLocale(
         request,
-        NextResponse.rewrite(url, { request: { headers: requestHeaders } }),
+        NextResponse.redirect(new URL(`${decision.pathname}${search}`, request.url), 307),
         decision.locale,
       );
+      break;
+    case 'rewrite': {
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set(HeaderName.Pathname, pathname);
+      response = rememberLocale(
+        request,
+        NextResponse.rewrite(new URL(`${decision.pathname}${search}`, request.url), {
+          request: { headers: requestHeaders },
+        }),
+        decision.locale,
+      );
+      break;
     }
     case 'pass':
-      return rememberLocale(request, next(request, pathname), decision.locale);
-    case 'not-found': {
-      // Let the [locale] layout render the localized 404 for the disabled locale.
-      return next(request, pathname);
-    }
+      response = rememberLocale(request, next(request, pathname), decision.locale);
+      break;
+    case 'not-found':
+      // The [locale] layout renders the 404 for a disabled locale.
+      response = next(request, pathname);
+      break;
   }
+  return withSiteHeaders(response, state, request, staff);
+}
+
+/** noindex while indexing is off / private mode is on; staff banner cookie. */
+function withSiteHeaders(
+  response: NextResponse,
+  state: SiteState,
+  request: NextRequest,
+  staff: boolean,
+): NextResponse {
+  if (isNoindex(state)) response.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
+  const notice = staff
+    ? state.maintenance
+      ? SiteNotice.Maintenance
+      : state.privateMode
+        ? SiteNotice.Private
+        : null
+    : null;
+  const current = request.cookies.get(SITE_NOTICE_COOKIE)?.value;
+  if (notice && current !== notice) {
+    response.cookies.set(SITE_NOTICE_COOKIE, notice, {
+      path: '/',
+      sameSite: 'lax',
+      maxAge: 60 * 60,
+    });
+  } else if (!notice && current) {
+    response.cookies.delete(SITE_NOTICE_COOKIE);
+  }
+  return response;
 }
 
 /** Remembers the visitor's language choice (only when it changes; never for bots). */

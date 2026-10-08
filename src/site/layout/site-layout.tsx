@@ -1,6 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
+import type { SiteLogo } from '@/core/media/branding';
+
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 
@@ -10,12 +12,14 @@ export async function SiteLayout({
   defaultLocale,
   enabledLocales,
   siteName,
+  logo,
   children,
 }: {
   locale: string;
   defaultLocale: string;
   enabledLocales: readonly string[];
   siteName: string;
+  logo: SiteLogo | null;
   children: ReactNode;
 }) {
   const t = await getTranslations('common');
@@ -32,6 +36,7 @@ export async function SiteLayout({
         defaultLocale={defaultLocale}
         enabledLocales={enabledLocales}
         siteName={siteName}
+        logo={logo}
       />
       <main id="main" tabIndex={-1} className="focus:outline-none">
         {children}

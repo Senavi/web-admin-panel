@@ -58,12 +58,31 @@ Enforced by ESLint (`eslint.config.mjs`):
   revoked (password change, disable), which invalidates old gate cookies.
 - Every auth event writes to `audit_log` (`AuditAction` constants).
 
-## Request proxy
+## Request proxy & site gate
 
-`src/proxy.ts` runs before every non-static request (Node.js runtime, no DB driver). Today it:
-sets `x-site-pathname`, redirects admin requests without a session cookie to the login page
-(with `?next=`), and adds `Cache-Control: no-store` + `X-Robots-Tag: noindex` to admin
-responses. Site-gate logic is added in the Settings & site gate phase.
+`src/proxy.ts` runs before every non-static request (Node.js runtime, **no DB driver**).
+
+1. **Admin** (`/admin/**`): no session cookie → redirect to login with `?next=` (optimistic;
+   pages verify the session). Adds `Cache-Control: no-store` + `X-Robots-Tag: noindex`.
+2. **Ungated core routes**: `/api/**`, `/access`. Static files, `/_next/**`, `favicon.ico`,
+   `/icons/*`, `robots.txt`, `sitemap.xml` don't match the proxy at all.
+3. **Site**: the proxy loads the **site state** from `GET /api/site-state` (flags, locales and
+   the active staff list). The endpoint requires an HMAC key derived from `AUTH_SECRET`, is
+   backed by a `'use cache'` function tagged `settings` + `staff` (invalidated on save), and
+   the proxy keeps it in memory for a few seconds per instance. If it can't be reached, the
+   last known state is used.
+4. **Staff detection** is cryptographic: the httpOnly `site_gate` cookie is an HMAC-signed
+   `{uid, role, v, exp}` issued on login (and refreshed by the admin shell). It counts only if
+   the signature and expiry are valid **and** `v` equals the user's current
+   `session_version` in the staff list. Disabled users and old sessions are therefore rejected
+   without a DB lookup, and forged or expired cookies never pass.
+5. **Gate**: maintenance → rewrite to `/{locale}/maintenance-mode` with **HTTP 503** +
+   `Retry-After` (staff bypass). Private mode → redirect to `/access?next=…` (staff bypass).
+   Maintenance beats private mode. Indexing off or private mode → `X-Robots-Tag: noindex, nofollow`.
+6. **Locale routing** (see i18n below). Staff get a `site_notice` cookie that the site's tiny
+   `StaffNotice` component reads to show "Maintenance mode is on" on the static pages.
+
+`/access` uses the same login form and actions as the admin (any active admin/manager).
 
 ## Content system
 

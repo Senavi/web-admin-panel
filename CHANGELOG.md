@@ -30,3 +30,9 @@ All notable changes to this template are documented here. The format follows
   lists), SEO tab with search preview and Open Graph fields, locale switch, revisions
   (preview + restore), optimistic concurrency, unsaved-changes guard, tag revalidation.
 - Login form works without JavaScript (server action form).
+- Settings: General, SEO defaults (per locale), Search & social, Branding (logos incl.
+  sanitized SVG, favicon set, theme color), Site status (with confirmations), Analytics and
+  Security policy, each saved independently and audited.
+- Site gate: maintenance mode (HTTP 503 + Retry-After, project-overridable page, staff
+  banner), private mode with `/access` sign-in, noindex headers, cryptographic staff
+  detection in the proxy via the cached site-state endpoint.

@@ -1,8 +1,10 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import { localeInfo } from '@/core/i18n/locales';
 import { localizedPath } from '@/core/i18n/routing';
+import type { SiteLogo } from '@/core/media/branding';
 
 import { Container } from '../components/ui/layout';
 import { HEADER_NAV, pagePath } from '../navigation';
@@ -13,11 +15,13 @@ export async function SiteHeader({
   defaultLocale,
   enabledLocales,
   siteName,
+  logo,
 }: {
   locale: string;
   defaultLocale: string;
   enabledLocales: readonly string[];
   siteName: string;
+  logo: SiteLogo | null;
 }) {
   const t = await getTranslations('nav');
   const common = await getTranslations('common');
@@ -36,7 +40,20 @@ export async function SiteHeader({
     <header className="sticky top-0 z-header border-thin border-b border-border bg-background">
       <Container className="flex min-h-16 items-center justify-between gap-6">
         <Link href={href('home')} className="text-h5 text-foreground">
-          {siteName}
+          {logo ? (
+            <Image
+              src={logo.src}
+              alt={siteName}
+              width={logo.width || 160}
+              height={logo.height || 40}
+              // SVG logos are served as-is (sanitized on upload); rasters are optimized.
+              unoptimized={logo.isSvg}
+              priority
+              className="h-8 w-auto"
+            />
+          ) : (
+            siteName
+          )}
         </Link>
 
         <div className="hidden items-center gap-6 md:flex">

@@ -1,21 +1,27 @@
 /**
  * PROJECT: root layout of the public site. Owns <html>, the site stylesheet and
  * fonts; never loads admin code. Locale comes from the [locale] root segment
- * (the proxy rewrites unprefixed URLs to the default locale).
+ * (the proxy rewrites unprefixed URLs to the default locale). Page chrome
+ * (header/footer) lives in (pages)/layout.tsx.
  */
 import '@/site/theme/site.css';
 
-import type { Viewport } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 
 import { getLocaleSettings, isEnabledLocale, localeInfo } from '@/core/i18n/locales';
+import { getIconMetadata } from '@/core/media/branding';
 import { getSiteSettings } from '@/core/settings/loader';
-import { SiteLayout } from '@/site/layout/site-layout';
+import { StaffNotice } from '@/site/layout/staff-notice';
 import { fontVariables } from '@/site/theme/fonts';
 
 export async function generateStaticParams() {
   const { enabledLocales } = await getLocaleSettings();
   return enabledLocales.map((locale) => ({ locale }));
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { icons: await getIconMetadata() };
 }
 
 export async function generateViewport(): Promise<Viewport> {
@@ -26,23 +32,13 @@ export async function generateViewport(): Promise<Viewport> {
 export default async function SiteRootLayout({ children, params }: LayoutProps<'/[locale]'>) {
   const { locale } = await params;
   if (!(await isEnabledLocale(locale))) notFound();
-  const [settings, { defaultLocale, enabledLocales }] = await Promise.all([
-    getSiteSettings(),
-    getLocaleSettings(),
-  ]);
   const { dir } = localeInfo(locale);
 
   return (
     <html lang={locale} dir={dir} className={fontVariables}>
       <body>
-        <SiteLayout
-          locale={locale}
-          defaultLocale={defaultLocale}
-          enabledLocales={enabledLocales}
-          siteName={settings.general.siteName}
-        >
-          {children}
-        </SiteLayout>
+        {children}
+        <StaffNotice />
       </body>
     </html>
   );

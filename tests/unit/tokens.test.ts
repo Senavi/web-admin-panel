@@ -37,6 +37,11 @@ describe('tokens:check scanner', () => {
     }
   });
 
+  it('flags arbitrary variants but not computed object keys', () => {
+    expect(rules('<ul className="[&>li]:mt-2" />')).toContain(TokenRule.ArbitraryValue);
+    expect(rules("  [Notice.Maintenance]: 'text',")).toEqual([]);
+  });
+
   it('flags raw typography in CSS and inline styles', () => {
     expect(rules('.a { font-size: 17px; }', 'src/site/a.css')).toContain(TokenRule.TypographyValue);
     expect(rules('<p style={{ fontSize: 17 }} />')).toEqual(

@@ -235,3 +235,37 @@ which is a possible future extension.
 The login form is a server-action form (`useActionState`), so it works before hydration
 and without JavaScript. Every other admin form sets `method="post"`, so a submit before
 hydration can't put passwords in the query string.
+
+## Settings & site gate
+
+### D-037 Site state over an internal, keyed endpoint
+
+The proxy must not use the database. It reads `/api/site-state` (a `'use cache'` loader with
+tags `settings` + `staff`), authenticated with an HMAC of `AUTH_SECRET`, and caches it in
+memory for ~3 s (`SITE_STATE_TTL_MS`). Changes apply within seconds on every instance,
+with no shared cache service required (works the same on Vercel and Netlify).
+
+### D-038 Staff list in the site state
+
+To reject disabled users and sessions revoked by a password change without a DB lookup, the
+state includes `{ userId: sessionVersion }` for active staff. It is small (admin users only)
+and never public.
+
+### D-039 Maintenance via rewrite with status 503
+
+`NextResponse.rewrite(url, { status: 503 })` renders the project's maintenance page (a
+normal static route) with a 503 status and `Retry-After`, so the page can use site tokens
+and fonts. The route lives outside the `(pages)` group so it has no header/footer.
+
+### D-040 SVG logos sanitized with svgo + strict checks
+
+SVG is accepted only for logos. svgo removes scripts and event handlers, and a deny-list
+then rejects foreignObject, external references, `javascript:`, entities and non-image
+data URLs. Files are served with `Content-Security-Policy: sandbox` and used only as
+`<img>` sources.
+
+### D-041 Favicons generated at upload
+
+One uploaded image produces 16/32/48/192/512 PNGs, a 180×180 Apple touch icon (flattened
+on the theme color) and a PNG-in-ICO `favicon.ico`. `/favicon.ico` and `/icons/*` serve them
+(or a generated letter icon) with a cache-busting `?v=` in metadata.

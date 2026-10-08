@@ -35,8 +35,10 @@ export const TOKEN_RULE_HELP: Record<TokenRule, string> = {
 
 const COLOR_LITERAL =
   /(?<![\w&-])#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix)\(/i;
-// `text-[17px]`, `bg-[#123]`, `p-[13px]`, `[&>p]:mt-2`, `md:w-[30rem]`
-const ARBITRARY_VALUE = /(?:^|[\s"'`{(:])!?-?[a-z][\w-]*-\[[^\]\s]+\]|(?:^|[\s"'`{])\[[^\]\s]+\]:/;
+// `text-[17px]`, `bg-[#123]`, `p-[13px]`, `md:w-[30rem]`, arbitrary variants `[&>p]:mt-2` / `[@media…]:`
+// (but not computed object keys like `[Foo.Bar]: value`)
+const ARBITRARY_VALUE =
+  /(?:^|[\s"'`{(:])!?-?[a-z][\w-]*-\[[^\]\s]+\]|(?:^|[\s"'`])\[(?:[&@][^\]\s]*|[^\]\s]*&[^\]\s]*)\]:/;
 const CSS_TYPOGRAPHY = /\b(?:font-size|line-height|letter-spacing)\s*:/i;
 const JS_TYPOGRAPHY = /\b(?:fontSize|lineHeight|letterSpacing)\s*:/;
 const INLINE_STYLE = /style=\{\{([^}]*)\}\}/g;

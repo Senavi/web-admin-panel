@@ -2,12 +2,14 @@
 
 import { APIError } from 'better-auth/api';
 import { and, eq, ne, sql } from 'drizzle-orm';
+import { updateTag } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
 
 import { ActionErrorCode, fail, ok, type ActionResult } from '@/core/actions/result';
 import { GuardError, runAction } from '@/core/actions/run';
+import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
 import { sessions, users } from '@/core/db/schema';
 import { adminHref, AdminRoute, safeRedirectPath } from '@/core/project/paths';
@@ -141,6 +143,8 @@ export async function changePasswordAction(input: unknown): Promise<ActionResult
       role: user.role,
       sessionVersion: updated?.sessionVersion ?? 0,
     });
+    // The proxy's staff list must drop the old session version.
+    updateTag(CacheTag.Staff);
     await writeAudit(db, {
       action: AuditAction.PasswordChange,
       actor: { id: user.id, email: user.email },

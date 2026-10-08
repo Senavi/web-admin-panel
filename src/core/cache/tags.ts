@@ -11,4 +11,6 @@ export const CacheTag = {
   contentLocale: (pageId: string, locale: string) => `content:${pageId}:${locale}`,
   /** Sitemap (any page's SEO/noindex/lastModified). */
   Sitemap: 'sitemap',
+  /** Active staff list published to the request proxy (user disabled, password changed…). */
+  Staff: 'staff',
 } as const;

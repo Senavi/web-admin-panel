@@ -1,17 +1,34 @@
 import { Permission } from '@/core/auth/permissions';
 import { assertPermission, AuthorizationError } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
-import { IMAGE_LIMITS, ingestImage, UploadError } from '@/core/media/ingest';
+import {
+  IMAGE_LIMITS,
+  ingestFavicon,
+  ingestImage,
+  ingestLogo,
+  UploadError,
+} from '@/core/media/ingest';
 import { AuditAction, writeAudit } from '@/core/security/audit';
 import { assertSameOrigin } from '@/core/security/origin';
 import { getClientIp, hashIp } from '@/core/security/request';
+import { readSiteSettings } from '@/core/settings/repository';
 import { getStorage } from '@/core/storage';
 
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
+const UploadKind = { Image: 'image', Logo: 'logo', Favicon: 'favicon' } as const;
+type UploadKind = (typeof UploadKind)[keyof typeof UploadKind];
+
+function parseKind(value: string | null): UploadKind | null {
+  if (value === null) return UploadKind.Image;
+  return (Object.values(UploadKind) as string[]).includes(value) ? (value as UploadKind) : null;
+}
+
 /**
- * Image upload for content fields (multipart/form-data, field `file`).
+ * Image upload (multipart/form-data, field `file`). `?kind=logo|favicon` are
+ * branding uploads (admins only): logos may be sanitized SVG, favicons
+ * generate the icon set.
  * Same-origin + permission checked; the file is validated and re-encoded by
  * the ingest pipeline. Returns the media record used by the editor.
  */
@@ -19,9 +36,14 @@ export async function POST(request: Request): Promise<Response> {
   const forbidden = assertSameOrigin(request);
   if (forbidden) return forbidden;
 
+  const kind = parseKind(new URL(request.url).searchParams.get('kind'));
+  if (!kind) return json({ error: 'Unknown upload kind.' }, 400);
+
   let user;
   try {
-    user = await assertPermission(Permission.MediaUpload);
+    user = await assertPermission(
+      kind === UploadKind.Image ? Permission.MediaUpload : Permission.SettingsManage,
+    );
   } catch (error) {
     if (error instanceof AuthorizationError) return json({ error: error.message }, 403);
     throw error;
@@ -46,16 +68,27 @@ export async function POST(request: Request): Promise<Response> {
   const db = await getDb();
   const storage = getStorage();
   try {
-    const row = await ingestImage(db, storage, {
+    const input = {
       bytes: new Uint8Array(await file.arrayBuffer()),
       originalName: file.name,
       uploadedBy: user.id,
-    });
+    };
+    const row =
+      kind === UploadKind.Logo
+        ? await ingestLogo(db, storage, input)
+        : kind === UploadKind.Favicon
+          ? await ingestFavicon(
+              db,
+              storage,
+              input,
+              (await readSiteSettings(db)).branding.themeColor,
+            )
+          : await ingestImage(db, storage, input);
     await writeAudit(db, {
       action: AuditAction.MediaUpload,
       actor: { id: user.id, email: user.email },
       target: `media:${row.id}`,
-      summary: { size: row.size, width: row.width, height: row.height },
+      summary: { kind, size: row.size, width: row.width, height: row.height },
       ipHash: await hashIp(getClientIp(request.headers)),
     });
     return json({
