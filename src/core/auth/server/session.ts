@@ -4,10 +4,12 @@ import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { getDb } from '@/core/db/client';
 import { adminHref, AdminRoute } from '@/core/project/paths';
+import { readSiteSettings } from '@/core/settings/repository';
 
-import { can, type Permission } from '../permissions';
-import { isRole, type Role, UserStatus } from '../roles';
+import { can, Permission } from '../permissions';
+import { isRole, Role, UserStatus } from '../roles';
 import { getAuth } from './instance';
 
 export interface CurrentUser {
@@ -50,22 +52,42 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   };
 });
 
+export interface RequireUserOptions {
+  /** The forced password-change screen itself. */
+  readonly allowPendingPasswordChange?: boolean;
+  /** The Account page, where 2FA is set up when the policy requires it. */
+  readonly allowMissingTwoFactor?: boolean;
+}
+
 /**
- * Page guard: redirects to login when signed out, and to the forced
- * password-change screen while a temporary password is in use.
+ * Page guard: redirects to login when signed out, to the forced password-change
+ * screen while a temporary password is in use, and to Account → 2FA when the
+ * security policy requires 2FA for admins and it is not set up yet.
  */
-export async function requireUser(options: { allowPendingPasswordChange?: boolean } = {}) {
+export async function requireUser(options: RequireUserOptions = {}): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect(adminHref(AdminRoute.Login));
   if (user.mustChangePassword && !options.allowPendingPasswordChange) {
     redirect(adminHref(AdminRoute.ChangePassword));
   }
+  if (!options.allowMissingTwoFactor && (await mustSetUpTwoFactor(user))) {
+    redirect(`${adminHref(AdminRoute.Account)}#two-factor`);
+  }
   return user;
 }
 
+async function mustSetUpTwoFactor(user: CurrentUser): Promise<boolean> {
+  if (user.role !== Role.Admin || user.twoFactorEnabled) return false;
+  const { security } = await readSiteSettings(await getDb());
+  return security.requireTwoFactorForAdmins;
+}
+
 /** Page guard: the route does not exist for users without the permission. */
-export async function requirePermission(permission: Permission): Promise<CurrentUser> {
-  const user = await requireUser();
+export async function requirePermission(
+  permission: Permission,
+  options: RequireUserOptions = {},
+): Promise<CurrentUser> {
+  const user = await requireUser(options);
   if (!can(user.role, permission)) notFound();
   return user;
 }
@@ -75,6 +97,11 @@ export async function assertPermission(permission: Permission): Promise<CurrentU
   const user = await getCurrentUser();
   if (!user || user.mustChangePassword || !can(user.role, permission)) {
     throw new AuthorizationError();
+  }
+  if (permission !== Permission.AccountManage && (await mustSetUpTwoFactor(user))) {
+    throw new AuthorizationError(
+      'Set up two-factor authentication first (required by the security policy).',
+    );
   }
   return user;
 }

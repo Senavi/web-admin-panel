@@ -126,3 +126,25 @@ experimental `authInterrupts` flag in Next.js 16.4. Server actions return an
 The admin is auth-gated and rendered per request. Its layouts set `export const instant = false`
 and the proxy redirects requests without a session cookie to the login page (optimistic
 check; pages still verify the session).
+
+## Admin UI
+
+### D-021 shadcn/ui "base-nova" (Base UI) defaults
+
+`shadcn init -d` in shadcn 4.21 uses the `base-nova` style built on Base UI. We keep
+it unmodified (spec: default styling). Components live in `src/admin/ui` (generated, but
+lint-clean), composites in `src/admin/components`. Buttons that render links set
+`nativeButton={false}`.
+
+### D-022 Blocking admin pages
+
+Admin pages and the panel layout set `export const instant = false` and run their guards
+at the top level (no Suspense around auth). Next.js then renders before streaming, so a
+manager opening `/admin/settings` gets a real **HTTP 404** instead of a 200 with
+not-found UI. Admin isn't a candidate for static shells anyway.
+
+### D-023 No import-order lint rule
+
+`eslint-plugin-import`'s `import/order` crashes on ESLint 10 (`getTokenOrCommentBefore`).
+Import grouping stays a convention (builtin → external → `@project` / `@/` → relative).
+**Revisit** when the plugin supports ESLint 10.

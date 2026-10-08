@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 
 import { useAction } from '@/admin/hooks/use-action';
+import { formatDateTime } from '@/admin/lib/format';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { revokeOtherSessionsAction, revokeOwnSessionAction } from '@/core/auth/actions';
@@ -29,7 +30,8 @@ export function SessionsList({ sessions }: { sessions: SessionRow[] }) {
             <div className="min-w-0">
               <p className="truncate font-medium">{describeAgent(session.userAgent)}</p>
               <p className="text-muted-foreground">
-                Signed in {formatDate(session.createdAt)} · expires {formatDate(session.expiresAt)}
+                Signed in {formatDateTime(session.createdAt)} · expires{' '}
+                {formatDateTime(session.expiresAt)}
               </p>
             </div>
             {session.current ? (
@@ -60,10 +62,6 @@ export function SessionsList({ sessions }: { sessions: SessionRow[] }) {
       ) : null}
     </div>
   );
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 /** Rough, dependency-free user agent summary for display only. */

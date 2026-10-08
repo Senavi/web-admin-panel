@@ -14,3 +14,6 @@ All notable changes to this template are documented here. The format follows
   audit log; PGlite (dev) and postgres-js (production) drivers; migrations and seed.
 - Auth: Better Auth with roles (admin, manager), permission map, DB-backed login throttling,
   TOTP 2FA, forced password change, `pnpm admin:create`, Account page, signed site-gate cookie.
+- Admin shell: shadcn sidebar (collapsible, sheet on mobile) filtered by role, header with
+  breadcrumbs, status chips, View site, light/dark toggle and user menu, local database
+  banner, admin 404, 2FA policy enforcement for admins.

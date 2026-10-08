@@ -45,6 +45,7 @@ export function getDb(): Promise<Database> {
   return state.promise;
 }
 
+/** Database mode and masked host. Reads only DATABASE_URL, so it is safe during prerendering. */
 export function getDbInfo(): DbInfo {
-  return describeDatabase(env().DATABASE_URL);
+  return describeDatabase(process.env.DATABASE_URL?.trim() || undefined);
 }
