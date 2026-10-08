@@ -6,6 +6,8 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-09
+
 ### Fixed
 
 - CI: install pnpm (`pnpm/action-setup`) before `setup-node` caches the pnpm store.
