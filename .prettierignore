@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+.next
+.data
+coverage
+playwright-report
+test-results
+src/core/db/migrations
+docs/SPEC.md
+AGENTS.md
