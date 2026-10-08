@@ -12,7 +12,8 @@ layer** (public site, content schemas, theme, `project.config.ts`). Full spec:
 - **Project layer (edit freely):** `project.config.ts`, `src/content/**`, `src/site/**`,
   `src/app/(site)/**`, `public/**`.
 - **Core (do not edit for project work):** `src/core/**`, `src/admin/**`,
-  `src/app/(admin)/**`, `src/app/api/**`, `src/app/access/**`, `scripts/**`.
+  `src/app/(admin)/**`, `src/app/(access)/**`, `src/app/api/**`, metadata routes in
+  `src/app/*.ts`, `scripts/**`.
   If a project needs different core behavior, use an extension point
   (`docs/CUSTOMIZING.md`) or change the template upstream.
 - `src/core` and `src/admin` must never import `src/site`; the site never imports
@@ -23,7 +24,7 @@ layer** (public site, content schemas, theme, `project.config.ts`). Full spec:
 1. Schema: `src/content/pages/<page>.ts` with `definePage` + `f.*` fields + seed content
    per locale (docs/CONTENT_SCHEMA.md). Register it in `src/content/index.ts`.
 2. View: `src/site/pages/<page>.tsx` built from sections in `src/site/sections/`.
-3. Route: `src/app/(site)/[locale]/<path>/page.tsx` →
+3. Route: `src/app/(site)/[locale]/(pages)/<path>/page.tsx` →
    `const route = createPageRoute('<id>', View); export default route.Page; export const generateMetadata = route.generateMetadata;`
 4. `pnpm content:sync` (or restart `pnpm dev`), then `pnpm content:check`.
 
@@ -49,13 +50,17 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 | `pnpm tokens:generate` · `tokens:check`                                  | Regenerate token TS / enforce the token rule                                                          |
 | `pnpm db:generate` · `db:migrate` · `db:seed` · `db:studio` · `db:serve` | Database                                                                                              |
 | `pnpm admin:create`                                                      | Create an admin/manager (no public sign-up)                                                           |
+| `pnpm e2e:prod` · `check:bundles`                                        | E2E against a production build / verify no admin code in site bundles (after `pnpm build`)            |
 
 ## Definition of done
 
-1. `pnpm typecheck && pnpm lint && pnpm test && pnpm content:check && pnpm tokens:check` pass.
+1. `pnpm typecheck && pnpm lint && pnpm test && pnpm content:check && pnpm tokens:check` pass;
+   for routing/caching/security changes also `pnpm e2e:prod`.
 2. UI changes are verified in a browser; e2e covers new user-facing behavior.
 3. No `any`, no magic strings (use constants), no copy-pasted logic.
 4. Docs updated when behavior or conventions change; decisions go in `docs/DECISIONS.md`.
+
+Non-content public routes must be listed in `projectConfig.siteRoutes` (otherwise 404).
 
 ## Security rules: never relax
 

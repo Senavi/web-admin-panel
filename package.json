@@ -1,6 +1,6 @@
 {
   "name": "site-starter",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Reusable Next.js site starter with a schema-driven custom admin panel.",

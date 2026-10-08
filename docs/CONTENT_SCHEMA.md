@@ -125,7 +125,7 @@ tags, so pages stay statically rendered and update within seconds.
 1. Create `src/content/pages/<page>.ts` with `definePage` (+ seed content for each locale).
 2. Add it to the registry in `src/content/index.ts`.
 3. Build the view in `src/site/pages/<page>.tsx` from sections in `src/site/sections/`.
-4. Create the route `src/app/(site)/[locale]/<path>/page.tsx` with `createPageRoute('<id>', View)`.
+4. Create the route `src/app/(site)/[locale]/(pages)/<path>/page.tsx` with `createPageRoute('<id>', View)`.
 5. Run `pnpm content:sync` (or restart `pnpm dev`) and `pnpm content:check`.
 
 Site routes that don't render managed content (e.g. a legal page written in code) must

@@ -360,6 +360,7 @@ Without it, the temporary password is shown once in the admin (no email service 
 ## Hardening
 
 ### D-054 CSP: no nonces on static pages
+
 Nonces require dynamic rendering, which would disable static generation. Site pages and
 `/access` send a CSP with `script-src 'self' 'unsafe-inline'` (needed for Next.js's inline
 runtime bootstrap) and strict everything else (`default-src 'self'`, no third-party origins,
@@ -368,12 +369,14 @@ admin is dynamic and gets a per-request nonce + `'strict-dynamic'` policy from t
 Experimental SRI was not adopted. **Revisit** when SRI is stable.
 
 ### D-055 Fonts are not preloaded; the demo uses one variable font
+
 On simulated slow-4G mobile, font preloads competed with the LCP image (Performance 88 →
 97 after the change). The demo uses Inter for headings and body (`--font-heading`
 falls back to the body font); projects can add a heading font in `fonts.ts`.
 `experimental.inlineCss` was measured and made LCP worse, so it is off.
 
 ### D-056 Bundle isolation is checked after every build
+
 `pnpm check:bundles` reads the prerendered site HTML, follows every referenced chunk and
 fails if admin-only code (Tiptap, Recharts, react-hook-form, Base UI, Better Auth, Drizzle,
 admin modules) appears. It runs in CI.

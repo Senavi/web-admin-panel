@@ -17,7 +17,28 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3000 (site) and http://localhost:3000/admin (admin).
+Open http://localhost:3000 (site) and http://localhost:3000/admin (admin). The development
+admin's credentials are written to `.data/dev-admin-credentials.txt` on the first run.
+
+## Features
+
+- Schema-driven page editor (10 field types, rich text, images with per-locale alt text,
+  lists, SEO tab, revisions, conflict detection) generated from `src/content`.
+- Roles (admin, manager), TOTP 2FA, login throttling, audit log, session management.
+- Settings: languages, SEO defaults, branding (logos, favicons), maintenance mode (503),
+  private mode, indexing, analytics, security policy.
+- SEO: metadata, hreflang, sitemap, robots, JSON-LD, generated OG images, localized 404.
+- Cookieless analytics with an Overview dashboard.
+- Design tokens as the single source of the site's look (`pnpm tokens:check`).
+- Local PGlite → Supabase with a guided Connect Supabase wizard.
+
+## Quality gates
+
+```bash
+pnpm typecheck && pnpm lint && pnpm test && pnpm content:check && pnpm tokens:check
+pnpm e2e          # Playwright against the dev server
+pnpm e2e:prod     # Playwright against a production build
+```
 
 ## Documentation
 

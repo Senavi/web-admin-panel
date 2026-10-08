@@ -25,7 +25,7 @@ const DEFAULT_DEV_ADMIN_EMAIL = 'admin@localhost.test';
  *   (gitignored). No default credentials ship with the template.
  */
 export async function seedDevAdmin(db: Database): Promise<void> {
-  const { NODE_ENV, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD } = env();
+  const { NODE_ENV, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, DATABASE_URL } = env();
   if (NODE_ENV === 'production') return;
 
   if (SEED_ADMIN_EMAIL && SEED_ADMIN_PASSWORD) {
@@ -35,6 +35,8 @@ export async function seedDevAdmin(db: Database): Promise<void> {
     return;
   }
 
+  // The generated admin is only for the local database; remote databases use `pnpm admin:create`.
+  if (DATABASE_URL) return;
   const [existing] = await db.select({ value: count() }).from(users);
   if ((existing?.value ?? 0) > 0) return;
   const password = generateTemporaryPassword(24);

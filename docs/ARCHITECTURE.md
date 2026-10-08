@@ -123,3 +123,17 @@ revalidated through cache tags. No admin code, auth or DB driver reaches the cli
 - JSON-LD: BreadcrumbList on every page, WebSite + Organization on the home page, plus the
   optional `structuredData` hook on a page definition.
 - Unknown URLs: the proxy serves the static localized 404 page with status 404 (D-043).
+
+## Security headers & CSP
+
+Static headers for every response come from `next.config.ts` (`src/core/security/headers.ts`).
+Site pages get a CSP without nonces; admin requests get a nonce CSP from the proxy, and the
+admin root layout passes the nonce to its providers. See docs/SECURITY.md.
+
+## Testing
+
+- Vitest unit tests (`tests/unit`) run against in-memory PGlite, including a Postgres
+  wire-protocol test of the postgres-js driver.
+- Playwright (`tests/e2e`): `pnpm e2e` against the dev server with an isolated database
+  (`.data/e2e`), `pnpm e2e:prod` against a production build (`.data/e2e-prod`), CI against
+  a Postgres service container.

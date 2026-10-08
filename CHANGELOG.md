@@ -6,6 +6,8 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-08
+
 ### Added
 
 - Foundation: Next.js 16 App Router scaffold, strict TypeScript, ESLint import
@@ -52,3 +54,6 @@ All notable changes to this template are documented here. The format follows
   self/last-admin guards; `onUserInvited` extension point.
 - Security: database and storage health, environment checklist with masked values, all
   active sessions (revoke one/all), filterable audit log, Connect Supabase wizard (dev).
+- Hardening: CSP (static pages / nonce-based admin) and security headers, upload pipeline
+  tests, `pnpm check:bundles`, design-token acceptance test, mobile Lighthouse tuning,
+  complete documentation (CUSTOMIZING, DEPLOYMENT, SECURITY).

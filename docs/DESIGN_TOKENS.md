@@ -42,7 +42,10 @@ A dark theme overrides **semantic tokens only** (see the commented block in toke
 ### 3. Typography
 
 Font families: `--font-heading`, `--font-body`, `--font-mono` (`font-heading`, …), mapped
-to the variables declared in `fonts.ts`.
+to the variables declared in `fonts.ts`. The demo uses one variable font (Inter) for both
+headings and body (`--font-heading` falls back to `--font-family-body`); declare a
+`--font-family-heading` font in `fonts.ts` to use a separate heading family. Fonts are not
+preloaded (see DECISIONS D-055).
 
 Text styles are **composite tokens**: each style defines size, line height, letter spacing,
 weight and family (`--type-<style>-size`, `-line-height`, `-letter-spacing`, `-weight`,
