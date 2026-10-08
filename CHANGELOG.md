@@ -42,3 +42,8 @@ All notable changes to this template are documented here. The format follows
 - i18n: per-locale SEO defaults, disabled locales return 404 and leave the sitemap, static
   localized 404 for unknown URLs (`projectConfig.siteRoutes` for non-content routes).
 - `pnpm e2e:prod`: the full e2e suite against a production build.
+- Analytics: cookieless beacon (<1 KB), daily-rotating visitor hash, bot/prefetch/staff
+  filtering, platform geo headers, daily rollups, retention cleanup, cron endpoint with
+  Vercel Cron and Netlify Scheduled Function configs.
+- Overview dashboard: date range, KPIs with change vs previous period, traffic chart,
+  top pages/referrers/devices/browsers/countries, site status and recent activity.

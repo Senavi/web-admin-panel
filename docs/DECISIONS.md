@@ -304,3 +304,28 @@ starts `next start` and runs the whole Playwright suite. Several production-only
 
 `definePage({ seo: { title, description, localized: { uk: { … } } } })` so untranslated
 locales don't fall back to English titles in metadata, breadcrumbs and OG images.
+
+## Analytics
+
+### D-047 Cookieless analytics in our own tables
+
+`public/a.js` (<1 KB, `lazyOnload`, never on admin pages, idempotent) sends
+`navigator.sendBeacon('/api/collect')` on load and on client-side navigations. The
+endpoint ignores bots, prefetches and (optionally) staff (signed gate cookie), stores a
+visitor hash = SHA-256(daily salt | IP | UA | host) and never stores IPs. Salts of past
+days are deleted. Days are UTC.
+
+### D-048 Rollups + live "today"
+
+Complete days are rolled up into `analytics_daily` (total, path, referrer, device, browser,
+country). The Overview reads rollups for past days and aggregates today's raw events live.
+Because the visitor hash rotates daily, "unique visitors" over a range is the sum of daily
+uniques and "pages per visit" = views / daily uniques.
+
+### D-049 Maintenance without a scheduler
+
+Rollups and retention cleanup run lazily (claimed via `system_jobs`, at most hourly) after
+beacons and when the Overview opens, and on demand via `/api/cron/maintenance`
+(`Authorization: Bearer $CRON_SECRET`). `vercel.json` and
+`netlify/functions/maintenance.mts` schedule it daily, but the app works without them.
+Raw events older than the retention period are deleted; daily totals are kept.

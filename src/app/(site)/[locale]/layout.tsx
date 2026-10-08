@@ -13,6 +13,7 @@ import { getLocaleSettings, isEnabledLocale, localeInfo } from '@/core/i18n/loca
 import { getIconMetadata } from '@/core/media/branding';
 import { buildSiteMetadata } from '@/core/seo/page-metadata';
 import { getSiteSettings } from '@/core/settings/loader';
+import { Analytics } from '@/site/layout/analytics';
 import { StaffNotice } from '@/site/layout/staff-notice';
 import { fontVariables } from '@/site/theme/fonts';
 
@@ -41,6 +42,7 @@ export default async function SiteRootLayout({ children, params }: LayoutProps<'
       <body>
         {children}
         <StaffNotice />
+        <Analytics />
       </body>
     </html>
   );
