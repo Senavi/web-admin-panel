@@ -6,7 +6,8 @@ import { cx } from './cn';
 
 /**
  * Content image rendered with next/image: intrinsic size (no layout shift),
- * blur placeholder, responsive `sizes`. Pass `priority` for the LCP image.
+ * blur placeholder, responsive `sizes`. Pass `priority` for the LCP image
+ * (preloaded with high fetch priority; Next.js 16 replaced the `priority` prop).
  */
 export function SiteImage({
   image,
@@ -27,7 +28,8 @@ export function SiteImage({
       width={image.width}
       height={image.height}
       sizes={sizes}
-      priority={priority}
+      preload={priority}
+      fetchPriority={priority ? 'high' : 'auto'}
       placeholder={image.blurDataURL ? 'blur' : 'empty'}
       blurDataURL={image.blurDataURL ?? undefined}
       className={cx('h-auto w-full', className)}

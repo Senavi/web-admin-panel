@@ -74,7 +74,8 @@
   --color-overlay: rgb(2 6 23 / 0.6);
 
   /* ── Font families (variables come from fonts.ts) ─────────────────────── */
-  --font-heading: var(--font-family-heading), ui-sans-serif, system-ui, sans-serif;
+  --font-heading:
+    var(--font-family-heading, var(--font-family-body)), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-family-body), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-family-mono), ui-monospace, monospace;
 

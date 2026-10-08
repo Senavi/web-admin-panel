@@ -6,6 +6,13 @@ import { permissionForAdminPath } from '@/core/auth/route-permissions';
 import { getAuthSecret } from '@/core/auth/secret';
 import { isBotUserAgent } from '@/core/http/bots';
 import { HeaderName, NO_STORE, ROBOTS_NOINDEX } from '@/core/http/headers';
+import {
+  adminCsp,
+  createNonce,
+  CSP_HEADER,
+  NONCE_HEADER,
+  staticPageCsp,
+} from '@/core/security/headers';
 import { isKnownRoute } from '@/core/i18n/route-match';
 import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
 import { ACCESS_PATH, adminHref, AdminRoute, isAdminPath } from '@/core/project/paths';
@@ -42,7 +49,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         await staticPageResponse(request.nextUrl.origin, adminHref(AdminRoute.NotAllowed), 404),
       );
     }
-    return withAdminHeaders(next(request, pathname));
+    return withAdminHeaders(adminNext(request, pathname));
   }
 
   if (UNGATED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) {
@@ -152,6 +159,7 @@ async function staticPageResponse(
       headers: {
         'Content-Type': page.headers.get('content-type') ?? 'text/html; charset=utf-8',
         [HeaderName.CacheControl]: NO_STORE,
+        [CSP_HEADER]: page.headers.get(CSP_HEADER) ?? staticPageCsp(),
       },
     });
   } catch {
@@ -226,6 +234,19 @@ function next(request: NextRequest, pathname: string): NextResponse {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(HeaderName.Pathname, pathname);
   return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
+/** Admin pages render per request: a fresh nonce CSP (Next.js applies the nonce to its scripts). */
+function adminNext(request: NextRequest, pathname: string): NextResponse {
+  const nonce = createNonce();
+  const csp = adminCsp(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(HeaderName.Pathname, pathname);
+  requestHeaders.set(NONCE_HEADER, nonce);
+  requestHeaders.set(CSP_HEADER, csp);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set(CSP_HEADER, csp);
+  return response;
 }
 
 function withAdminHeaders(response: NextResponse): NextResponse {

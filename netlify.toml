@@ -1,0 +1,8 @@
+# Netlify: the Next.js runtime is detected automatically (OpenNext adapter).
+[build]
+  command = "pnpm db:migrate && pnpm build"
+  publish = ".next"
+
+[functions]
+  # Scheduled maintenance (analytics rollups, retention): netlify/functions/maintenance.mts
+  directory = "netlify/functions"

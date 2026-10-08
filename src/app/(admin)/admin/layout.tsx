@@ -1,9 +1,11 @@
 import '@/admin/styles/admin.css';
 
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { connection } from 'next/server';
 
 import { AdminProviders } from '@/admin/components/providers/admin-providers';
+import { NONCE_HEADER } from '@/core/security/headers';
 import { adminMono, adminSans } from '@/admin/fonts';
 import { projectConfig } from '@project/config';
 
@@ -26,6 +28,7 @@ export const instant = false;
  */
 export default async function AdminRootLayout({ children }: LayoutProps<'/admin'>) {
   await connection();
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   return (
     <html
       lang="en"
@@ -33,7 +36,7 @@ export default async function AdminRootLayout({ children }: LayoutProps<'/admin'
       suppressHydrationWarning
     >
       <body className="min-h-svh antialiased">
-        <AdminProviders>{children}</AdminProviders>
+        <AdminProviders nonce={nonce}>{children}</AdminProviders>
       </body>
     </html>
   );

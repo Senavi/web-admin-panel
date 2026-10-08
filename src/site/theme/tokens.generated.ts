@@ -49,7 +49,7 @@ export const tokens = {
     "overlay": "rgb(2 6 23 / 0.6)"
   },
   "font": {
-    "heading": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif",
+    "heading": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif",
     "body": "var(--font-family-body), ui-sans-serif, system-ui, sans-serif",
     "mono": "var(--font-family-mono), ui-monospace, monospace"
   },
@@ -59,49 +59,49 @@ export const tokens = {
       "lineHeight": "1.02",
       "letterSpacing": "-0.035em",
       "weight": "800",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "h1": {
       "size": "clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem)",
       "lineHeight": "1.08",
       "letterSpacing": "-0.03em",
       "weight": "800",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "h2": {
       "size": "clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem)",
       "lineHeight": "1.15",
       "letterSpacing": "-0.025em",
       "weight": "700",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "h3": {
       "size": "clamp(1.375rem, 1.2rem + 0.7vw, 1.75rem)",
       "lineHeight": "1.25",
       "letterSpacing": "-0.015em",
       "weight": "700",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "h4": {
       "size": "1.25rem",
       "lineHeight": "1.35",
       "letterSpacing": "-0.01em",
       "weight": "650",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "h5": {
       "size": "1.125rem",
       "lineHeight": "1.4",
       "letterSpacing": "0",
       "weight": "650",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "h6": {
       "size": "1rem",
       "lineHeight": "1.45",
       "letterSpacing": "0",
       "weight": "650",
-      "family": "var(--font-family-heading), ui-sans-serif, system-ui, sans-serif"
+      "family": "var(--font-family-heading)), ui-sans-serif, system-ui, sans-serif"
     },
     "lead": {
       "size": "clamp(1.125rem, 1.05rem + 0.35vw, 1.3125rem)",

@@ -72,6 +72,7 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm e2e:prepare
       - run: pnpm build
+      - run: pnpm check:bundles
       - run: pnpm exec playwright install --with-deps chromium
       - name: Start production server
         run: pnpm start --port 3100 > server.log 2>&1 &

@@ -48,7 +48,7 @@ export async function SiteHeader({
               height={logo.height || 40}
               // SVG logos are served as-is (sanitized on upload); rasters are optimized.
               unoptimized={logo.isSvg}
-              priority
+              preload
               className="h-8 w-auto"
             />
           ) : (

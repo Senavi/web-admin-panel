@@ -32,3 +32,4 @@ next-env.d.ts
 
 # local agent tooling
 /.claude/
+/.lighthouse/

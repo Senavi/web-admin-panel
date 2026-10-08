@@ -32,7 +32,8 @@
     "tokens:check": "tsx scripts/tokens.ts check",
     "dev:next": "next dev",
     "db:serve": "tsx --conditions=react-server scripts/db-serve.ts",
-    "e2e:prod": "tsx scripts/e2e-prod.ts"
+    "e2e:prod": "tsx scripts/e2e-prod.ts",
+    "check:bundles": "tsx scripts/check-bundles.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
