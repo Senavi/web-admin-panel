@@ -41,3 +41,26 @@ Enforced by ESLint (`eslint.config.mjs`):
   local start and by `pnpm db:seed`.
 - CLI scripts (`scripts/*.ts`) run with `tsx --conditions=react-server` so they can import
   `server-only` modules, and load `.env*` files with `@next/env`.
+
+## Auth
+
+- Better Auth (`src/core/auth/server/config.ts`) with the Drizzle adapter, `twoFactor`
+  plugin, DB-backed rate limiting and `nextCookies`. Sessions are DB-backed httpOnly
+  cookies (`site.session_token`, `__Secure-` prefixed in production, SameSite=Lax);
+  lifetime comes from Settings → Security policy.
+- Server actions in `src/core/auth/actions.ts` are the only way to sign in, verify 2FA,
+  change passwords or manage sessions. The HTTP handler exposes an allowlist (D-014).
+- Guards (`src/core/auth/server/session.ts`): `requireUser`, `requirePermission` for pages,
+  and `assertPermission` / `assertSignedIn` for actions. The permission map is
+  `src/core/auth/permissions.ts`.
+- On login a signed **site-gate cookie** (`site_gate`, HMAC with `AUTH_SECRET`, 12 h) is
+  issued for the request proxy. `users.session_version` is bumped whenever sessions are
+  revoked (password change, disable), which invalidates old gate cookies.
+- Every auth event writes to `audit_log` (`AuditAction` constants).
+
+## Request proxy
+
+`src/proxy.ts` runs before every non-static request (Node.js runtime, no DB driver). Today it:
+sets `x-site-pathname`, redirects admin requests without a session cookie to the login page
+(with `?next=`), and adds `Cache-Control: no-store` + `X-Robots-Tag: noindex` to admin
+responses. Site-gate logic is added in the Settings & site gate phase.

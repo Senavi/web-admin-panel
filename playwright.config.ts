@@ -23,9 +23,11 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: process.env.E2E_SERVER_COMMAND ?? `pnpm dev --port ${PORT}`,
+        // Isolated database in .data/e2e, reset and seeded with test users before start.
+        command: process.env.E2E_SERVER_COMMAND ?? `pnpm e2e:prepare && pnpm dev --port ${PORT}`,
+        env: { SITE_DATA_DIR: '.data/e2e' },
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: false,
         timeout: 180_000,
       },
 });

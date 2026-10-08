@@ -68,7 +68,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
-      - run: pnpm db:seed
+      - run: pnpm e2e:prepare
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - name: Start production server

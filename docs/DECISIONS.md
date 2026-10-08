@@ -82,3 +82,47 @@ real `postgres:17` service container.
 Without cookies, a "visit" is approximated as one daily-rotating visitor hash.
 "Pages per visit" = page views / unique visitors for the period. Because hashes rotate
 daily, summing daily unique visitors across days is correct by construction.
+
+## Auth
+
+### D-014 Auth mutations only via server actions
+
+Better Auth's `disabledPaths` only affects its HTTP router, so direct HTTP calls could
+bypass our throttling, audit log and site-gate cookie. `src/app/api/auth/[...all]` forwards
+an **allowlist** (`/get-session`, `/sign-out`, `/ok`). Sign-in, 2FA, password and session
+changes run in server actions that call `auth.api.*` directly.
+
+### D-015 Users are created outside Better Auth's sign-up
+
+Sign-up is disabled. `createUserWithPassword` writes the user + credential account with
+Better Auth's own `hashPassword` (scrypt, memory-hard) so the CLI, dev seed and Managers
+page share one code path without needing an HTTP context.
+
+### D-016 Login throttling in our own table
+
+Better Auth's DB rate limiter only runs for HTTP requests. `login_throttle` tracks failures
+per email and per hashed IP, with exponential backoff (5 free attempts per email,
+then 30 s doubling to 15 min; 20 per IP). Messages stay generic.
+
+### D-017 Password policy
+
+12–128 chars, not in a bundled list of common 12+ char passwords (NCSC 100k list from
+SecLists), at least 5 distinct characters, must not contain the email name.
+
+### D-018 Zero-config dev admin without default credentials
+
+In development, if no users exist and no `SEED_ADMIN_*` is set, an admin
+`admin@localhost.test` is created with a **random** password written to
+`.data/dev-admin-credentials.txt` (gitignored). Nothing secret ships in the repo.
+
+### D-019 Forbidden admin pages return 404
+
+Without permission an admin page calls `notFound()`, because `forbidden()` still needs the
+experimental `authInterrupts` flag in Next.js 16.4. Server actions return an
+`unauthorized` `ActionResult`.
+
+### D-020 Admin opts out of instant-navigation validation
+
+The admin is auth-gated and rendered per request. Its layouts set `export const instant = false`
+and the proxy redirects requests without a session cookie to the login page (optimistic
+check; pages still verify the session).

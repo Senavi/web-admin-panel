@@ -49,6 +49,9 @@ export const envSchema = z
     /** Protects /api/cron/maintenance. Cron endpoint is disabled when unset. */
     CRON_SECRET: optionalString.pipe(z.string().min(16).optional()),
 
+    /** Development/test only: alternative local data directory (default `.data`). */
+    SITE_DATA_DIR: optionalString,
+
     /** Development only: creates this admin on first run. Ignored in production. */
     SEED_ADMIN_EMAIL: optionalString.pipe(z.email().optional()),
     SEED_ADMIN_PASSWORD: optionalString,

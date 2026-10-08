@@ -7,3 +7,4 @@ test-results
 src/core/db/migrations
 docs/SPEC.md
 AGENTS.md
+src/core/auth/data/common-passwords.ts

@@ -1,3 +1,4 @@
+import { seedDevAdmin } from '@/core/auth/server/seed-admin';
 import { seedSettings } from '@/core/settings/seed';
 
 import type { Database } from './types';
@@ -16,7 +17,13 @@ export interface SeedStep {
  * Idempotent seed steps, run on first start of the local database and by
  * `pnpm db:seed`. Each step must only insert missing data.
  */
-export const seedSteps: SeedStep[] = [{ name: 'settings', run: (db) => seedSettings(db) }];
+export const seedSteps: SeedStep[] = [
+  { name: 'settings', run: (db) => seedSettings(db) },
+  {
+    name: 'dev-admin',
+    run: (db, options) => (options.seedDevAdmin ? seedDevAdmin(db) : Promise.resolve()),
+  },
+];
 
 export async function runSeed(db: Database, options: SeedOptions): Promise<void> {
   for (const step of seedSteps) {
