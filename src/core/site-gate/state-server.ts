@@ -5,6 +5,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 
 import { projectConfig } from '@project/config';
 
+import { registry } from '@/content';
+
 import { UserStatus } from '@/core/auth/roles';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
@@ -34,5 +36,6 @@ export async function loadSiteState(): Promise<SiteState> {
     privateMode: settings.status.privateMode,
     indexing: settings.status.indexing,
     staff: Object.fromEntries(staff.map((user) => [user.id, user.version])),
+    routes: [...registry.pages.map((page) => page.path), ...projectConfig.siteRoutes],
   };
 }

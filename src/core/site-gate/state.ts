@@ -13,7 +13,15 @@ export interface SiteState extends LocaleState {
   readonly indexing: boolean;
   /** Active staff user id → current session version (validates site-gate cookies). */
   readonly staff: Readonly<Record<string, number>>;
+  /** Known site route patterns (registry pages + project.config siteRoutes); others → 404. */
+  readonly routes: readonly string[];
 }
+
+/** Internal site routes the proxy rewrites to (never shown in the address bar). */
+export const SiteRoute = {
+  Maintenance: '/maintenance-mode',
+  NotFound: '/error-404',
+} as const;
 
 export const SITE_STATE_PATH = '/api/site-state';
 export const SITE_STATE_KEY_HEADER = 'x-site-state-key';
@@ -27,6 +35,8 @@ export function defaultSiteState(): SiteState {
     privateMode: false,
     indexing: true,
     staff: {},
+    // Unknown until the state endpoint answers: don't 404 anything.
+    routes: ['/*'],
   };
 }
 

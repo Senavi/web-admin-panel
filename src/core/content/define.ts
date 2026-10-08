@@ -1,5 +1,7 @@
 import type { ProjectLocale } from '@project/config';
 
+import type { JsonLdObject } from '@/core/seo/json-ld';
+
 import type {
   AnyField,
   FieldMap,
@@ -24,6 +26,22 @@ export interface SectionDefinition<Id extends string = string, F extends FieldMa
 export interface PageSeoDefaults {
   readonly title: string;
   readonly description?: string;
+  /** Per-locale defaults (fall back to `title` / `description`). */
+  readonly localized?: Partial<
+    Record<ProjectLocale, { readonly title: string; readonly description?: string }>
+  >;
+}
+
+/** Schema SEO defaults for a locale. */
+export function seoDefaultsFor(
+  page: Pick<PageDefinition, 'seo'>,
+  locale: string,
+): { title: string; description: string } {
+  const localized = page.seo.localized?.[locale as ProjectLocale];
+  return {
+    title: localized?.title ?? page.seo.title,
+    description: localized?.description ?? page.seo.description ?? '',
+  };
 }
 
 export type SectionList = readonly SectionDefinition[];
@@ -91,6 +109,15 @@ export interface PageDefinition<Id extends string = string, S extends SectionLis
   readonly seo: PageSeoDefaults;
   /** Initial content per locale (from the design). Used by `content:sync` and as fallback. */
   readonly seed?: Partial<Record<ProjectLocale, PageSeed<S>>>;
+  /** Extra schema.org objects for this page (added to breadcrumbs / site JSON-LD). */
+  readonly structuredData?: (context: StructuredDataContext) => readonly JsonLdObject[];
+}
+
+export interface StructuredDataContext {
+  readonly locale: string;
+  /** Absolute canonical URL of the page. */
+  readonly url: string;
+  readonly title: string;
 }
 
 export function defineSection<const Id extends string, const F extends FieldMap>(

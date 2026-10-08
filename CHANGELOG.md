@@ -36,3 +36,9 @@ All notable changes to this template are documented here. The format follows
 - Site gate: maintenance mode (HTTP 503 + Retry-After, project-overridable page, staff
   banner), private mode with `/access` sign-in, noindex headers, cryptographic staff
   detection in the proxy via the cached site-state endpoint.
+- SEO: metadata chain with title templates, canonical, hreflang + x-default, Open Graph and
+  Twitter cards, generated OG images, sitemap with alternates and lastModified, robots.txt
+  and X-Robots-Tag tied to indexing/private mode, web manifest, JSON-LD, verification tags.
+- i18n: per-locale SEO defaults, disabled locales return 404 and leave the sitemap, static
+  localized 404 for unknown URLs (`projectConfig.siteRoutes` for non-content routes).
+- `pnpm e2e:prod`: the full e2e suite against a production build.

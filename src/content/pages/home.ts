@@ -22,6 +22,9 @@ export const homePage = definePage({
   seo: {
     title: 'Home',
     description: 'A fast, accessible website with a custom admin panel.',
+    localized: {
+      uk: { title: 'Головна', description: 'Швидкий, доступний сайт із власною адмін-панеллю.' },
+    },
   },
   sections: [
     defineSection({

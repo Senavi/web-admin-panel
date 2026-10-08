@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 
 import { getLocaleSettings, isEnabledLocale, localeInfo } from '@/core/i18n/locales';
 import { getIconMetadata } from '@/core/media/branding';
+import { buildSiteMetadata } from '@/core/seo/page-metadata';
 import { getSiteSettings } from '@/core/settings/loader';
 import { StaffNotice } from '@/site/layout/staff-notice';
 import { fontVariables } from '@/site/theme/fonts';
@@ -21,7 +22,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { icons: await getIconMetadata() };
+  const [site, icons] = await Promise.all([buildSiteMetadata(), getIconMetadata()]);
+  return { ...site, icons };
 }
 
 export async function generateViewport(): Promise<Viewport> {

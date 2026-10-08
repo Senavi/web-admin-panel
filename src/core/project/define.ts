@@ -22,21 +22,29 @@ export interface ProjectConfigInput<TLocale extends string = string> {
   readonly defaultLocale: NoInfer<TLocale>;
   /** URL path of the admin panel. Must start with `/`. Defaults to `/admin`. */
   readonly adminPath?: `/${string}`;
+  /**
+   * Public routes that are NOT pages in the content registry (e.g. `/legal`,
+   * `/blog/:slug`, `/docs/*`). Any other unknown URL gets the localized 404.
+   */
+  readonly siteRoutes?: readonly string[];
   /** Brand defaults used before an admin uploads branding in Settings. */
   readonly brand?: {
     readonly themeColor?: string;
+    /** Web app manifest background color. */
+    readonly backgroundColor?: string;
   };
 }
 
 export interface ProjectConfig<TLocale extends string = string> extends Required<
   Omit<ProjectConfigInput<TLocale>, 'brand'>
 > {
-  readonly brand: { readonly themeColor: string };
+  readonly brand: { readonly themeColor: string; readonly backgroundColor: string };
   readonly localeCodes: readonly TLocale[];
 }
 
 const DEFAULT_ADMIN_PATH = '/admin';
 const DEFAULT_THEME_COLOR = '#0a0a0a';
+const DEFAULT_BACKGROUND_COLOR = '#ffffff';
 
 export function defineProjectConfig<const TLocale extends string>(
   input: ProjectConfigInput<TLocale>,
@@ -64,7 +72,11 @@ export function defineProjectConfig<const TLocale extends string>(
     supportedLocales: input.supportedLocales,
     defaultLocale: input.defaultLocale,
     adminPath,
-    brand: { themeColor: input.brand?.themeColor ?? DEFAULT_THEME_COLOR },
+    siteRoutes: input.siteRoutes ?? [],
+    brand: {
+      themeColor: input.brand?.themeColor ?? DEFAULT_THEME_COLOR,
+      backgroundColor: input.brand?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
+    },
     localeCodes,
   };
 }

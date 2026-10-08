@@ -269,3 +269,38 @@ data URLs. Files are served with `Content-Security-Policy: sandbox` and used onl
 One uploaded image produces 16/32/48/192/512 PNGs, a 180×180 Apple touch icon (flattened
 on the theme color) and a PNG-in-ICO `favicon.ico`. `/favicon.ico` and `/icons/*` serve them
 (or a generated letter icon) with a cache-busting `?v=` in metadata.
+
+## SEO & i18n
+
+### D-042 Status pages served by the proxy via fetch
+
+In production, Next.js ignores the status of a proxy rewrite to a prerendered page, and a
+404 status on a rewrite produces an empty error shell. The maintenance page (503), the
+localized 404 and the admin "not allowed" page (404) are therefore fetched by the proxy
+(an internal request marked with an HMAC header that skips the gate) and returned with
+the right status. All three are static or cheap pages.
+
+### D-043 Known routes and the localized 404
+
+Unknown URLs get the static localized 404. The proxy compares the locale-less path
+with the known routes published in the site state: registry page paths plus
+`projectConfig.siteRoutes` (patterns like `/legal`, `/blog/:slug`, `/docs/*`) for routes
+that aren't content pages. A catch-all `[...rest]` route remains as a fallback.
+
+### D-044 Admin denial status
+
+Admin pages stream, so a `notFound()` from a permission guard produces a 200 in production.
+The proxy answers GET requests for admin-only sections with a real 404 when the signed,
+current (version-checked) gate cookie says the role lacks the permission. Server-side
+guards stay authoritative, and server actions are always checked by the action itself.
+
+### D-045 Production-mode e2e locally
+
+`pnpm e2e:prod` serves an isolated PGlite database over the Postgres protocol, builds,
+starts `next start` and runs the whole Playwright suite. Several production-only behaviors
+(static page statuses, streaming) were only caught this way.
+
+### D-046 Per-locale SEO defaults in the schema
+
+`definePage({ seo: { title, description, localized: { uk: { … } } } })` so untranslated
+locales don't fall back to English titles in metadata, breadcrumbs and OG images.

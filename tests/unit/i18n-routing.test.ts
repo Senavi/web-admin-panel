@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { isKnownRoute } from '@/core/i18n/route-match';
 import {
   decideLocaleRoute,
   localizedPath,
@@ -64,5 +65,17 @@ describe('locale routing', () => {
     expect(localizedPath('/about', 'en', 'en')).toBe('/about');
     expect(negotiateLocale('de-DE,en-US;q=0.5', ['en', 'uk'])).toBe('en');
     expect(negotiateLocale('fr', ['en', 'uk'])).toBeNull();
+  });
+});
+
+describe('known route matching', () => {
+  it('matches exact, named-segment and wildcard patterns', () => {
+    const routes = ['/', '/about', '/blog/:slug', '/docs/*'];
+    expect(isKnownRoute('/', routes)).toBe(true);
+    expect(isKnownRoute('/about/', routes)).toBe(true);
+    expect(isKnownRoute('/blog/hello', routes)).toBe(true);
+    expect(isKnownRoute('/blog/hello/extra', routes)).toBe(false);
+    expect(isKnownRoute('/docs/a/b', routes)).toBe(true);
+    expect(isKnownRoute('/nope', routes)).toBe(false);
   });
 });

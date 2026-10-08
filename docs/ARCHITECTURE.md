@@ -110,3 +110,16 @@ locales render the localized 404. Rules: `src/core/i18n/routing.ts`.
 `src/app/(site)/[locale]/layout.tsx` is the site's root layout (own `<html>`, `site.css`,
 fonts). Pages are prerendered for every enabled locale (`generateStaticParams`) and
 revalidated through cache tags. No admin code, auth or DB driver reaches the client.
+
+## SEO
+
+- `buildPageMetadata` (src/core/seo/page-metadata.ts): page SEO (DB) → schema defaults (per
+  locale) → site defaults, with the locale's title template, canonical (or override),
+  hreflang for every enabled locale + `x-default`, Open Graph/Twitter (page image → site
+  default image → generated `/og/{locale}/{page}.png`), and robots (page noindex, indexing
+  off, private mode).
+- `src/app/sitemap.ts`, `robots.ts`, `manifest.ts`: built from the registry and settings,
+  cached with tags (`sitemap`, `settings`, content tags).
+- JSON-LD: BreadcrumbList on every page, WebSite + Organization on the home page, plus the
+  optional `structuredData` hook on a page definition.
+- Unknown URLs: the proxy serves the static localized 404 page with status 404 (D-043).

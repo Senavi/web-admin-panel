@@ -1,7 +1,7 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 
 import { login } from './support/auth';
-import { updateSiteStatus, VISITOR_HEADERS } from './support/settings';
+import { updateSiteStatus, VISITOR_HEADERS, waitForPublicSite } from './support/settings';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
 
 test.describe.serial('site gate', () => {
@@ -32,6 +32,7 @@ test.describe.serial('site gate', () => {
     await expect(page.getByText('Maintenance mode is on')).toBeVisible();
 
     await updateSiteStatus(page, { maintenance: false });
+    await waitForPublicSite(baseURL);
   });
 
   test('private mode: visitors must sign in; forged cookies are rejected; pages are noindex', async ({
@@ -78,6 +79,7 @@ test.describe.serial('site gate', () => {
     await visitor.close();
 
     await updateSiteStatus(page, { privateMode: false });
+    await waitForPublicSite(baseURL);
   });
 
   test('a settings server action called as a manager is rejected on the server', async ({

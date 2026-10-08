@@ -1,27 +1,31 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { hasSessionCookie } from '@/core/auth/cookies';
+import { can } from '@/core/auth/permissions';
+import { permissionForAdminPath } from '@/core/auth/route-permissions';
 import { getAuthSecret } from '@/core/auth/secret';
 import { isBotUserAgent } from '@/core/http/bots';
 import { HeaderName, NO_STORE, ROBOTS_NOINDEX } from '@/core/http/headers';
+import { isKnownRoute } from '@/core/i18n/route-match';
 import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
 import { ACCESS_PATH, adminHref, AdminRoute, isAdminPath } from '@/core/project/paths';
 import { SITE_NOTICE_COOKIE, SiteNotice } from '@/core/site-gate/notice';
 import { decideGate, isStaffToken, MAINTENANCE_RETRY_AFTER_SECONDS } from '@/core/site-gate/staff';
-import { isNoindex, type SiteState } from '@/core/site-gate/state';
-import { getSiteState } from '@/core/site-gate/state-client';
-import { GATE_COOKIE_NAME } from '@/core/site-gate/token';
+import { isNoindex, SiteRoute, type SiteState } from '@/core/site-gate/state';
+import { getSiteState, siteStateKey } from '@/core/site-gate/state-client';
+import { GATE_COOKIE_NAME, verifyGateToken } from '@/core/site-gate/token';
 
 /**
  * Request proxy (Next.js 16 "proxy", formerly middleware). Lightweight: no
  * database driver. Site flags come from the cached /api/site-state endpoint and
  * staff are recognized by a signed cookie. docs/ARCHITECTURE.md § Site gate.
  */
-const PUBLIC_ADMIN_PATHS = new Set([adminHref(AdminRoute.Login)]);
+const PUBLIC_ADMIN_PATHS = new Set([adminHref(AdminRoute.Login), adminHref(AdminRoute.NotAllowed)]);
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 /** Core routes that are never gated or locale-routed. */
 const UNGATED_PREFIXES = ['/api/', ACCESS_PATH];
-const MAINTENANCE_SEGMENT = '/maintenance-mode';
+/** Marks the proxy's internal subrequests (value: the HMAC site-state key). */
+const INTERNAL_HEADER = 'x-site-internal';
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
@@ -32,6 +36,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       const loginUrl = new URL(adminHref(AdminRoute.Login), request.url);
       loginUrl.searchParams.set('next', `${pathname}${search}`);
       return withAdminHeaders(NextResponse.redirect(loginUrl));
+    }
+    if (await isForbiddenAdminPath(request, pathname)) {
+      return withAdminHeaders(
+        await staticPageResponse(request.nextUrl.origin, adminHref(AdminRoute.NotAllowed), 404),
+      );
     }
     return withAdminHeaders(next(request, pathname));
   }
@@ -45,6 +54,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
 async function routeSite(request: NextRequest): Promise<NextResponse> {
   const { pathname, search, origin } = request.nextUrl;
+  // The proxy's own subrequest for the static 404 page.
+  if (request.headers.get(INTERNAL_HEADER) === (await siteStateKey()))
+    return next(request, pathname);
   const state = await getSiteState(origin);
   const staff = await isStaffToken(
     getAuthSecret(),
@@ -60,12 +72,8 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
   }
   if (gate.type === 'maintenance') {
     const locale = splitLocale(pathname, state.enabledLocales).locale ?? state.defaultLocale;
-    const response = NextResponse.rewrite(
-      new URL(`/${locale}${MAINTENANCE_SEGMENT}`, request.url),
-      { status: 503 },
-    );
+    const response = await staticPageResponse(origin, `/${locale}${SiteRoute.Maintenance}`, 503);
     response.headers.set('Retry-After', String(MAINTENANCE_RETRY_AFTER_SECONDS));
-    response.headers.set(HeaderName.CacheControl, NO_STORE);
     return withSiteHeaders(response, state, request, staff);
   }
 
@@ -74,6 +82,22 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value,
     isBot: isBotUserAgent(request.headers.get('user-agent')),
   });
+
+  // Unknown URLs get the static localized 404 page with HTTP 404.
+  if (decision.type === 'rewrite' || decision.type === 'pass') {
+    const { rest } = splitLocale(
+      decision.type === 'rewrite' ? decision.pathname : pathname,
+      state.supportedLocales,
+    );
+    if (!isKnownRoute(rest, state.routes)) {
+      const notFound = await staticPageResponse(
+        origin,
+        `/${decision.locale}${SiteRoute.NotFound}`,
+        404,
+      );
+      return withSiteHeaders(notFound, state, request, staff);
+    }
+  }
 
   let response: NextResponse;
   switch (decision.type) {
@@ -105,6 +129,34 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
       break;
   }
   return withSiteHeaders(response, state, request, staff);
+}
+
+/**
+ * Serves an internal page (maintenance, 404, admin "not allowed") with a specific status.
+ * In production Next.js ignores the status of a rewrite to a static page, so
+ * the proxy fetches the page itself (marked as internal to skip the gate) and
+ * returns its HTML with the wanted status.
+ */
+async function staticPageResponse(
+  origin: string,
+  path: string,
+  status: number,
+): Promise<NextResponse> {
+  try {
+    const page = await fetch(new URL(path, origin), {
+      headers: { [INTERNAL_HEADER]: await siteStateKey() },
+      signal: AbortSignal.timeout(5000),
+    });
+    return new NextResponse(page.body, {
+      status,
+      headers: {
+        'Content-Type': page.headers.get('content-type') ?? 'text/html; charset=utf-8',
+        [HeaderName.CacheControl]: NO_STORE,
+      },
+    });
+  } catch {
+    return new NextResponse(status === 503 ? 'Service unavailable' : 'Not found', { status });
+  }
 }
 
 /** noindex while indexing is off / private mode is on; staff banner cookie. */
@@ -149,6 +201,25 @@ function rememberLocale(
     sameSite: 'lax',
   });
   return response;
+}
+
+/**
+ * Early 404 for admin-only screens when the signed gate cookie says the user's
+ * role lacks the permission. Pages still enforce permissions on the server.
+ */
+async function isForbiddenAdminPath(request: NextRequest, pathname: string): Promise<boolean> {
+  // Page views only: server actions (POST) are always checked by the action itself.
+  if (request.method !== 'GET' && request.method !== 'HEAD') return false;
+  const permission = permissionForAdminPath(pathname);
+  if (!permission) return false;
+  const token = await verifyGateToken(
+    getAuthSecret(),
+    request.cookies.get(GATE_COOKIE_NAME)?.value,
+  );
+  if (!token) return false;
+  // Only trust the role if the token is still current (role changes bump the session version).
+  const state = await getSiteState(request.nextUrl.origin);
+  return state.staff[token.uid] === token.v && !can(token.role, permission);
 }
 
 function next(request: NextRequest, pathname: string): NextResponse {

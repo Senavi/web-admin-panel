@@ -58,7 +58,13 @@ export const teamPage = definePage({
   path: '/about/team',
   label: 'Team',
   parent: 'about',
-  seo: { title: 'Our team', description: 'The people who design and build our websites.' },
+  seo: {
+    title: 'Our team',
+    description: 'The people who design and build our websites.',
+    localized: {
+      uk: { title: 'Наша команда', description: 'Люди, які проєктують і створюють наші сайти.' },
+    },
+  },
   sections: [
     defineSection({
       id: 'intro',

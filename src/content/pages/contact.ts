@@ -10,7 +10,11 @@ export const contactPage = definePage({
   path: '/contact',
   label: 'Contact',
   parent: null,
-  seo: { title: 'Contact', description: 'Get in touch with our team.' },
+  seo: {
+    title: 'Contact',
+    description: 'Get in touch with our team.',
+    localized: { uk: { title: 'Контакти', description: 'Зв’яжіться з нашою командою.' } },
+  },
   sections: [
     defineSection({
       id: 'intro',

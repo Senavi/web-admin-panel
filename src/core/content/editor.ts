@@ -11,7 +11,7 @@ import { loadMedia, seedAssetIds } from '@/core/media/resolve';
 import { parsePageSeo } from '@/core/seo/page-seo';
 import { readSiteSettings } from '@/core/settings/repository';
 
-import type { AnyPage } from './define';
+import { type AnyPage, seoDefaultsFor } from './define';
 import type { EditorData, LocaleStatus, MediaPreview, RevisionSummary } from './editor-types';
 import { readPageRows, storedRowsFor } from './repository';
 import { pageContentSchema, parseStoredValue } from './validation';
@@ -24,13 +24,13 @@ import {
   seedToStored,
 } from './values';
 
-export function editorPage(page: AnyPage) {
+export function editorPage(page: AnyPage, locale: string) {
   return {
     id: page.id,
     label: page.label,
     path: page.path,
     sections: page.sections,
-    seoDefaults: { title: page.seo.title, description: page.seo.description ?? '' },
+    seoDefaults: seoDefaultsFor(page, locale),
   };
 }
 
@@ -78,7 +78,7 @@ export async function loadEditorData(pageId: string, locale: string): Promise<Ed
     media[id] = { id, src: info.src, width: info.width, height: info.height };
 
   return {
-    page: editorPage(page),
+    page: editorPage(page, locale),
     locale,
     defaultLocale,
     content,

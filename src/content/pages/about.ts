@@ -152,7 +152,11 @@ export const aboutPage = definePage({
   path: '/about',
   label: 'About',
   parent: null,
-  seo: { title: 'About us', description: 'Who we are and how we work.' },
+  seo: {
+    title: 'About us',
+    description: 'Who we are and how we work.',
+    localized: { uk: { title: 'Про нас', description: 'Хто ми та як працюємо.' } },
+  },
   sections: [
     defineSection({
       id: 'intro',

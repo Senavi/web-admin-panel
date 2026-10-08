@@ -1,6 +1,7 @@
 import '@/admin/styles/admin.css';
 
 import type { Metadata, Viewport } from 'next';
+import { connection } from 'next/server';
 
 import { AdminProviders } from '@/admin/components/providers/admin-providers';
 import { adminMono, adminSans } from '@/admin/fonts';
@@ -19,7 +20,12 @@ export const viewport: Viewport = {
 /** The admin is per-request (auth-gated); opt out of instant-navigation validation. */
 export const instant = false;
 
-export default function AdminRootLayout({ children }: LayoutProps<'/admin'>) {
+/**
+ * Fully dynamic on purpose: with no static shell to flush early, guards like
+ * notFound() (manager opening /admin/settings) still produce a real 404 status.
+ */
+export default async function AdminRootLayout({ children }: LayoutProps<'/admin'>) {
+  await connection();
   return (
     <html
       lang="en"

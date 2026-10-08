@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, request } from '@playwright/test';
 
 export interface StatusChange {
   readonly maintenance?: boolean;
@@ -37,3 +37,28 @@ export async function updateSiteStatus(page: Page, change: StatusChange): Promis
 
 /** Plain HTTP GET as an anonymous browser-like client (no cookies). */
 export const VISITOR_HEADERS = { 'user-agent': 'Mozilla/5.0 Chrome/150', 'accept-language': 'en' };
+
+/** The proxy caches site state for a few seconds: wait until visitors see the public site again. */
+export async function waitForPublicSite(baseURL: string | undefined): Promise<void> {
+  const context = await request.newContext({ baseURL, extraHTTPHeaders: VISITOR_HEADERS });
+  await expect
+    .poll(async () => (await context.get('/about', { maxRedirects: 0 })).status(), {
+      timeout: 15_000,
+    })
+    .toBe(200);
+  await context.dispose();
+}
+
+/** Enables exactly these locales in Settings → General (default stays `en`). */
+export async function setEnabledLocales(page: Page, locales: readonly string[]): Promise<void> {
+  await page.goto('/admin/settings');
+  const form = page.locator('form[aria-label="General"][data-hydrated]');
+  await expect(form).toBeVisible();
+  for (const code of ['en', 'uk']) {
+    const box = form.getByRole('checkbox', { name: new RegExp(`\\(${code}\\)`) });
+    if ((await box.getAttribute('aria-checked')) !== String(locales.includes(code)))
+      await box.click();
+  }
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Settings saved.').last()).toBeVisible();
+}

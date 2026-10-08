@@ -12,6 +12,8 @@ export const projectConfig = defineProjectConfig({
   ],
   defaultLocale: 'en',
   adminPath: '/admin',
+  // Public routes outside the content registry (e.g. '/legal', '/blog/:slug'). Others → 404.
+  siteRoutes: [],
   brand: {
     // Used for the browser UI theme color until one is set in Settings → Branding.
     themeColor: '#1d4ed8',

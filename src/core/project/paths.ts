@@ -19,6 +19,7 @@ export const AdminRoute = {
   Managers: '/managers',
   Settings: '/settings',
   Security: '/security',
+  NotAllowed: '/not-allowed',
 } as const;
 export type AdminRoute = (typeof AdminRoute)[keyof typeof AdminRoute];
 

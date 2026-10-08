@@ -4,6 +4,9 @@ import type { ComponentType } from 'react';
 
 import { registry } from '@/content';
 import { isEnabledLocale } from '@/core/i18n/locales';
+import { JsonLd } from '@/core/seo/json-ld';
+import { buildPageMetadata } from '@/core/seo/page-metadata';
+import { buildStructuredData } from '@/core/seo/structured-data';
 
 import { getPageContent, type PageId, type SitePageContent } from './loader';
 
@@ -36,13 +39,20 @@ export function createPageRoute<Id extends PageId>(
   async function Page({ params }: RouteProps) {
     const { locale } = await params;
     if (!(await isEnabledLocale(locale))) notFound();
-    const content = await getPageContent(pageId, locale);
-    return <View content={content} locale={locale} />;
+    const [content, structuredData] = await Promise.all([
+      getPageContent(pageId, locale),
+      buildStructuredData(pageId, locale),
+    ]);
+    return (
+      <>
+        <JsonLd data={structuredData} />
+        <View content={content} locale={locale} />
+      </>
+    );
   }
 
   async function generateMetadata({ params }: RouteProps): Promise<Metadata> {
     const { locale } = await params;
-    const { buildPageMetadata } = await import('@/core/seo/page-metadata');
     return buildPageMetadata(pageId, locale);
   }
 
