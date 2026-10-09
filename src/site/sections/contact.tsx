@@ -78,17 +78,16 @@ export async function ContactDetails({
 }
 
 function Item({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  // <dl> may only contain <div> groups of <dt>/<dd>: the icon lives inside the <dt>.
   return (
-    <div className="flex gap-4">
-      <span className="mt-1 text-primary">{icon}</span>
-      <div className="flex flex-col gap-1">
-        <dt>
-          <Text as="span" variant="label" tone="muted">
-            {label}
-          </Text>
-        </dt>
-        <dd className="text-body-lg">{children}</dd>
-      </div>
+    <div className="flex flex-col gap-1">
+      <dt className="flex items-center gap-2">
+        <span className="text-primary">{icon}</span>
+        <Text as="span" variant="label" tone="muted">
+          {label}
+        </Text>
+      </dt>
+      <dd className="ps-7 text-body-lg">{children}</dd>
     </div>
   );
 }

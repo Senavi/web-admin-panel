@@ -42,8 +42,39 @@ summarized in CLAUDE.md.
 | Invalid / malicious input | Zod validation of every action and route input, env vars and content.                                                                                                                              |
 | Stored XSS via rich text  | Rich text is JSON validated against an allowlist on save **and** render; rendered by a JSON→React renderer (no HTML injection); links limited to http(s), mailto, tel, relative paths and anchors. |
 | JSON-LD injection         | `<` escaped in JSON-LD scripts.                                                                                                                                                                    |
-| CSRF                      | Next.js server action origin protection; same-origin checks on mutating route handlers (`/api/media`, `/api/gate`, `/api/collect`).                                                                |
+| CSRF                      | Next.js server action origin protection; same-origin checks on mutating route handlers (`/api/media`, `/api/gate`, `/api/collect`, `/api/forms/submit`, `/api/preview/exit`).                      |
 | Open redirects            | `safeRedirectPath` allows only same-origin relative paths.                                                                                                                                         |
+
+## Collections and previews
+
+- Item mutations (create, save, publish, delete) check `pages.edit` on the server, validate
+  with Zod (slug format and uniqueness, publish date) and write audit entries naming the
+  item ("Blog: Hello world"); conflicts are detected per content row and on the item row.
+- Drafts never reach visitors: list/item loaders read published items only; unknown, draft
+  and hidden slugs get a 404 from the proxy. **Preview** (`/api/preview`) requires a signed-in
+  user with `pages.view`, redirects to a URL built from the database, and enables Draft Mode
+  with a cookie scoped to that item's path; the item route re-checks the session before
+  showing a draft.
+
+## Forms
+
+- **Public endpoints** `/api/forms/submit` and `/api/forms/token` are same-origin checked
+  (submit), closed to visitors while the site is private or in maintenance, and never log
+  submission data.
+- **Spam:** honeypot field; signed minimum fill time (HMAC token, ≥ 3 s, ≤ 24 h; without
+  JavaScript one confirm step); DB rate limits (5 per visitor per 10 min, 200 per form per
+  hour, keyed by a hashed IP); optional Cloudflare Turnstile. Spam gets a fake success.
+- **Validation:** schema derived from the form definition, the same in the browser and on
+  the server; plain-text emails; header values stripped of CR/LF; fallback pages escape all
+  output.
+- **PII:** submissions store the form values, locale, page path, a keyed IP hash and the
+  browser family only. They are deleted after the retention period (Settings → Forms) and
+  can be deleted one by one by admins (GDPR requests). Exports are audited and escape
+  spreadsheet formulas.
+- **Permissions:** managers read, mark and export (`forms.view`); deleting
+  (`forms.delete`) and Settings → Forms (`forms.settings`) are admin only.
+- **Delivery:** secrets only in env; webhooks are signed, sent to https (or localhost) URLs
+  set by admins, without following redirects; Telegram errors never include the token.
 
 ## Uploads
 
@@ -95,3 +126,8 @@ low severity).
   (a few seconds).
 - Two admins disabling each other at the same moment is not serialized (race on the
   last-admin check).
+- Webhook URLs are set by admins and may point to internal hosts (localhost is allowed for
+  local tools); treat Settings → Forms as admin-only configuration.
+- Collection slug changes and new items reach the proxy within its state TTL (3 s).
+- Next.js logs an "Unexpected cache miss" warning while a staff preview renders (Draft
+  Mode bypasses caches); harmless.

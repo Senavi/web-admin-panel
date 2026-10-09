@@ -10,8 +10,8 @@ layer** (public site, content schemas, theme, `project.config.ts`). Full spec:
 
 ## Boundary: what you may edit
 
-- **Project layer (edit freely):** `project.config.ts`, `src/content/**`, `src/site/**`,
-  `src/app/(site)/**`, `public/**`.
+- **Project layer (edit freely):** `project.config.ts`, `src/content/**` (pages,
+  collections, globals, forms), `src/site/**`, `src/app/(site)/**`, `public/**`.
 - **Core (do not edit for project work):** `src/core/**`, `src/admin/**`,
   `src/app/(admin)/**`, `src/app/(access)/**`, `src/app/api/**`, metadata routes in
   `src/app/*.ts`, `scripts/**`.
@@ -23,13 +23,32 @@ layer** (public site, content schemas, theme, `project.config.ts`). Full spec:
 ## Add a page
 
 1. Schema: `src/content/pages/<page>.ts` with `definePage` + `f.*` fields + seed content
-   per locale (docs/CONTENT_SCHEMA.md). Register it in `src/content/index.ts`.
+   per locale (docs/CONTENT_SCHEMA.md). Register it in `src/content/index.ts` (`pages`).
 2. View: `src/site/pages/<page>.tsx` built from sections in `src/site/sections/`.
 3. Route: `src/app/(site)/[locale]/(pages)/<path>/page.tsx` →
    `const route = createPageRoute('<id>', View); export default route.Page; export const generateMetadata = route.generateMetadata;`
 4. `pnpm content:sync` (or restart `pnpm dev`), then `pnpm content:check`.
 
-Add a field type: docs/CONTENT_SCHEMA.md § Adding a field type.
+## Add a collection (blog, projects…)
+
+1. `src/content/collections/<id>.ts` with `defineCollection` (`listPageId`, `itemPath`,
+   `fields`, `titleField`, seed items); a list page via "Add a page"; register both in
+   `src/content/index.ts` (`collections: [...]`).
+2. List route: `createCollectionListRoute('<pageId>', '<id>', View)` (+ `instant = false`).
+3. Item route `…/<list path>/[slug]/page.tsx`: `createCollectionItemRoute('<id>', View)`,
+   export `Page`, `generateMetadata`, `generateStaticParams` (+ `instant = false`).
+4. `pnpm content:sync`, `pnpm content:check`. Data: `getCollectionList` / `getCollectionItem`.
+
+## Add a global / a form
+
+- Global: `src/content/globals/<id>.ts` with `defineGlobal`, register in `globals`, read with
+  `getGlobalContent('<id>', locale)` (no route).
+- Form: `src/content/forms/<id>.ts` with `defineForm`, register in `forms`, render with a
+  client component on `useSiteForm` + `<FormSecurityFields>` (see
+  `src/site/components/contact-form.tsx`); delivery in Settings → Forms.
+
+Details: docs/CONTENT_SCHEMA.md. Add a field type: docs/CONTENT_SCHEMA.md § Adding a field
+type.
 
 ## Design tokens: the rule
 

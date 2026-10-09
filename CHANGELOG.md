@@ -6,6 +6,46 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-09
+
+### Added
+
+- **Collections** (`defineCollection`): repeatable items with their own URL (demo: Blog).
+  Admin: Pages → Collections with a searchable, filterable table and an item editor (slug
+  with suggestion and uniqueness check, Draft/Published, publish date, Preview, Delete,
+  revisions, conflict detection). Site: `getCollectionList`, `getCollectionItem`,
+  `createCollectionListRoute` (real `?page=N` URLs), `createCollectionItemRoute` (static
+  params, metadata, JSON-LD, 308 for old slugs, staff Draft Mode preview), sitemap entries,
+  analytics attribution. The proxy answers 404/308 for collection URLs before rendering.
+- **Global content** (`defineGlobal` + `getGlobalContent`), edited in Pages → Site-wide.
+  Demo: header phone, footer contacts, social links and legal line.
+- **Forms** (`defineForm`): editable copy per locale, headless `useSiteForm` engine that
+  works with and without JavaScript, spam protection (honeypot, signed minimum fill time,
+  rate limits, optional Turnstile), inbox with filters, CSV export and retention, delivery
+  by email (dev files / Resend / SMTP), signed webhook and Telegram with retries, Settings →
+  Forms, Overview card. Demo: contact form.
+- `f.email()` and `f.phone()` fields with `mailtoHref` / `telHref`.
+- `createRegistry({ pages, collections, globals, forms })`; Pages sidebar groups.
+- Permissions `forms.view` (managers), `forms.delete` and `forms.settings` (admins).
+
+### Changed
+
+- Pages, globals, form texts and collection items share one document engine (save,
+  revisions, editor). `savePageAction` is now `saveDocumentAction` (internal API).
+- The maintenance job also retries form deliveries and deletes old submissions.
+- The Connect Supabase wizard copies collections and submissions.
+
+### Upgrading from 1.1.0
+
+1. Merge the template update (core, scripts, tests, configs); your `src/content`,
+   `src/site`, `src/app/(site)` and `project.config.ts` keep working unchanged: the array
+   form `createRegistry([…pages])` is still supported and nothing new is required.
+2. Run `pnpm db:migrate` (additive: `collection_*` tables, `form_submissions`,
+   `analytics_events.collection_id`) and `pnpm content:sync`.
+3. Optional: add collections, globals or forms (docs/CONTENT_SCHEMA.md), set form env
+   variables (docs/DEPLOYMENT.md § Forms) and Settings → Forms.
+4. Page ids must be kebab-case and must not be `collections`, `site-wide` or `forms`.
+
 ## [1.1.0] - 2026-10-09
 
 ### Fixed

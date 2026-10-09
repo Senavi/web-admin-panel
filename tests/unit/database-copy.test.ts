@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { Role } from '@/core/auth/roles';
 import { createUserWithPassword } from '@/core/auth/server/users';
+import { contentRegistry } from '@/core/content/project-registry';
 import { appTableNames, copyTables } from '@/core/database/copy';
 import {
   collectionItemContent,
@@ -48,9 +49,13 @@ describe('Connect Supabase: data copy', () => {
     expect(result[getTableName(users)]).toBe(1);
     expect(result[getTableName(pageContent)]).toBeGreaterThan(0);
     // Seeded blog posts and their content, the seed log and form submissions too.
-    expect(result[getTableName(collectionItems)]).toBe(3);
-    expect(result[getTableName(collectionItemContent)]).toBeGreaterThan(0);
-    expect(result[getTableName(collectionSeedLog)]).toBe(3);
+    const seeded = contentRegistry.collections.reduce(
+      (sum, collection) => sum + (collection.seed?.length ?? 0),
+      0,
+    );
+    expect(result[getTableName(collectionItems)]).toBe(seeded);
+    if (seeded > 0) expect(result[getTableName(collectionItemContent)]).toBeGreaterThan(0);
+    expect(result[getTableName(collectionSeedLog)]).toBe(seeded);
     expect(result[getTableName(formSubmissions)]).toBe(1);
     const copied = await target.db.select().from(users);
     expect(copied[0]?.email).toBe('copy@example.com');

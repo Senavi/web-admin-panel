@@ -1,15 +1,20 @@
 # Content schema
 
 Pages are **fixed in code**: developers define their structure, admins and managers edit
-their content and SEO. The admin editor, the TypeScript types the site receives, and the
+their content and SEO. Besides pages there are **collections** (repeatable items with their
+own URL, e.g. blog posts), **globals** (content shared by many pages, e.g. footer contacts)
+and **forms** (contact forms with an inbox). The admin editor, the TypeScript types the site receives, and the
 validators are all **generated from the schema**, so adapting the admin to a new project
 means writing schemas, not admin code.
 
 ```
 src/content/
-├─ index.ts            ← registry: every page of the site
-├─ pages/<page>.ts     ← one definePage() per page
-└─ seed/assets/        ← images referenced by seed content ({ asset: 'hero.webp' })
+├─ index.ts              ← registry: pages, collections, globals, forms
+├─ pages/<page>.ts       ← one definePage() per page
+├─ collections/<id>.ts   ← defineCollection()
+├─ globals/<id>.ts       ← defineGlobal()
+├─ forms/<id>.ts         ← defineForm()
+└─ seed/assets/          ← images referenced by seed content ({ asset: 'hero.webp' })
 ```
 
 ## Defining a page
@@ -46,10 +51,20 @@ export const homePage = definePage({
 Then register it in `src/content/index.ts`:
 
 ```ts
-export const registry = createRegistry([homePage, aboutPage, teamPage, contactPage]);
+export const registry = createRegistry({
+  pages: [homePage, aboutPage, blogPage, contactPage],
+  collections: [blog], // optional
+  globals: [siteGlobals], // optional
+  forms: [contactForm], // optional
+});
 ```
 
-The registry validates unique ids/paths, existing parents and the absence of cycles.
+The v1.1 form `createRegistry([homePage, aboutPage])` still works (pages only). The registry
+validates kebab-case ids (they are DB keys), unique ids per kind and paths, existing
+parents, the absence of cycles, that a collection's `listPageId` is a registered page whose
+path its `itemPath` starts with, that no page path matches a collection item URL, and that a
+form's `successRedirectPageId` exists. `collections`, `site-wide` and `forms` are reserved
+page ids (admin URLs).
 
 ## Field types
 
@@ -67,6 +82,8 @@ Every builder accepts `label`, `help`, `required`, `localized` (default `true`) 
 | `f.number()`            | `number`                    | `number`                                                                 | `min`, `max`, `step`, `integer` |
 | `f.select({ options })` | union of option values      | same                                                                     | `options: [{ value, label }]`   |
 | `f.color()`             | `#rrggbb`                   | same                                                                     |                                 |
+| `f.email()`             | `string` (validated email)  | same; link with `mailtoHref()`                                           | `placeholder`                   |
+| `f.phone()`             | `string` (validated phone)  | same; link with `telHref()`                                              | `placeholder`                   |
 
 Notes:
 
@@ -113,12 +130,201 @@ tags, so pages stay statically rendered and update within seconds.
 - `page_seo(page_id, locale)`: SEO overrides.
 - `page_revisions`: the last 20 snapshots per (page, locale).
 
+## Collections
+
+Repeatable items with their own URL: posts, projects, vacancies. Developers define the
+fields; editors create, publish, unpublish and delete items in **Pages → Collections**.
+
+```ts
+// src/content/collections/blog.ts
+import {
+  defineCollection,
+  MissingTranslation,
+  StructuredDataType,
+} from '@/core/content/collection';
+import { f } from '@/core/content/fields';
+
+export const blog = defineCollection({
+  id: 'blog', // stable DB key, kebab-case, never renamed
+  label: 'Blog', // admin group label
+  itemLabel: 'Post', // "New post"
+  listPageId: 'blog', // registered page that renders the list (/blog)
+  itemPath: '/blog/:slug', // must start with the list page path
+  fields: {
+    // same f.* builders as pages (no sections level)
+    title: f.text({ label: 'Title', required: true, max: 120 }),
+    excerpt: f.textarea({ label: 'Short description', max: 300 }),
+    cover: f.image({ label: 'Cover image', localized: false, recommendedSize: '1600×900' }),
+    body: f.richText({ label: 'Text', required: true }),
+  },
+  titleField: 'title', // admin table, default SEO title, slug suggestion
+  summaryField: 'excerpt', // default meta description
+  imageField: 'cover', // default OG image
+  sort: { by: 'publishedAt', direction: 'desc' }, // or a field name
+  pageSize: 12,
+  missingTranslation: MissingTranslation.Fallback, // or Hide (item hidden in that locale)
+  structuredData: StructuredDataType.BlogPosting, // Article | NewsArticle | 'none' | (ctx) => [...]
+  seed: [
+    {
+      slug: 'hello-world',
+      publishedAt: '2026-01-15',
+      content: {
+        en: { title: 'Hello', body: richTextFromParagraphs('…') },
+        uk: { title: 'Привіт' },
+      },
+    },
+  ],
+});
+```
+
+Item fields are typed from `fields` like pages. Slugs are lowercase `[a-z0-9-]`, max 100
+chars, unique per collection and shared by all languages; the editor suggests one from the
+title (Cyrillic is transliterated). Changing a slug keeps the old URL working with a 308.
+
+**Routes.** The list page uses `createCollectionListRoute` (real `?page=N` URLs, a self
+canonical per page, 404 beyond the last page) and the item route
+`createCollectionItemRoute`:
+
+```tsx
+// src/app/(site)/[locale]/(pages)/blog/page.tsx
+const route = createCollectionListRoute('blog', 'blog', BlogView); // pageId, collectionId
+export default route.Page;
+export const generateMetadata = route.generateMetadata;
+export const instant = false;
+
+// src/app/(site)/[locale]/(pages)/blog/[slug]/page.tsx
+const route = createCollectionItemRoute('blog', PostView);
+export default route.Page;
+export const generateMetadata = route.generateMetadata;
+export const generateStaticParams = route.generateStaticParams;
+export const instant = false;
+```
+
+Views receive typed data: `CollectionListViewProps<'blog', 'blog'>` (`content` of the list
+page, `list.items`, `list.page`, `list.pageCount`, `pageHref(n)`) and
+`CollectionItemViewProps<'blog'>` (`item.title`, `item.href`, `item.publishedAt`,
+`item.content.cover`…, `preview` while staff preview a draft). Anywhere else:
+
+```ts
+const { items, page, pageCount, total } = await getCollectionList('blog', locale, { page: 1 });
+const post = await getCollectionItem('blog', 'hello-world', locale); // null if unknown/draft
+```
+
+Only published items are shown; drafts are visible to staff through **Preview** (Draft
+Mode). Unknown slugs, drafts and hidden translations return the localized 404 (decided by
+the request proxy before rendering), old slugs a 308. Items appear in the sitemap with
+hreflang alternates and `lastModified`, carry JSON-LD (`structuredData` + BreadcrumbList
+Home → list → item) and their views are attributed to the collection in analytics.
+
+Storage: `collection_items` (slug, status, publish date, version), `collection_item_content`,
+`collection_item_seo`, `collection_item_revisions` (last 20) and `collection_slug_redirects`.
+Cache tags: `collection:{id}`, `collection:{id}:list`, `collection:{id}:{slug}`.
+
+## Globals
+
+Content shared by many pages (header/footer texts, contacts, social links, legal line):
+sections and seed like a page, but no route and no SEO. Edited in **Pages → Site-wide**.
+
+```ts
+// src/content/globals/site.ts
+export const siteGlobals = defineGlobal({
+  id: 'site',
+  label: 'Header & footer',
+  sections: [
+    defineSection({
+      id: 'contacts',
+      label: 'Contacts',
+      fields: {
+        phone: f.phone({ label: 'Phone', localized: false }),
+        email: f.email({ label: 'Email', localized: false }),
+        address: f.textarea({ label: 'Address' }),
+      },
+    }),
+    defineSection({
+      id: 'social',
+      label: 'Social links',
+      fields: {
+        links: f.list({
+          label: 'Links',
+          of: { network: f.select({ options: SOCIAL_NETWORKS }), link: f.link() },
+        }),
+      },
+    }),
+  ],
+  seed: { en: { contacts: { phone: '+380 44 000 00 00' } } },
+});
+
+// in a layout component
+const { contacts, social } = await getGlobalContent('site', locale);
+<a href={telHref(contacts.phone)}>{contacts.phone}</a>;
+```
+
+`getGlobalContent` is typed from the definition, uses the same fallback chain as pages and is
+cached with the tag `global:{id}`: saving updates every page that rendered it. Globals are
+stored in the page tables under the key `global:<id>` and need no route.
+
+## Forms
+
+Fields are fixed in code; their visible copy (labels, placeholders, help, option labels,
+consent text, submit label, success and confirmation messages) is edited per language in
+**Pages → Forms → Texts**. Submissions land in the form's **Inbox**.
+
+```ts
+// src/content/forms/contact.ts
+export const contactForm = defineForm({
+  id: 'contact',
+  label: 'Contact form',
+  fields: {
+    name: { type: FormFieldType.Text, required: true, max: 100, label: 'Name' },
+    email: { type: FormFieldType.Email, required: true },
+    phone: { type: FormFieldType.Tel },
+    topic: { type: FormFieldType.Select, options: ['general', 'project', 'job'] },
+    message: { type: FormFieldType.Textarea, required: true, max: 3000 },
+    consent: { type: FormFieldType.Consent, required: true },
+  },
+  successRedirectPageId: undefined, // optional thank-you page; otherwise inline success
+  seed: { en: { name: { label: 'Your name' }, messages: { submit: 'Send message' } } },
+});
+```
+
+Field types: `text`, `email`, `tel`, `textarea`, `select` (options are kebab-case values;
+their labels are texts `option_<value>`), `checkbox`, `consent` (rich-text agreement).
+
+**On the site** the core gives you data and behaviour, the project renders the markup with
+its own primitives and tokens (see `src/site/components/contact-form.tsx`):
+
+```tsx
+// server component
+const config = await getSiteFormConfig('contact', locale); // definition + texts
+<ContactForm config={config} messages={…} security={<FormSecurityFields formId="contact" />} />
+
+// client component
+const summaryRef = useRef<HTMLDivElement>(null);
+const form = useSiteForm({ config, messages, summaryRef });
+<form {...form.formProps}>
+  {form.hiddenFields}
+  {security}
+  {/* summary: ref={summaryRef} tabIndex={-1}, items in form.summary */}
+  {config.fields.map((field) => /* form.field(name): inputProps, error, ids */)}
+</form>;
+```
+
+Without JavaScript the form posts to `/api/forms/submit` with native browser validation and
+gets a small confirm/success page (or the thank-you page). With JavaScript it validates
+inline (same rules as the server), focuses an error summary, shows a pending state and the
+success message without reloading. Validation messages are UI strings (`forms.errors.*` in
+`src/site/messages`) with English defaults.
+
+Spam protection (honeypot, signed minimum fill time, rate limits, optional Turnstile),
+delivery (email, webhook, Telegram), retention and permissions: docs/SECURITY.md § Forms
+and docs/DEPLOYMENT.md § Forms.
+
 ## Commands
 
-| Command              | What it does                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm content:sync`  | Imports seed images, creates missing rows and fills **missing** fields from seeds/defaults. Never overwrites edited content. Reports orphaned fields (removed from the schema) without deleting them. Runs automatically on the first `pnpm dev`. |
-| `pnpm content:check` | Fails when a registered page has no route, a route uses an unregistered page, or paths differ. Runs in CI.                                                                                                                                        |
+| Command              | What it does                                                                                                                                                                                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm content:sync`  | Imports seed images, creates missing rows and fills **missing** fields from seeds/defaults (pages, globals, form texts), and creates seed collection items once (deleted or renamed seed items don't come back). Never overwrites edited content. Reports orphaned fields without deleting them. Runs on every `pnpm dev`. |
+| `pnpm content:check` | Fails when a registered page or collection has no route, a route uses an unregistered page/collection, or paths differ. Globals and forms need no routes. Runs in CI.                                                                                                                                                      |
 
 ## Adding a page (checklist)
 

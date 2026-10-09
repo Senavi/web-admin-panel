@@ -86,10 +86,31 @@ Enforced by ESLint (`eslint.config.mjs`):
 
 ## Content system
 
-See docs/CONTENT_SCHEMA.md. In short: `src/content` defines pages with `definePage` and
-`f.*` fields. `src/core/content` derives types, Zod validators, storage splitting
-(shared vs localized), fallbacks, sync and route checks. `getPageContent()` is cached with
-tags `content:{id}` / `content:{id}:{locale}`.
+See docs/CONTENT_SCHEMA.md. In short: `src/content` defines pages (`definePage`),
+collections (`defineCollection`), globals (`defineGlobal`) and forms (`defineForm`) with
+`f.*` fields. `src/core/content` derives types, Zod validators, storage splitting (shared vs
+localized), fallbacks, sync and route checks.
+
+**One document engine (D-062).** Pages, globals, form texts and collection items are all
+_documents_: a `DocumentTarget` (`{ kind: 'page' | 'global' | 'form' | 'item', … }`) is
+resolved by `resolveDocument()` to its schema (sections), a `DocumentStore` (table binding:
+page tables, or the `collection_item_*` tables), cache tags, audit target and public URL.
+`saveDocument` (optimistic concurrency per row, revisions), `loadEditorData`, the revision
+actions and the admin `DocumentEditor` work on any document.
+
+**Data flow and cache tags.**
+
+| Content         | Read on the site                 | Cache tags                                        | Invalidated by                      |
+| --------------- | -------------------------------- | ------------------------------------------------- | ----------------------------------- |
+| Page            | `getPageContent(id, locale)`     | `content:{id}`, `content:{id}:{locale}`           | saving the page (changed rows only) |
+| Collection list | `getCollectionList(id, locale)`  | `collection:{id}:list`, `collection:{id}`         | saving/publishing/deleting any item |
+| Collection item | `getCollectionItem(id, slug, …)` | `collection:{id}:{slug}`, `collection:{id}`       | saving it (old and new slug)        |
+| Global          | `getGlobalContent(id, locale)`   | `global:{id}`                                     | saving the global                   |
+| Form texts      | `getSiteFormConfig(id, locale)`  | `form:{id}`                                       | saving the form texts               |
+| Site state      | proxy via `/api/site-state`      | `settings`, `staff`, every `collection:{id}:list` | settings, users, collection changes |
+| Sitemap         | `/sitemap.xml`                   | `sitemap`, `settings`, collection list tags       | SEO changes, collection changes     |
+
+Every read also carries `settings` (default locale, enabled locales).
 
 ## Local development database
 
@@ -111,6 +132,17 @@ locales render the localized 404. Rules: `src/core/i18n/routing.ts`.
 fonts). Pages are prerendered for every enabled locale (`generateStaticParams`) and
 revalidated through cache tags. No admin code, auth or DB driver reaches the client.
 
+- **Collection items** are prerendered per published slug; slugs published later render on
+  first request and are cached (ISR with Cache Components). Because a shell may already
+  be streaming, the **proxy** decides 404 (unknown/draft/hidden slug), 308 (old slug) and
+  404 for out-of-range `?page`, from the published slugs in the cached site state (D-066).
+- **Collection lists** render per request (`instant = false`, the query decides the status)
+  from cached data (D-065).
+- **Staff previews** use Draft Mode with a cookie scoped to the item URL (D-067).
+- **Forms** keep their page static: the hydrated form fetches a timing token from
+  `/api/forms/token` and submits `/api/forms/submit` with `fetch`; without JavaScript the
+  form posts natively to the same endpoint (D-069, D-070).
+
 ## SEO
 
 - `buildPageMetadata` (src/core/seo/page-metadata.ts): page SEO (DB) → schema defaults (per
@@ -118,10 +150,14 @@ revalidated through cache tags. No admin code, auth or DB driver reaches the cli
   hreflang for every enabled locale + `x-default`, Open Graph/Twitter (page image → site
   default image → generated `/og/{locale}/{page}.png`), and robots (page noindex, indexing
   off, private mode).
+- `composeMetadata` serves pages and collection items (items: SEO → title/summary/image
+  of the item → site defaults, `og:type=article`, hreflang only for locales showing it).
 - `src/app/sitemap.ts`, `robots.ts`, `manifest.ts`: built from the registry and settings,
-  cached with tags (`sitemap`, `settings`, content tags).
-- JSON-LD: BreadcrumbList on every page, WebSite + Organization on the home page, plus the
-  optional `structuredData` hook on a page definition.
+  cached with tags (`sitemap`, `settings`, content tags); published collection items are
+  listed per locale where they are shown and indexable.
+- JSON-LD: BreadcrumbList on every page, WebSite + Organization on the home page, the
+  optional `structuredData` hook on a page definition; collection items get their article
+  type (or hook) and Home → list → item breadcrumbs.
 - Unknown URLs: the proxy serves the static localized 404 page with status 404 (D-043).
 
 ## Security headers & CSP
@@ -129,6 +165,12 @@ revalidated through cache tags. No admin code, auth or DB driver reaches the cli
 Static headers for every response come from `next.config.ts` (`src/core/security/headers.ts`).
 Site pages get a CSP without nonces; admin requests get a nonce CSP from the proxy, and the
 admin root layout passes the nonce to its providers. See docs/SECURITY.md.
+
+## Maintenance
+
+`runMaintenance()` (src/core/maintenance.ts) runs analytics rollups + retention and form
+delivery retries + submission retention. The cron endpoint forces it; page views and the
+Overview trigger throttled lazy runs.
 
 ## Testing
 

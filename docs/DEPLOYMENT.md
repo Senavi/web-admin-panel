@@ -35,6 +35,18 @@ runs in production.
 | `CRON_SECRET`               | optional    | enables `/api/cron/maintenance`         |
 | `PREVIEW_DATABASE_ISOLATED` | optional    | `true` lets preview deploys migrate     |
 
+Forms (only what you use; destinations are configured in **Settings → Forms**):
+
+| Variable                                               | Notes                                                                   |
+| ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `MAIL_PROVIDER`                                        | `resend` or `smtp` in production (`dev` writes files to `<data>/mail/`) |
+| `MAIL_FROM`                                            | sender, e.g. `Website <forms@example.com>` (verified in your provider)  |
+| `RESEND_API_KEY`                                       | with `MAIL_PROVIDER=resend`                                             |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | with `MAIL_PROVIDER=smtp` (465 = TLS, otherwise STARTTLS)               |
+| `FORMS_WEBHOOK_SECRET`                                 | signs webhooks: `X-Signature: sha256=<hex HMAC-SHA256 of the raw body>` |
+| `TELEGRAM_BOT_TOKEN`                                   | bot that posts to the chat id set in Settings → Forms                   |
+| `TURNSTILE_SECRET_KEY`                                 | with `projectConfig.forms.turnstile.siteKey` (optional spam challenge)  |
+
 The admin's **Security** page shows which variables are set (values masked).
 
 ## 3. Vercel
@@ -75,6 +87,17 @@ branch would break the live site. Two safe setups:
   `PREVIEW_DATABASE_ISOLATED=true` there. Previews then migrate their own database.
 
 The build log always prints the decision and its reason.
+
+## Forms
+
+1. Set the env variables above for the destinations you need and redeploy.
+2. **Settings → Forms**: per form enable Email (recipients), Webhook (https URL) and/or
+   Telegram (chat id), and set how long submissions are kept (default 12 months).
+3. Verify webhooks on the receiving side: compute `HMAC-SHA256(FORMS_WEBHOOK_SECRET, body)`
+   over the raw request body and compare it (constant time) with `X-Signature` after
+   `sha256=`. The `X-Submission-Id` header identifies retries.
+4. Failed deliveries show in the inbox and are retried by the maintenance job (cron, or
+   lazily when staff open the Overview); configure the cron so retries happen promptly.
 
 ## 5. First admin in production
 

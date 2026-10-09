@@ -45,6 +45,20 @@ Delete or replace:
 Keep the infrastructure in `src/site`: `components/ui/*` (typography, layout, button,
 image, rich text), `layout/*` (adapt the header/footer), `maintenance/`, `i18n/request.ts`.
 
+**Remove the demo blog** (if the project has no collection):
+
+1. Delete `src/content/collections/blog.ts`, `src/content/pages/blog.ts` and remove both from
+   the registry (`collections: [blog]`, `blogPage`).
+2. Delete `src/app/(site)/[locale]/(pages)/blog/`, `src/site/pages/blog.tsx`,
+   `src/site/pages/blog-post.tsx`, `src/site/sections/post-list.tsx`,
+   `src/site/sections/latest-posts.tsx` (and `<LatestPosts>` on Home), the `blog` nav item
+   and the `blog` / `nav.blog` strings.
+3. Seeded posts already in a database stay until deleted in the admin (or drop the rows).
+
+**Remove the demo global / form** the same way: `src/content/globals/site.ts` (and its use in
+`site-header.tsx`, `site-footer.tsx`, `sections/contact.tsx`), `src/content/forms/contact.ts`
+(and `sections/contact-form.tsx`, `components/contact-form.tsx`, the `forms` strings).
+
 ### 4. Map the design to tokens
 
 Follow docs/DESIGN_TOKENS.md: fonts in `src/site/theme/fonts.ts`, colors/typography/
@@ -65,6 +79,21 @@ For each page in the design:
 5. `pnpm content:sync` (or restart `pnpm dev`) and `pnpm content:check`.
 
 The admin editor for the page is generated automatically.
+
+**Collections** (blog, projects, vacancies): `defineCollection` in
+`src/content/collections/<id>.ts` with a registered list page, register it in
+`collections: […]`, add the list route (`createCollectionListRoute`) and the item route
+`…/<list path>/[slug]/page.tsx` (`createCollectionItemRoute`), then `pnpm content:sync` and
+`pnpm content:check`. Items are created in **Pages → Collections**.
+
+**Globals** (header/footer copy, contacts, social links): `defineGlobal` in
+`src/content/globals/<id>.ts`, register it in `globals: […]`, read it in layout components
+with `getGlobalContent('<id>', locale)`. No route needed.
+
+**Forms**: `defineForm` in `src/content/forms/<id>.ts`, register it in `forms: […]`, render it
+with a project client component built on `useSiteForm` (copy
+`src/site/components/contact-form.tsx` and restyle it) plus `<FormSecurityFields>`, and set
+delivery in **Settings → Forms** (secrets in env, docs/DEPLOYMENT.md § Forms).
 
 ### 6. Languages
 
@@ -96,6 +125,10 @@ data to Supabase with **Security → Connect Supabase**.
 | Maintenance page                                     | `src/site/maintenance/index.tsx`                                     |
 | Default OG image                                     | `src/site/theme/og-image.tsx`                                        |
 | UI strings                                           | `src/site/messages/*.json`                                           |
+| Blog-like content with item URLs                     | `defineCollection` + `createCollectionListRoute` / `ItemRoute`       |
+| Content shared by many pages                         | `defineGlobal` + `getGlobalContent`                                  |
+| Contact and lead forms                               | `defineForm` + `useSiteForm` + Settings → Forms                      |
+| Spam challenge for forms (Cloudflare Turnstile)      | `projectConfig.forms.turnstile` + `TURNSTILE_SECRET_KEY`             |
 
 ### Content Security Policy for third parties
 

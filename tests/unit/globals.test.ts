@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { registry } from '@/content';
 import { mailtoHref, telHref } from '@/core/content/contact-links';
 import { defineSection } from '@/core/content/define';
 import { f } from '@/core/content/fields';
@@ -40,7 +39,6 @@ describe('globals', () => {
     expect(withGlobals.globalById('footer')?.label).toBe('Footer');
     expect(globalKey('footer')).toBe('global:footer');
     expect(() => createRegistry({ pages: [], globals: [footer, footer] })).toThrow(/Duplicate/);
-    expect(registry.globalById('site')?.label).toBe('Header & footer');
   });
 
   it('reject duplicate sections', () => {

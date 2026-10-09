@@ -34,10 +34,16 @@ test('admin responses use a nonce-based CSP', async ({ page }) => {
   expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
 });
 
-test('pages run without CSP violations (site, editor, dashboard)', async ({ page }) => {
+test('pages run without CSP violations (site, blog, forms, editor, dashboard)', async ({
+  page,
+}) => {
   const violations = collectCspViolations(page);
   await page.goto('/');
   await page.goto('/uk/about/team');
+  await page.goto('/blog');
+  await page.goto('/blog/hello-world');
+  await page.goto('/contact');
+  await expect(page.locator('form#form-contact input[name="_t"]')).toBeAttached();
   await login(page, E2E_ADMIN);
   await page.goto('/admin?range=7d');
   await expect(page.getByRole('heading', { name: 'Traffic' })).toBeVisible();
@@ -45,5 +51,8 @@ test('pages run without CSP violations (site, editor, dashboard)', async ({ page
   await expect(page.locator('form[data-hydrated]')).toBeVisible();
   await page.goto('/admin/settings');
   await expect(page.locator('form[aria-label="General"][data-hydrated]')).toBeVisible();
+  await page.goto('/admin/pages/collections/blog');
+  await page.goto('/admin/pages/forms/contact');
+  await expect(page.getByRole('table', { name: 'Submissions' })).toBeVisible();
   expect(violations).toEqual([]);
 });

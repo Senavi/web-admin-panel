@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-import { registry } from '@/content';
 import { Role } from '@/core/auth/roles';
 import { createUserWithPassword } from '@/core/auth/server/users';
 import {
@@ -121,10 +120,6 @@ describe('registry with collections', () => {
       }),
     ).toThrow(/conflicts with collection/);
   });
-
-  it('the demo registry has the blog', () => {
-    expect(registry.collectionById('blog')?.listPageId).toBe('blog');
-  });
 });
 
 describe('collection item store', () => {
@@ -152,8 +147,20 @@ describe('collection item store', () => {
   afterAll(() => close());
 
   it('saves items with versions and revisions like pages', async () => {
-    const blog = registry.collectionById('blog');
-    if (!blog) throw new Error('demo collection missing');
+    const blog = defineCollection({
+      id: 'blog',
+      label: 'Blog',
+      itemLabel: 'Post',
+      listPageId: 'blog',
+      itemPath: '/blog/:slug',
+      fields: {
+        title: f.text({ label: 'Title', required: true }),
+        excerpt: f.textarea(),
+        cover: f.image({ localized: false }),
+        body: f.richText({ required: true }),
+      },
+      titleField: 'title',
+    });
     const document = {
       target: { kind: DocumentKind.Item, collectionId: 'blog', itemId },
       key: itemId,

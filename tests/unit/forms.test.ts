@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('@/core/auth/secret', () => ({ getAuthSecret: () => 'unit-test-secret-0123456789abcdef' }));
 
-import { registry } from '@/content';
 import { defineForm, FormFieldType, MESSAGES_SECTION, optionTextKey } from '@/core/forms/define';
 import { plainTextBody, webhookSignature } from '@/core/forms/delivery';
 import { csvCell, previewOf } from '@/core/forms/inbox';
@@ -45,10 +44,6 @@ describe('defineForm', () => {
     expect(() =>
       defineForm({ id: 'x', label: 'X', fields: { messages: { type: FormFieldType.Text } } }),
     ).toThrow(/messages/);
-  });
-
-  it('the demo registry has the contact form', () => {
-    expect(registry.formById('contact')?.fields.email?.type).toBe('email');
   });
 });
 

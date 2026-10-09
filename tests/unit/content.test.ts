@@ -204,7 +204,9 @@ describe('content storage', () => {
 describe('registry', () => {
   it('builds the demo page tree', () => {
     const tree = registry.tree();
-    expect(tree.map((node) => node.page.id)).toEqual(['home', 'about', 'blog', 'contact']);
+    expect(tree.map((node) => node.page.id)).toEqual(
+      registry.pages.filter((page) => page.parent === null).map((page) => page.id),
+    );
     expect(tree.find((node) => node.page.id === 'about')?.children.map((n) => n.page.id)).toEqual([
       'team',
     ]);
