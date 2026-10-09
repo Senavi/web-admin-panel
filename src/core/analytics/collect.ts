@@ -4,6 +4,8 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { registry } from '@/content';
+import { contentRegistry } from '@/core/content/project-registry';
+import { matchesRoute } from '@/core/i18n/route-match';
 import { analyticsEvents, analyticsSalts } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import { isBotUserAgent } from '@/core/http/bots';
@@ -72,11 +74,15 @@ export async function recordPageView(
   const path = input.payload.p.split('?')[0]?.split('#')[0] ?? '/';
   const { locale, rest } = splitLocale(path, input.supportedLocales);
   const page = registry.byPath(rest);
+  const collection = page
+    ? undefined
+    : contentRegistry.collections.find((candidate) => matchesRoute(rest, candidate.itemPath));
 
   await db.insert(analyticsEvents).values({
     ts: now,
     path: path.slice(0, 512),
     pageId: page?.id ?? null,
+    collectionId: collection?.id ?? null,
     locale: locale ?? input.defaultLocale,
     visitorHash,
     referrerHost: referrerHost(input.payload.r, input.host),

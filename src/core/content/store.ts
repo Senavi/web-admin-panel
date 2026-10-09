@@ -33,7 +33,8 @@ export interface RevisionRecord {
 }
 
 export interface WriteContext {
-  readonly userId: string;
+  /** Null for system writes (content:sync). */
+  readonly userId: string | null;
   readonly now: Date;
 }
 

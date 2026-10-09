@@ -3,6 +3,7 @@ import 'server-only';
 import type { MetadataRoute } from 'next';
 
 import { registry } from '@/content';
+import { getCollectionSitemapItems } from '@/core/collections/loader';
 import { localizedPath } from '@/core/i18n/routing';
 import { getSiteSettings } from '@/core/settings/loader';
 import { isNoindex } from '@/core/site-gate/state';
@@ -19,7 +20,11 @@ export async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   if (isNoindex({ indexing: settings.status.indexing, privateMode: settings.status.privateMode }))
     return [];
   const { enabledLocales, defaultLocale } = settings.general;
-  const [lastModified, noindex] = await Promise.all([getPageLastModified(), getNoindexPages()]);
+  const [lastModified, noindex, items] = await Promise.all([
+    getPageLastModified(),
+    getNoindexPages(),
+    getCollectionSitemapItems(enabledLocales, defaultLocale),
+  ]);
 
   const entries: MetadataRoute.Sitemap = [];
   for (const page of registry.pages) {
@@ -34,6 +39,21 @@ export async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       entries.push({
         url: absoluteUrl(localizedPath(page.path, locale, defaultLocale)),
         ...(lastModified[page.id] ? { lastModified: lastModified[page.id] } : {}),
+        alternates: { languages },
+      });
+    }
+  }
+  for (const item of items) {
+    const languages = Object.fromEntries(
+      item.locales.map((locale) => [
+        locale,
+        absoluteUrl(localizedPath(item.path, locale, defaultLocale)),
+      ]),
+    );
+    for (const locale of item.locales) {
+      entries.push({
+        url: absoluteUrl(localizedPath(item.path, locale, defaultLocale)),
+        lastModified: item.lastModified,
         alternates: { languages },
       });
     }

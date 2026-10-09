@@ -15,6 +15,13 @@
       "when": 1791462299349,
       "tag": "0001_media_seed_asset",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791532623775,
+      "tag": "0002_collections",
+      "breakpoints": true
     }
   ]
 }

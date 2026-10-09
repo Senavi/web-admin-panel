@@ -33,10 +33,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
     db.select().from(auditLog).orderBy(desc(auditLog.ts)).limit(RECENT_ACTIVITY),
   ]);
   const { current, previous, breakdowns } = overview;
-  const targetLabels = await describeAuditTargets(
-    db,
-    activity.map((row) => row.target),
-  );
+  const targetLabels = await describeAuditTargets(db, activity);
 
   return (
     <>

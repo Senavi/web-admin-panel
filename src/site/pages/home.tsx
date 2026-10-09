@@ -4,6 +4,7 @@ import type { PageViewProps } from '@/core/content/page-route';
 import { CtaBand } from '../sections/cta-band';
 import { FeaturesSection } from '../sections/features';
 import { HeroSection } from '../sections/hero';
+import { LatestPosts } from '../sections/latest-posts';
 import { StatsSection } from '../sections/stats';
 
 export function HomeView({ content, locale }: PageViewProps<'home'>) {
@@ -12,6 +13,7 @@ export function HomeView({ content, locale }: PageViewProps<'home'>) {
       <HeroSection content={content.hero} />
       <FeaturesSection content={content.features} />
       <StatsSection content={content.stats} locale={locale} />
+      <LatestPosts locale={locale} />
       <CtaBand content={content.cta} />
     </>
   );

@@ -1,9 +1,12 @@
 import 'server-only';
 
 import { inArray } from 'drizzle-orm';
+import { cacheLife, cacheTag } from 'next/cache';
 
+import { CacheTag } from '@/core/cache/tags';
 import type { ResolvedImage } from '@/core/content/define';
 import type { ImageValue } from '@/core/content/fields';
+import { getDb } from '@/core/db/client';
 import { media } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import { getStorage } from '@/core/storage';
@@ -39,6 +42,14 @@ export async function loadMedia(
       },
     ]),
   );
+}
+
+/** One media item by id, cached (used for Open Graph images in metadata). */
+export async function getMediaInfo(mediaId: string): Promise<MediaInfo | null> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(CacheTag.media(mediaId));
+  return (await loadMedia(await getDb(), [mediaId])).get(mediaId) ?? null;
 }
 
 export function toResolvedImage(

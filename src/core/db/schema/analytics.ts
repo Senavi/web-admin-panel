@@ -19,6 +19,8 @@ export const analyticsEvents = pgTable(
     ts: timestamp('ts', { withTimezone: true }).notNull().defaultNow(),
     path: text('path').notNull(),
     pageId: text('page_id'),
+    /** Set for collection item URLs (path identifies the item). */
+    collectionId: text('collection_id'),
     locale: text('locale'),
     visitorHash: text('visitor_hash').notNull(),
     referrerHost: text('referrer_host'),

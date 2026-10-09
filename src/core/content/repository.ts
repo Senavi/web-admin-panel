@@ -3,7 +3,7 @@ import 'server-only';
 import type { Database } from '@/core/db/types';
 
 import { type DocumentRows, storedRowsFor } from './store';
-import { pageStore } from './stores/page-store';
+import { pageStore } from './stores/table-store';
 
 /** Shared + localized content rows of one page-table document in a single query. */
 export type PageRows = DocumentRows;

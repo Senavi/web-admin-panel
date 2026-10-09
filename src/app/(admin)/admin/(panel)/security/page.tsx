@@ -81,10 +81,7 @@ export default async function SecurityPage({ searchParams }: PageProps<'/admin/s
       .offset((page - 1) * PAGE_SIZE),
   ]);
 
-  const targetLabels = await describeAuditTargets(
-    db,
-    auditRows.map((row) => row.target),
-  );
+  const targetLabels = await describeAuditTargets(db, auditRows);
 
   return (
     <>

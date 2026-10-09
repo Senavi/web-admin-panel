@@ -6,6 +6,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { projectConfig } from '@project/config';
 
 import { registry } from '@/content';
+import { getCollectionGateState } from '@/core/collections/loader';
+import { contentRegistry } from '@/core/content/project-registry';
 
 import { UserStatus } from '@/core/auth/roles';
 import { CacheTag } from '@/core/cache/tags';
@@ -19,7 +21,12 @@ import type { SiteState } from './state';
 export async function loadSiteState(): Promise<SiteState> {
   'use cache';
   cacheLife('max');
-  cacheTag(CacheTag.Settings, CacheTag.Staff);
+  // Collection list tags: publishing, unpublishing, deleting or renaming an item updates the gate.
+  cacheTag(
+    CacheTag.Settings,
+    CacheTag.Staff,
+    ...contentRegistry.collections.map((collection) => CacheTag.collectionList(collection.id)),
+  );
   const db = await getDb();
   const [settings, staff] = await Promise.all([
     readSiteSettings(db),
@@ -36,6 +43,14 @@ export async function loadSiteState(): Promise<SiteState> {
     privateMode: settings.status.privateMode,
     indexing: settings.status.indexing,
     staff: Object.fromEntries(staff.map((user) => [user.id, user.version])),
-    routes: [...registry.pages.map((page) => page.path), ...projectConfig.siteRoutes],
+    routes: [
+      ...registry.pages.map((page) => page.path),
+      ...contentRegistry.collections.map((collection) => collection.itemPath),
+      ...projectConfig.siteRoutes,
+    ],
+    collections: await getCollectionGateState(
+      settings.general.enabledLocales,
+      settings.general.defaultLocale,
+    ),
   };
 }

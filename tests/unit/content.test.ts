@@ -204,7 +204,7 @@ describe('content storage', () => {
 describe('registry', () => {
   it('builds the demo page tree', () => {
     const tree = registry.tree();
-    expect(tree.map((node) => node.page.id)).toEqual(['home', 'about', 'contact']);
+    expect(tree.map((node) => node.page.id)).toEqual(['home', 'about', 'blog', 'contact']);
     expect(tree.find((node) => node.page.id === 'about')?.children.map((n) => n.page.id)).toEqual([
       'team',
     ]);
@@ -263,6 +263,40 @@ describe('content:check', () => {
     expect(problems.join('\n')).toMatch(/route is "\/team"/);
     expect(problems.join('\n')).toMatch(/"blog" is not registered/);
     expect(problems.join('\n')).toMatch(/legal\/page.tsx: renders a site route/);
+  });
+
+  it('checks collection item routes and list routes', () => {
+    const collections = [{ id: 'blog', itemPath: '/blog/:slug' }];
+    const blogPages = [{ id: 'blog', path: '/blog' }];
+    const file = (name: string, source: string) => ({ file: name, source });
+    expect(
+      checkRoutes(
+        blogPages,
+        [
+          file('[locale]/(pages)/blog/page.tsx', "createCollectionListRoute('blog', 'blog', V)"),
+          file('[locale]/(pages)/blog/[slug]/page.tsx', "createCollectionItemRoute('blog', V)"),
+        ],
+        collections,
+      ),
+    ).toEqual([]);
+    const problems = checkRoutes(
+      blogPages,
+      [
+        file('[locale]/blog/page.tsx', "createCollectionListRoute('blog', 'blog', V)"),
+        file('[locale]/posts/[slug]/page.tsx', "createCollectionItemRoute('blog', V)"),
+        file('[locale]/news/[slug]/page.tsx', "createCollectionItemRoute('news', V)"),
+      ],
+      collections,
+    ).join('\n');
+    expect(problems).toMatch(/route is "\/posts\/:slug"/);
+    expect(problems).toMatch(/collection "news" is not registered/);
+    expect(
+      checkRoutes(
+        blogPages,
+        [file('[locale]/blog/page.tsx', "createPageRoute('blog', V)")],
+        collections,
+      ).join('\n'),
+    ).toMatch(/no item route/);
   });
 
   it('honors the ignore marker', () => {

@@ -430,3 +430,47 @@ stored per locale with optimistic concurrency and revisions. The save engine
 (`src/core/content/document.ts`). Each kind only provides its schema, a `DocumentStore`
 (table binding), cache tags, audit target and public URL. New kinds don't copy editor or
 save logic.
+
+### D-063 Collection items use their own tables, bound through the shared store
+
+`collection_items` (slug, status, publish date, version) plus `collection_item_content`,
+`_seo` and `_revisions` mirror the page tables, so one `DocumentStore` factory
+(`stores/table-store.ts`) serves both: pages and items share save, conflict detection and
+revision code. Item fields are stored as one internal section (`item`) so the section-based
+value helpers work unchanged; site loaders return them flat (`item.content.title`). Old
+slugs are kept in `collection_slug_redirects`; `collection_seed_log` makes `content:sync`
+create each seed item once (deleted or renamed seed items don't come back).
+
+### D-064 Collection data on the site: cached loaders, narrow tags
+
+`getCollectionList` / `getCollectionItem` are `'use cache'` functions tagged
+`collection:{id}:list`, `collection:{id}:{slug}` and `collection:{id}`. Saving an item
+invalidates its old and new slug, the list and the sitemap only. Date sort runs in SQL; a
+field sort loads the visible set and sorts in memory (fine for thousands of items).
+
+### D-065 List pages render per request
+
+`/blog?page=N` must answer 404 beyond the last page, which needs the query before
+rendering. List routes export `instant = false` and read `searchParams` at the top; the data
+stays cached, so the render is cheap. Item pages stay prerendered per slug.
+
+### D-066 The proxy decides 404/308 for collection URLs
+
+With Cache Components and Partial Prefetching, a slug that wasn't prerendered is served
+from the static shell first, so `notFound()` or `permanentRedirect()` inside the page can
+no longer change the 200 status (Next.js streaming contract). The proxy has no database, so
+`/api/site-state` (cached, tagged with every collection list) now carries each collection's
+published slugs per locale, its old-slug redirects and page size. The proxy answers unknown
+or hidden slugs with the static 404 page, old slugs with a 308 and out-of-range `?page`
+with 404, before rendering. Changes reach the proxy within its state TTL (3 s). The state
+grows with the number of items (fine for thousands; document if a project expects more).
+
+### D-067 Staff previews use Draft Mode, scoped to the item URL
+
+The admin "Preview" link goes through `/api/preview` (signed-in staff with `pages.view`
+only; the redirect target comes from the database). It enables Next.js Draft Mode but
+rewrites the cookie's `Path` to the item URL, so other pages and link prefetches keep
+using the cache, and the item route renders the preview fully dynamically. The item route
+also re-checks the session before showing drafts. Next.js 16.4 still logs an
+"Unexpected cache miss" warning for the previewed URL (Draft Mode bypasses caches); it is
+harmless.

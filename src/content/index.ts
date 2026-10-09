@@ -1,13 +1,18 @@
 /**
- * PROJECT: page registry. Every page of the public site is listed here; the
- * admin's page tree, sitemap and content checks are built from it.
- * See docs/CONTENT_SCHEMA.md.
+ * PROJECT: content registry. Every page of the public site and every
+ * collection is listed here; the admin, sitemap and content checks are built
+ * from it. See docs/CONTENT_SCHEMA.md.
  */
 import { createRegistry } from '@/core/content/registry';
 
+import { blog } from './collections/blog';
 import { aboutPage } from './pages/about';
+import { blogPage } from './pages/blog';
 import { contactPage } from './pages/contact';
 import { homePage } from './pages/home';
 import { teamPage } from './pages/team';
 
-export const registry = createRegistry([homePage, aboutPage, teamPage, contactPage]);
+export const registry = createRegistry({
+  pages: [homePage, aboutPage, teamPage, blogPage, contactPage],
+  collections: [blog],
+});

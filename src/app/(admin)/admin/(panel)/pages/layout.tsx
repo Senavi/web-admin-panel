@@ -1,13 +1,16 @@
 import { Suspense } from 'react';
 
-import { PagesTree, type TreeNode } from '@/admin/components/content/pages-tree';
+import { PagesTree, type SidebarGroup, type TreeNode } from '@/admin/components/content/pages-tree';
 import { Skeleton } from '@/admin/ui/skeleton';
 import { registry } from '@/content';
 import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
+import { countItems } from '@/core/collections/admin';
 import { loadPageStatuses } from '@/core/content/editor';
+import { contentRegistry } from '@/core/content/project-registry';
 import type { PageTreeNode } from '@/core/content/registry';
 import { getDb } from '@/core/db/client';
+import { PagesArea, pagesAreaHref } from '@/core/project/paths';
 import { readSiteSettings } from '@/core/settings/repository';
 
 export const instant = false;
@@ -26,7 +29,30 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
   await requirePermission(Permission.PagesView);
   const db = await getDb();
   const { general } = await readSiteSettings(db);
-  const statuses = await loadPageStatuses(db, general.enabledLocales);
+  const [statuses, itemCounts] = await Promise.all([
+    loadPageStatuses(db, general.enabledLocales),
+    countItems(
+      db,
+      contentRegistry.collections.map((collection) => collection.id),
+    ),
+  ]);
+  const groups: SidebarGroup[] = [];
+  if (contentRegistry.collections.length > 0) {
+    groups.push({
+      id: PagesArea.Collections,
+      title: 'Collections',
+      items: contentRegistry.collections.map((collection) => {
+        const count = itemCounts[collection.id] ?? 0;
+        return {
+          id: collection.id,
+          label: collection.label,
+          href: pagesAreaHref(PagesArea.Collections, collection.id),
+          count,
+          countLabel: `${count} item${count === 1 ? '' : 's'}`,
+        };
+      }),
+    });
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -37,6 +63,7 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
             tree={registry.tree().map(toTreeNode)}
             statuses={statuses}
             locales={general.enabledLocales}
+            groups={groups}
           />
         </Suspense>
       </aside>

@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { projectConfig } from '@project/config';
 
 import { hasSessionCookie } from '@/core/auth/cookies';
+import { decideCollectionRoute, DRAFT_MODE_COOKIE } from '@/core/collections/gate';
+import { PAGE_PARAM } from '@/core/collections/pagination';
 import { can } from '@/core/auth/permissions';
 import { permissionForAdminPath } from '@/core/auth/route-permissions';
 import { getAuthSecret } from '@/core/auth/secret';
@@ -100,7 +102,19 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
       decision.type === 'rewrite' ? decision.pathname : pathname,
       state.supportedLocales,
     );
-    if (!isKnownRoute(rest, state.routes)) {
+    const collectionDecision = decideCollectionRoute({
+      path: rest,
+      locale: decision.locale,
+      defaultLocale: state.defaultLocale,
+      pageParam: request.nextUrl.searchParams.get(PAGE_PARAM),
+      draftMode: request.cookies.has(DRAFT_MODE_COOKIE),
+      collections: state.collections,
+    });
+    if (collectionDecision.type === 'redirect') {
+      const target = new URL(`${collectionDecision.pathname}${search}`, request.url);
+      return withSiteHeaders(NextResponse.redirect(target, 308), state, request, staff);
+    }
+    if (!isKnownRoute(rest, state.routes) || collectionDecision.type === 'not-found') {
       const notFound = await staticPageResponse(
         origin,
         `/${decision.locale}${SiteRoute.NotFound}`,

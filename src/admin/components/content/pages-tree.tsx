@@ -7,9 +7,24 @@ import { useMemo, useState } from 'react';
 
 import { cn } from '@/admin/lib/utils';
 import { Input } from '@/admin/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/admin/ui/tooltip';
 import type { LocaleStatus } from '@/core/content/editor-types';
 import { adminHref, AdminRoute } from '@/core/project/paths';
+
+import { LocaleStatusChips } from './locale-status';
+
+/** Extra sidebar group (Collections, Site-wide, Forms): flat links with an optional count. */
+export interface SidebarGroup {
+  readonly id: string;
+  readonly title: string;
+  readonly items: ReadonlyArray<{
+    readonly id: string;
+    readonly label: string;
+    readonly href: string;
+    /** Shown as a badge, e.g. item or unread count. */
+    readonly count?: number;
+    readonly countLabel?: string;
+  }>;
+}
 
 export interface TreeNode {
   readonly id: string;
@@ -17,17 +32,6 @@ export interface TreeNode {
   readonly path: string;
   readonly children: readonly TreeNode[];
 }
-
-const STATUS_CLASS: Record<LocaleStatus, string> = {
-  complete: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  incomplete: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  missing: 'bg-muted text-muted-foreground',
-};
-const STATUS_LABEL: Record<LocaleStatus, string> = {
-  complete: 'All required fields are filled',
-  incomplete: 'Some required fields are empty',
-  missing: 'Not translated yet (uses the default language)',
-};
 
 function matches(node: TreeNode, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -39,21 +43,37 @@ function matches(node: TreeNode, query: string): boolean {
   );
 }
 
-/** Searchable tree of all pages and sub-pages with per-locale completeness. */
+/**
+ * Searchable Pages sidebar: the page tree with per-locale completeness, then
+ * the collections / site-wide / forms groups. Search filters every group.
+ */
 export function PagesTree({
   tree,
   statuses,
   locales,
+  groups = [],
 }: {
   tree: readonly TreeNode[];
   statuses: Readonly<Record<string, Readonly<Record<string, LocaleStatus>>>>;
   locales: readonly string[];
+  groups?: readonly SidebarGroup[];
 }) {
   const [query, setQuery] = useState('');
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentLocale = searchParams.get('locale');
   const visible = useMemo(() => tree.filter((node) => matches(node, query)), [tree, query]);
+  const needle = query.trim().toLowerCase();
+  const visibleGroups = useMemo(
+    () =>
+      groups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !needle || item.label.toLowerCase().includes(needle)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [groups, needle],
+  );
 
   const renderNode = (node: TreeNode, depth: number) => {
     if (!matches(node, query)) return null;
@@ -72,27 +92,7 @@ export function PagesTree({
         >
           <FileTextIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{node.label}</span>
-          <span className="flex gap-0.5">
-            {locales.map((locale) => {
-              const status = statuses[node.id]?.[locale] ?? 'missing';
-              return (
-                <Tooltip key={locale}>
-                  <TooltipTrigger
-                    render={<span />}
-                    className={cn(
-                      'rounded font-semibold px-1 text-[10px] uppercase',
-                      STATUS_CLASS[status],
-                    )}
-                    aria-label={`${locale}: ${STATUS_LABEL[status]}`}
-                    data-status={status}
-                  >
-                    {locale}
-                  </TooltipTrigger>
-                  <TooltipContent>{STATUS_LABEL[status]}</TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </span>
+          <LocaleStatusChips locales={locales} statuses={statuses[node.id]} />
         </Link>
         {node.children.length > 0 ? (
           <ul>{node.children.map((child) => renderNode(child, depth + 1))}</ul>
@@ -117,10 +117,51 @@ export function PagesTree({
           className="ps-8"
         />
       </div>
-      {visible.length === 0 ? (
-        <p className="text-sm px-2 text-muted-foreground">No pages match.</p>
+      {visible.length === 0 && visibleGroups.length === 0 ? (
+        <p className="text-sm px-2 text-muted-foreground">Nothing matches.</p>
       ) : null}
+      {groups.length > 0 && visible.length > 0 ? <GroupTitle>Pages</GroupTitle> : null}
       <ul className="flex flex-col gap-0.5">{tree.map((node) => renderNode(node, 0))}</ul>
+      {visibleGroups.map((group) => (
+        <section key={group.id} aria-label={group.title} className="flex flex-col gap-0.5">
+          <GroupTitle>{group.title}</GroupTitle>
+          <ul className="flex flex-col gap-0.5">
+            {group.items.map((item) => {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'text-sm hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5',
+                      active && 'bg-muted font-medium',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    {item.count !== undefined ? (
+                      <span
+                        className="text-xs bg-muted rounded-full px-1.5 text-muted-foreground tabular-nums"
+                        aria-label={item.countLabel ?? `${item.count}`}
+                      >
+                        {item.count}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </nav>
+  );
+}
+
+function GroupTitle({ children }: { children: string }) {
+  return (
+    <h2 className="text-xs font-medium tracking-wide px-2 pt-2 text-muted-foreground uppercase">
+      {children}
+    </h2>
   );
 }

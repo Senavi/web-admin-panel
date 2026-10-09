@@ -1,12 +1,12 @@
 /**
- * Fails when registered pages and site routes are out of sync.
+ * Fails when registered pages/collections and site routes are out of sync.
  *
  *   pnpm content:check
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { registry } from '@/content';
+import { contentRegistry as registry } from '@/core/content/project-registry';
 import { checkRoutes, type RouteFile } from '@/core/content/route-check';
 
 const SITE_APP_DIR = path.join(process.cwd(), 'src', 'app', '(site)');
@@ -22,6 +22,7 @@ function findPageFiles(dir: string): RouteFile[] {
 const problems = checkRoutes(
   registry.pages.map((page) => ({ id: page.id, path: page.path })),
   findPageFiles(SITE_APP_DIR),
+  registry.collections.map((collection) => ({ id: collection.id, itemPath: collection.itemPath })),
 );
 
 if (problems.length > 0) {
@@ -29,4 +30,6 @@ if (problems.length > 0) {
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }
-console.info(`content:check passed: ${registry.pages.length} pages, all routed.`);
+console.info(
+  `content:check passed: ${registry.pages.length} pages, ${registry.collections.length} collection(s), all routed.`,
+);

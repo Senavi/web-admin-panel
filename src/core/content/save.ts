@@ -69,14 +69,15 @@ export async function savePageContent(db: Database, input: SaveInput): Promise<S
  * is written only if its version still matches what the editor loaded;
  * otherwise the whole save is rolled back with a conflict error. Records a
  * revision and keeps the last MAX_REVISIONS per (document, locale).
- * `extra` runs inside the same transaction (e.g. collection item metadata).
+ * `extra` runs inside the same transaction after the content rows are written
+ * (e.g. collection item slug/status) and returns whether it changed anything.
  */
 export async function saveDocument(
   db: Database,
   document: ContentDocument,
   input: SaveDocumentInput,
-  extra?: (tx: Database) => Promise<boolean>,
-): Promise<SaveResult> {
+  extra?: (tx: Database, changed: ChangedRows) => Promise<boolean>,
+): Promise<SaveResult & { extraChanged: boolean }> {
   const { schema, store, key } = document;
   await assertMediaExists(db, [
     ...collectMediaIds(schema, input.content),
@@ -90,7 +91,6 @@ export async function saveDocument(
     const storedSeo = document.hasSeo ? await store.readSeo(tx, key, input.locale) : null;
     const nextShared = preserveOrphans(split.shared, rows.shared);
     const nextLocalized = preserveOrphans(split.localized, rows.byLocale.get(input.locale));
-    const extraChanged = extra ? await extra(tx) : false;
     const changed = {
       shared: stableStringify(nextShared) !== stableStringify(rows.shared ?? {}),
       localized:
@@ -123,6 +123,7 @@ export async function saveDocument(
       );
     }
 
+    const extraChanged = extra ? await extra(tx, changed) : false;
     if (changed.shared || changed.localized || changed.seo || extraChanged) {
       await store.addRevision(
         tx,
@@ -133,7 +134,7 @@ export async function saveDocument(
       );
       await store.pruneRevisions(tx, key, input.locale, MAX_REVISIONS);
     }
-    return { versions, changed };
+    return { versions, changed, extraChanged };
   });
 }
 

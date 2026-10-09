@@ -15,6 +15,9 @@ runScript(async () => {
     const report = await syncContent(db, getStorage());
     console.info(`Content sync (${label})`);
     console.info(
+      `  items created:    ${report.itemsCreated.length ? report.itemsCreated.join(', ') : 'none'}`,
+    );
+    console.info(
       `  rows created:     ${report.created.length ? report.created.join(', ') : 'none'}`,
     );
     console.info(`  fields filled:    ${report.filled.length}`);

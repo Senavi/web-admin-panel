@@ -8,6 +8,7 @@ import { loadMedia, seedAssetIds } from '@/core/media/resolve';
 import { parsePageSeo } from '@/core/seo/page-seo';
 import { readSiteSettings } from '@/core/settings/repository';
 
+import type { ContentSchema } from './define';
 import { type ContentDocument, resolveDocument } from './document';
 import { DocumentKind, type DocumentTarget } from './document-target';
 import type { EditorData, LocaleStatus, MediaPreview } from './editor-types';
@@ -119,24 +120,29 @@ export async function loadDocumentStatuses(
 
   const result: Record<string, Record<string, LocaleStatus>> = {};
   for (const document of documents) {
-    const stored = byKey.get(document.key);
-    const schema = pageContentSchema(document.schema);
-    const statuses: Record<string, LocaleStatus> = {};
-    for (const locale of locales) {
-      const localized = stored?.get(locale);
-      if (!localized) {
-        statuses[locale] = 'missing';
-        continue;
-      }
-      const merged = mergeWithoutFallback(document.schema, {
-        shared: stored?.get(SHARED_LOCALE),
-        localized,
-      });
-      statuses[locale] = schema.safeParse(merged).success ? 'complete' : 'incomplete';
-    }
-    result[document.key] = statuses;
+    result[document.key] = localeStatuses(document.schema, byKey.get(document.key), locales);
   }
   return result;
+}
+
+/** Completeness per locale of one document's stored rows (`_shared` + locales). */
+export function localeStatuses(
+  schema: ContentSchema,
+  stored: ReadonlyMap<string, ContentRecord> | undefined,
+  locales: readonly string[],
+): Record<string, LocaleStatus> {
+  const validator = pageContentSchema(schema);
+  const statuses: Record<string, LocaleStatus> = {};
+  for (const locale of locales) {
+    const localized = stored?.get(locale);
+    if (!localized) {
+      statuses[locale] = 'missing';
+      continue;
+    }
+    const merged = mergeWithoutFallback(schema, { shared: stored?.get(SHARED_LOCALE), localized });
+    statuses[locale] = validator.safeParse(merged).success ? 'complete' : 'incomplete';
+  }
+  return statuses;
 }
 
 /** Completeness of every registered page (Pages tree). */

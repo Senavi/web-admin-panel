@@ -1,3 +1,7 @@
+import { matchesRoute } from '@/core/i18n/route-match';
+import { PagesArea } from '@/core/project/paths';
+
+import { type AnyCollection, collectionBasePath } from './collection';
 import type { AnyPage } from './define';
 
 /**
@@ -5,8 +9,8 @@ import type { AnyPage } from './define';
  * Validates ids, paths and parents once at startup and provides lookups and
  * the page tree used by the admin.
  *
- *   createRegistry([homePage, aboutPage])            // pages only (v1.1 form)
- *   createRegistry({ pages: [homePage, aboutPage] }) // object form
+ *   createRegistry([homePage, aboutPage])                       // pages only (v1.1 form)
+ *   createRegistry({ pages: [homePage, blogPage], collections: [blog] })
  */
 
 export interface PageTreeNode {
@@ -14,27 +18,32 @@ export interface PageTreeNode {
   readonly children: readonly PageTreeNode[];
 }
 
-export interface RegistryInput<P extends readonly AnyPage[]> {
+export interface RegistryInput<
+  P extends readonly AnyPage[],
+  C extends readonly AnyCollection[] = readonly [],
+> {
   readonly pages: P;
+  readonly collections?: C;
 }
 
-export interface PageRegistry<P extends readonly AnyPage[] = readonly AnyPage[]> {
+export interface PageRegistry<
+  P extends readonly AnyPage[] = readonly AnyPage[],
+  C extends readonly AnyCollection[] = readonly AnyCollection[],
+> {
   readonly pages: P;
   readonly ids: readonly P[number]['id'][];
   byId(id: string): P[number] | undefined;
   byPath(path: string): P[number] | undefined;
   tree(): PageTreeNode[];
+  readonly collections: C;
+  collectionById(id: string): C[number] | undefined;
 }
 
 /** Stable ids are kebab-case: they are DB keys and admin URL segments. */
 export const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Admin URL segments under /admin/pages that page ids must not use. */
-export const RESERVED_PAGE_IDS: ReadonlySet<string> = new Set([
-  'collections',
-  'site-wide',
-  'forms',
-]);
+export const RESERVED_PAGE_IDS: ReadonlySet<string> = new Set(Object.values(PagesArea));
 
 export function assertContentId(kind: string, id: string): void {
   if (!CONTENT_ID.test(id)) {
@@ -43,11 +52,19 @@ export function assertContentId(kind: string, id: string): void {
 }
 
 export function createRegistry<const P extends readonly AnyPage[]>(
-  input: P | RegistryInput<P>,
-): PageRegistry<P> {
-  const pages: P = isPageList(input) ? input : input.pages;
-  const byId = new Map<string, P[number]>();
-  const byPath = new Map<string, P[number]>();
+  pages: P,
+): PageRegistry<P, readonly []>;
+export function createRegistry<
+  const P extends readonly AnyPage[],
+  const C extends readonly AnyCollection[] = readonly [],
+>(input: RegistryInput<P, C>): PageRegistry<P, C>;
+export function createRegistry(
+  input: readonly AnyPage[] | RegistryInput<readonly AnyPage[], readonly AnyCollection[]>,
+): PageRegistry {
+  const pages = isPageList(input) ? input : input.pages;
+  const collections = isPageList(input) ? [] : (input.collections ?? []);
+  const byId = new Map<string, AnyPage>();
+  const byPath = new Map<string, AnyPage>();
   for (const page of pages) {
     assertContentId('Page', page.id);
     if (RESERVED_PAGE_IDS.has(page.id)) throw new Error(`Page id "${page.id}" is reserved.`);
@@ -70,6 +87,37 @@ export function createRegistry<const P extends readonly AnyPage[]>(
     }
   }
 
+  const collectionById = new Map<string, AnyCollection>();
+  for (const collection of collections) {
+    assertContentId('Collection', collection.id);
+    if (collectionById.has(collection.id))
+      throw new Error(`Duplicate collection id "${collection.id}".`);
+    collectionById.set(collection.id, collection);
+    const listPage = byId.get(collection.listPageId);
+    if (!listPage) {
+      throw new Error(
+        `Collection "${collection.id}": listPageId "${collection.listPageId}" is not a registered page.`,
+      );
+    }
+    if (collectionBasePath(collection) !== listPage.path) {
+      throw new Error(
+        `Collection "${collection.id}": itemPath "${collection.itemPath}" must start with the list page path "${listPage.path}".`,
+      );
+    }
+    for (const page of pages) {
+      if (matchesRoute(page.path, collection.itemPath)) {
+        throw new Error(
+          `Page "${page.id}" (${page.path}) conflicts with collection "${collection.id}" item URLs (${collection.itemPath}).`,
+        );
+      }
+    }
+    for (const other of collectionById.values()) {
+      if (other !== collection && other.itemPath === collection.itemPath) {
+        throw new Error(`Collections "${other.id}" and "${collection.id}" share an itemPath.`);
+      }
+    }
+  }
+
   const buildTree = (parent: string | null): PageTreeNode[] =>
     pages
       .filter((page) => page.parent === parent)
@@ -81,9 +129,13 @@ export function createRegistry<const P extends readonly AnyPage[]>(
     byId: (id) => byId.get(id),
     byPath: (path) => byPath.get(path),
     tree: () => buildTree(null),
+    collections,
+    collectionById: (id) => collectionById.get(id),
   };
 }
 
-function isPageList<P extends readonly AnyPage[]>(input: P | RegistryInput<P>): input is P {
+function isPageList(
+  input: readonly AnyPage[] | RegistryInput<readonly AnyPage[], readonly AnyCollection[]>,
+): input is readonly AnyPage[] {
   return Array.isArray(input);
 }

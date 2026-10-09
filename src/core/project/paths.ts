@@ -23,6 +23,18 @@ export const AdminRoute = {
 } as const;
 export type AdminRoute = (typeof AdminRoute)[keyof typeof AdminRoute];
 
+/** Areas under /admin/pages next to the page editor (`/admin/pages/<area>/<id>`). */
+export const PagesArea = {
+  Collections: 'collections',
+  SiteWide: 'site-wide',
+  Forms: 'forms',
+} as const;
+export type PagesArea = (typeof PagesArea)[keyof typeof PagesArea];
+
+export function pagesAreaHref(area: PagesArea, ...segments: readonly string[]): string {
+  return [adminHref(AdminRoute.Pages), area, ...segments].join('/');
+}
+
 /** Private-mode visitor login page. */
 export const ACCESS_PATH = '/access';
 

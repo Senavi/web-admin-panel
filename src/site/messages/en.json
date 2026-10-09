@@ -9,7 +9,8 @@
   "nav": {
     "about": "About",
     "team": "Team",
-    "contact": "Contact"
+    "contact": "Contact",
+    "blog": "Blog"
   },
   "footer": {
     "rights": "All rights reserved.",
@@ -26,5 +27,19 @@
     "title": "Page not found",
     "body": "The page you are looking for doesn’t exist or has been moved.",
     "back": "Back to the home page"
+  },
+  "blog": {
+    "readMore": "Read more",
+    "published": "Published {date}",
+    "pagination": "Blog pages",
+    "previous": "Newer posts",
+    "next": "Older posts",
+    "pageOf": "Page {page} of {count}",
+    "empty": "No posts yet.",
+    "latestTitle": "Latest posts",
+    "allPosts": "All posts",
+    "backToBlog": "All posts",
+    "preview": "Preview: this is how the post will look. It may not be published yet.",
+    "exitPreview": "Exit preview"
   }
 }

@@ -6,12 +6,12 @@ import { registry } from '@/content';
 import { seoDefaultsFor } from '@/core/content/define';
 import { getLocaleSettings } from '@/core/i18n/locales';
 import { localizedPath } from '@/core/i18n/routing';
-import { getDb } from '@/core/db/client';
-import { loadMedia } from '@/core/media/resolve';
+import { getMediaInfo } from '@/core/media/resolve';
 import { getLocalizedSettings, getSiteSettings } from '@/core/settings/loader';
 import { isNoindex } from '@/core/site-gate/state';
 
 import { getPageSeo } from './loader';
+import type { PageSeo } from './page-seo';
 import { absoluteUrl } from './site-url';
 
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;
@@ -38,53 +38,74 @@ export function applyTitleTemplate(template: string, title: string): string {
   return (template || '%s').replace('%s', title);
 }
 
+export interface MetadataInput {
+  readonly locale: string;
+  /** Locale-less public path of the document. */
+  readonly path: string;
+  /** Locales the document is available in (hreflang alternates). */
+  readonly locales: readonly string[];
+  readonly defaultLocale: string;
+  /** SEO overrides saved in the admin. */
+  readonly seo: PageSeo;
+  /** Schema/content defaults when an override is empty. */
+  readonly defaults: { readonly title: string; readonly description: string };
+  /** Media used when neither the SEO override nor the site has an OG image. */
+  readonly fallbackImageId?: string | null;
+  /** Generated share image path used when no image is available at all. */
+  readonly generatedImagePath: string;
+  readonly openGraphType?: 'website' | 'article';
+  readonly publishedTime?: string | null;
+  readonly modifiedTime?: string | null;
+}
+
 /**
- * Page metadata: page SEO (DB) → page defaults (schema) → site defaults
- * (settings), with the locale's title template, canonical, hreflang, Open
- * Graph, Twitter and robots (per-page noindex, indexing off, private mode).
+ * Metadata of a public document: SEO override → document defaults → site
+ * defaults (settings), with the locale's title template, canonical, hreflang,
+ * Open Graph, Twitter and robots (per-document noindex, indexing off, private mode).
  */
-export async function buildPageMetadata(pageId: string, locale: string): Promise<Metadata> {
-  const page = registry.byId(pageId);
-  if (!page) return {};
-  const [settings, localized, seo, { defaultLocale, enabledLocales }] = await Promise.all([
+export async function composeMetadata(input: MetadataInput): Promise<Metadata> {
+  const { locale, seo, defaults } = input;
+  const [settings, localized] = await Promise.all([
     getSiteSettings(),
     getLocalizedSettings(locale),
-    getPageSeo(pageId, locale),
-    getLocaleSettings(),
   ]);
-
-  const defaults = seoDefaultsFor(page, locale);
   const title = seo.title || defaults.title;
   const description = seo.description || defaults.description || localized.description || undefined;
-  const url = absoluteUrl(localizedPath(page.path, locale, defaultLocale));
-  const ogImageId = seo.ogImageId ?? settings.seo.defaultOgImageId;
-  const ogImage = ogImageId
-    ? (await loadMedia(await getDb(), [ogImageId])).get(ogImageId)
-    : undefined;
+  const url = absoluteUrl(localizedPath(input.path, locale, input.defaultLocale));
+  const ogImageId = seo.ogImageId ?? input.fallbackImageId ?? settings.seo.defaultOgImageId;
+  const ogImage = ogImageId ? await getMediaInfo(ogImageId) : null;
   const image = ogImage
     ? { url: absoluteUrl(ogImage.src), width: ogImage.width, height: ogImage.height }
-    : { url: absoluteUrl(defaultOgImagePath(pageId, locale)), ...OG_IMAGE_SIZE };
+    : { url: absoluteUrl(input.generatedImagePath), ...OG_IMAGE_SIZE };
   const noindex =
     seo.noindex ||
     isNoindex({ indexing: settings.status.indexing, privateMode: settings.status.privateMode });
+  const openGraphBase = {
+    url,
+    siteName: settings.general.siteName,
+    locale,
+    title: seo.ogTitle || localized.ogTitle || title,
+    description: seo.ogDescription || localized.ogDescription || description,
+    images: [image],
+  };
 
   return {
     title: { absolute: applyTitleTemplate(localized.titleTemplate, title) },
     description,
     alternates: {
       canonical: seo.canonical || url,
-      languages: languageAlternates(page.path, enabledLocales, defaultLocale),
+      languages: languageAlternates(input.path, input.locales, input.defaultLocale),
     },
     robots: noindex ? { index: false, follow: false } : { index: true, follow: true },
-    openGraph: {
-      type: 'website',
-      url,
-      siteName: settings.general.siteName,
-      locale,
-      title: seo.ogTitle || localized.ogTitle || title,
-      description: seo.ogDescription || localized.ogDescription || description,
-      images: [image],
-    },
+    openGraph:
+      input.openGraphType === 'article'
+        ? {
+            ...openGraphBase,
+            type: 'article',
+            ...(input.publishedTime ? { publishedTime: input.publishedTime } : {}),
+            ...(input.modifiedTime ? { modifiedTime: input.modifiedTime } : {}),
+          }
+        : { ...openGraphBase, type: 'website' },
     twitter: {
       card: 'summary_large_image',
       title: seo.ogTitle || title,
@@ -99,6 +120,25 @@ export async function buildPageMetadata(pageId: string, locale: string): Promise
         : {}),
     },
   };
+}
+
+/** Page metadata (see `composeMetadata`). */
+export async function buildPageMetadata(pageId: string, locale: string): Promise<Metadata> {
+  const page = registry.byId(pageId);
+  if (!page) return {};
+  const [seo, { defaultLocale, enabledLocales }] = await Promise.all([
+    getPageSeo(pageId, locale),
+    getLocaleSettings(),
+  ]);
+  return composeMetadata({
+    locale,
+    path: page.path,
+    locales: enabledLocales,
+    defaultLocale,
+    seo,
+    defaults: seoDefaultsFor(page, locale),
+    generatedImagePath: defaultOgImagePath(pageId, locale),
+  });
 }
 
 /** Site-wide metadata for the root site layout: base URL, icons, verification. */

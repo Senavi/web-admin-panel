@@ -46,11 +46,14 @@ type EditorSchema = ReturnType<typeof editorSchema>;
 export type EditorValues = z.input<EditorSchema>;
 export type EditorOutput = z.output<EditorSchema>;
 
-/** Saves the editor's values; defaults to `saveDocumentAction`. */
+/**
+ * Saves the editor's values; defaults to `saveDocumentAction`. Returning
+ * `extra` replaces the extra values after a save (e.g. a new item version).
+ */
 export type DocumentSave = (
   values: EditorOutput,
   versions: EditorVersions,
-) => Promise<ActionResult<{ versions: EditorVersions }>>;
+) => Promise<ActionResult<{ versions: EditorVersions; extra?: Record<string, unknown> }>>;
 
 export interface DocumentEditorProps {
   readonly data: EditorData;
@@ -114,7 +117,7 @@ export function DocumentEditor({
       if (result.ok) {
         setVersions(result.data.versions);
         setConflict(null);
-        form.reset(values);
+        form.reset({ ...values, extra: 'extra' in result.data ? result.data.extra : values.extra });
         toast.success(result.message ?? 'Saved.');
         router.refresh();
         return;
