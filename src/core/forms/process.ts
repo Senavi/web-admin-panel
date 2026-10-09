@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { browserName } from '@/core/analytics/user-agent';
+import { getCurrentUser } from '@/core/auth/server/session';
 import type { AnyForm } from '@/core/forms/define';
 import { contentRegistry } from '@/core/content/project-registry';
 import { getDb } from '@/core/db/client';
@@ -10,6 +11,7 @@ import { safeRedirectPath } from '@/core/project/paths';
 import { getClientIp, hashIp } from '@/core/security/request';
 import { isLocked, recordFailure } from '@/core/security/throttle';
 import { readSiteSettings } from '@/core/settings/repository';
+import type { SiteSettings } from '@/core/settings/schema';
 
 import { DeliveryStatus, deliverSubmission, enabledDestinations } from './delivery';
 import { FormHiddenField } from './fields';
@@ -55,6 +57,10 @@ export async function processSubmission(
   if (!form) return { state: { status: FormSubmitStatus.Error }, form: null, locale: '' };
   const db = await getDb();
   const settings = await readSiteSettings(db);
+  // Forms are part of the gated site: while it is private or in maintenance only staff may post.
+  if (!(await formsOpen(settings))) {
+    return { state: { status: FormSubmitStatus.Error }, form: null, locale: '' };
+  }
   const localeInput = String(data.get(FormHiddenField.Locale) ?? '');
   const locale = settings.general.enabledLocales.includes(localeInput)
     ? localeInput
@@ -139,6 +145,12 @@ export async function processSubmission(
   }
 
   return done({ status: FormSubmitStatus.Success }, successRedirect);
+}
+
+/** False while the site is private or in maintenance, unless a staff member is signed in. */
+export async function formsOpen(settings: SiteSettings): Promise<boolean> {
+  if (!settings.status.maintenance.enabled && !settings.status.privateMode) return true;
+  return (await getCurrentUser()) !== null;
 }
 
 /** Every answer that shows the form again carries a fresh timing token. */

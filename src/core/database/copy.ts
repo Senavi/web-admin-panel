@@ -7,6 +7,7 @@ import type { Database } from '@/core/db/types';
 /**
  * Tables copied by "Migrate data", in foreign-key order. Sessions, rate limits,
  * analytics and the audit log are not copied (users simply sign in again).
+ * Content, collections and form submissions (with their delivery state) are.
  */
 export const COPY_TABLES = [
   schema.users,
@@ -18,6 +19,13 @@ export const COPY_TABLES = [
   schema.pageContent,
   schema.pageSeo,
   schema.pageRevisions,
+  schema.collectionItems,
+  schema.collectionItemContent,
+  schema.collectionItemSeo,
+  schema.collectionItemRevisions,
+  schema.collectionSlugRedirects,
+  schema.collectionSeedLog,
+  schema.formSubmissions,
 ] as const;
 
 const BATCH = 200;

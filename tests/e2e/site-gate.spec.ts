@@ -25,7 +25,10 @@ test.describe.serial('site gate', () => {
     expect(response.headers()['retry-after']).toBeTruthy();
     expect(await response.text()).toContain('We’ll be back soon');
     expect((await visitor.get('/admin/login')).status()).toBe(200);
+    // Form endpoints (under the ungated /api) are closed to visitors too.
+    expect((await visitor.get('/api/forms/token?form=contact')).status()).toBe(404);
     await visitor.dispose();
+    expect((await page.request.get('/api/forms/token?form=contact')).status()).toBe(200);
 
     await page.goto('/about');
     await expect(page.locator('h1')).toHaveText('About us');
