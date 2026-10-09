@@ -219,6 +219,17 @@ describe('registry', () => {
     expect(() => createRegistry([page('a', 'missing')])).toThrow(/unknown parent/);
     expect(() => createRegistry([page('a', 'b'), page('b', 'a')])).toThrow(/cycle/);
   });
+
+  it('accepts the object form and validates ids', () => {
+    const page = (id: string, path: `/${string}` = '/x') =>
+      definePage({ id, path, label: id, parent: null, seo: { title: id }, sections: [] });
+    const objectForm = createRegistry({ pages: [page('a', '/a'), page('b', '/b')] });
+    expect(objectForm.ids).toEqual(['a', 'b']);
+    expect(objectForm.byPath('/b')?.id).toBe('b');
+    expect(() => createRegistry([page('Not_Kebab')])).toThrow(/kebab-case/);
+    expect(() => createRegistry([page('global:site')])).toThrow(/kebab-case/);
+    expect(() => createRegistry({ pages: [page('collections')] })).toThrow(/reserved/);
+  });
 });
 
 describe('content:check', () => {

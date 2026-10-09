@@ -9,7 +9,7 @@ import {
   Undo2Icon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { FormProvider, useForm, type FieldPath } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -21,11 +21,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/admin/ui/alert';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
-import { ActionErrorCode } from '@/core/actions/result';
-import { savePageAction, type RevisionPreview } from '@/core/content/actions';
+import { ActionErrorCode, type ActionResult } from '@/core/actions/result';
+import { saveDocumentAction, type RevisionPreview } from '@/core/content/actions';
 import type { EditorData, EditorVersions } from '@/core/content/editor-types';
 import { pageContentSchema } from '@/core/content/validation';
-import { adminHref, AdminRoute } from '@/core/project/paths';
 import { pageSeoSchema } from '@/core/seo/page-seo';
 
 import { EditorProvider } from './editor-context';
@@ -38,23 +37,59 @@ export interface LocaleOption {
   readonly label: string;
 }
 
-function editorSchema(page: EditorData['page']) {
-  return z.object({ content: pageContentSchema(page), seo: pageSeoSchema });
+const NO_EXTRA = z.object({});
+
+function editorSchema(document: EditorData['document'], extra: z.ZodType) {
+  return z.object({ content: pageContentSchema(document), seo: pageSeoSchema, extra });
 }
 type EditorSchema = ReturnType<typeof editorSchema>;
-type EditorValues = z.input<EditorSchema>;
+export type EditorValues = z.input<EditorSchema>;
+export type EditorOutput = z.output<EditorSchema>;
 
-export function PageEditor({
+/** Saves the editor's values; defaults to `saveDocumentAction`. */
+export type DocumentSave = (
+  values: EditorOutput,
+  versions: EditorVersions,
+) => Promise<ActionResult<{ versions: EditorVersions }>>;
+
+export interface DocumentEditorProps {
+  readonly data: EditorData;
+  readonly locales: readonly LocaleOption[];
+  /** Admin URL of this editor without `?locale=` (the locale switcher appends it). */
+  readonly basePath: string;
+  /** Extra form values under `extra.*` (e.g. collection item slug/status) with their validator. */
+  readonly extra?: { readonly defaults: Record<string, unknown>; readonly schema: z.ZodType };
+  readonly save?: DocumentSave;
+  /** Rendered above the tabs, inside the form (can use `useFormContext`). */
+  readonly panel?: ReactNode;
+  /** Extra header actions (e.g. Publish, Delete). */
+  readonly actions?: ReactNode;
+  readonly subtitle?: string;
+}
+
+/**
+ * Generated editor for any document (page, global, form texts, collection
+ * item): locale switcher, Content (+ SEO) tabs, unsaved-changes guard, revision
+ * history and conflict detection.
+ */
+export function DocumentEditor({
   data,
   locales,
-}: {
-  data: EditorData;
-  locales: readonly LocaleOption[];
-}) {
+  basePath,
+  extra,
+  save: saveValues,
+  panel,
+  actions,
+  subtitle,
+}: DocumentEditorProps) {
   const router = useRouter();
-  const schema = useMemo(() => editorSchema(data.page), [data.page]);
-  const form = useForm<EditorValues, unknown, z.output<EditorSchema>>({
-    defaultValues: { content: data.content, seo: data.seo },
+  const extraSchema = extra?.schema ?? NO_EXTRA;
+  const schema = useMemo(
+    () => editorSchema(data.document, extraSchema),
+    [data.document, extraSchema],
+  );
+  const form = useForm<EditorValues, unknown, EditorOutput>({
+    defaultValues: { content: data.content, seo: data.seo, extra: extra?.defaults ?? {} },
     resolver: zodResolver(schema),
     mode: 'onBlur',
   });
@@ -67,13 +102,15 @@ export function PageEditor({
 
   const save = form.handleSubmit(
     async (values) => {
-      const result = await savePageAction({
-        pageId: data.page.id,
-        locale: data.locale,
-        content: values.content,
-        seo: values.seo,
-        versions,
-      });
+      const result = saveValues
+        ? await saveValues(values, versions)
+        : await saveDocumentAction({
+            target: data.document.target,
+            locale: data.locale,
+            content: values.content,
+            seo: values.seo,
+            versions,
+          });
       if (result.ok) {
         setVersions(result.data.versions);
         setConflict(null);
@@ -102,13 +139,13 @@ export function PageEditor({
   const onRestored = (values: RevisionPreview, next: EditorVersions) => {
     setVersions(next);
     setConflict(null);
-    form.reset({ content: values.content, seo: values.seo });
+    form.reset({ ...form.getValues(), content: values.content, seo: values.seo });
     router.refresh();
   };
 
   const switchLocale = (code: string) => {
     if (code === data.locale || !confirmLeave(isDirty)) return;
-    router.push(`${adminHref(AdminRoute.Pages)}/${data.page.id}?locale=${code}`);
+    router.push(`${basePath}?locale=${code}`);
   };
 
   return (
@@ -128,8 +165,12 @@ export function PageEditor({
         >
           <div className="sticky top-14 z-[5] -mx-4 flex flex-wrap items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-semibold truncate">{data.page.label}</h1>
-              <p className="text-xs truncate font-mono text-muted-foreground">{data.page.path}</p>
+              <h1 className="text-xl font-semibold truncate">{data.document.label}</h1>
+              {subtitle || data.document.path ? (
+                <p className="text-xs truncate font-mono text-muted-foreground">
+                  {subtitle ?? data.document.path}
+                </p>
+              ) : null}
             </div>
             <SimpleSelect
               value={data.locale}
@@ -141,15 +182,18 @@ export function PageEditor({
               ariaLabel="Language"
               className="w-44"
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              render={<a href={data.publicUrl} target="_blank" rel="noopener noreferrer" />}
-            >
-              <ExternalLinkIcon />
-              View page
-            </Button>
+            {data.publicUrl ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={<a href={data.publicUrl} target="_blank" rel="noopener noreferrer" />}
+              >
+                <ExternalLinkIcon />
+                View page
+              </Button>
+            ) : null}
+            {actions}
             <RevisionsSheet
               data={data}
               versions={versions}
@@ -184,7 +228,7 @@ export function PageEditor({
           {conflict ? (
             <Alert variant="destructive">
               <AlertTriangleIcon />
-              <AlertTitle>This page was changed by someone else</AlertTitle>
+              <AlertTitle>This was changed by someone else</AlertTitle>
               <AlertDescription className="flex flex-col items-start gap-2">
                 <span>{conflict}</span>
                 <Button
@@ -199,18 +243,24 @@ export function PageEditor({
             </Alert>
           ) : null}
 
-          <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
-            <TabsList>
-              <TabsTrigger value="content">Content</TabsTrigger>
-              <TabsTrigger value="seo">SEO</TabsTrigger>
-            </TabsList>
-            <TabsContent value="content" keepMounted className="pt-4">
-              <SectionFields sections={data.page.sections} />
-            </TabsContent>
-            <TabsContent value="seo" keepMounted className="pt-4">
-              <SeoPanel publicUrl={data.publicUrl} defaults={data.page.seoDefaults} />
-            </TabsContent>
-          </Tabs>
+          {panel}
+
+          {data.document.hasSeo ? (
+            <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
+              <TabsList>
+                <TabsTrigger value="content">Content</TabsTrigger>
+                <TabsTrigger value="seo">SEO</TabsTrigger>
+              </TabsList>
+              <TabsContent value="content" keepMounted className="pt-4">
+                <SectionFields sections={data.document.sections} />
+              </TabsContent>
+              <TabsContent value="seo" keepMounted className="pt-4">
+                <SeoPanel publicUrl={data.publicUrl ?? ''} defaults={data.document.seoDefaults} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <SectionFields sections={data.document.sections} />
+          )}
         </form>
       </FormProvider>
     </EditorProvider>

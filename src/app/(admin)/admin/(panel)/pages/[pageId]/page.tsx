@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
-import { PageEditor } from '@/admin/components/content/page-editor';
+import { DocumentEditor } from '@/admin/components/content/document-editor';
+import { resolveEditorLocale } from '@/admin/server/editor-locale';
 import { registry } from '@/content';
 import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
+import { DocumentKind } from '@/core/content/document-target';
 import { loadEditorData } from '@/core/content/editor';
-import { getDb } from '@/core/db/client';
-import { localeInfo } from '@/core/i18n/locales';
 import { adminHref, AdminRoute } from '@/core/project/paths';
-import { readSiteSettings } from '@/core/settings/repository';
 
 export const instant = false;
 
@@ -28,14 +27,11 @@ export default async function EditPagePage({
   const [{ pageId }, query] = await Promise.all([params, searchParams]);
   if (!registry.byId(pageId)) notFound();
 
-  const { general } = await readSiteSettings(await getDb());
-  const requested = typeof query.locale === 'string' ? query.locale : general.defaultLocale;
-  if (!general.enabledLocales.includes(requested)) {
-    redirect(`${adminHref(AdminRoute.Pages)}/${pageId}?locale=${general.defaultLocale}`);
-  }
-
-  const data = await loadEditorData(pageId, requested);
+  const basePath = `${adminHref(AdminRoute.Pages)}/${pageId}`;
+  const { locale, locales } = await resolveEditorLocale(query, basePath);
+  const data = await loadEditorData({ kind: DocumentKind.Page, id: pageId }, locale);
   if (!data) notFound();
-  const locales = general.enabledLocales.map((code) => ({ code, label: localeInfo(code).label }));
-  return <PageEditor key={`${pageId}:${requested}`} data={data} locales={locales} />;
+  return (
+    <DocumentEditor key={`${pageId}:${locale}`} data={data} locales={locales} basePath={basePath} />
+  );
 }

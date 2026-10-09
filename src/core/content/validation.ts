@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { AnyPage } from './define';
+import type { ContentSchema } from './define';
 import { type AnyField, FieldKind, type ListItemFields, type ScalarField } from './fields';
 import { richTextDocSchema, richTextToPlainText } from './rich-text';
 
@@ -111,7 +111,7 @@ function listItemSchema(of: ListItemFields) {
 }
 
 /** Validator for a full page's content in one locale (shared + localized values merged). */
-export function pageContentSchema(page: Pick<AnyPage, 'sections'>) {
+export function pageContentSchema(page: Pick<ContentSchema, 'sections'>) {
   const sections: Record<string, z.ZodType> = {};
   for (const section of page.sections) {
     const shape: Record<string, z.ZodType> = {};

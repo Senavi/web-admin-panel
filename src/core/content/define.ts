@@ -46,6 +46,17 @@ export function seoDefaultsFor(
 
 export type SectionList = readonly SectionDefinition[];
 
+/**
+ * Anything with sections and optional per-locale seed content: pages, globals,
+ * collection items (one internal section) and form texts. The storage, fallback
+ * and validation helpers work on this shape.
+ */
+export interface ContentSchema {
+  readonly sections: SectionList;
+  /** Seed content keyed by locale (shape: `{ [sectionId]: { [field]: seedValue } }`). */
+  readonly seed?: object;
+}
+
 // ── Value types derived from a schema ───────────────────────────────────────
 
 export type SectionValue<F extends FieldMap> = { readonly [K in keyof F]: StoredValue<F[K]> };

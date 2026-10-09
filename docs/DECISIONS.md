@@ -418,3 +418,15 @@ classes with no matching token, plus all `leading-*`/`tracking-*` (text styles o
 `tsc` needs Next's generated route types (`PageProps`, `LayoutProps`), which normally only
 exist after `next dev`/`next build`. `pnpm typecheck` runs `next typegen && tsc --noEmit`
 so it works on a fresh clone and in CI.
+
+## v1.2.0: collections, globals, forms
+
+### D-062 One document engine for every kind of editable content
+
+Pages, globals, form texts and collection items are all "documents": sections of fields
+stored per locale with optimistic concurrency and revisions. The save engine
+(`saveDocument`), editor loader (`loadEditorData`), revision actions and the admin
+`DocumentEditor` work on a `ContentDocument` resolved from a `DocumentTarget`
+(`src/core/content/document.ts`). Each kind only provides its schema, a `DocumentStore`
+(table binding), cache tags, audit target and public URL. New kinds don't copy editor or
+save logic.

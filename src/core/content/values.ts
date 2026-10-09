@@ -1,4 +1,4 @@
-import type { AnyPage, SeedImage } from './define';
+import type { ContentSchema, SeedImage } from './define';
 import {
   type AnyField,
   FieldKind,
@@ -36,7 +36,7 @@ function sectionOf(record: ContentRecord | undefined, sectionId: string): JsonRe
 
 /** Splits a full locale content object into the shared and localized records to store. */
 export function splitContent(
-  page: AnyPage,
+  page: ContentSchema,
   content: ContentRecord,
 ): { shared: ContentRecord; localized: ContentRecord } {
   const shared: ContentRecord = {};
@@ -93,7 +93,7 @@ export interface FallbackChain {
  * Full content for a locale: stored value → default-locale value → seed → field default.
  * Invalid stored values (e.g. after a schema change) are treated as missing.
  */
-export function resolveWithFallback(page: AnyPage, chain: FallbackChain): ContentRecord {
+export function resolveWithFallback(page: ContentSchema, chain: FallbackChain): ContentRecord {
   const result: ContentRecord = {};
   for (const section of page.sections) {
     const out: JsonRecord = {};
@@ -116,7 +116,7 @@ export function resolveWithFallback(page: AnyPage, chain: FallbackChain): Conten
 }
 
 /** Content for a locale without any fallback (missing values → field defaults). Used for completeness. */
-export function mergeWithoutFallback(page: AnyPage, rows: StoredRows): ContentRecord {
+export function mergeWithoutFallback(page: ContentSchema, rows: StoredRows): ContentRecord {
   return resolveWithFallback(page, { primary: rows, seeds: [] });
 }
 
@@ -125,7 +125,7 @@ export function mergeWithoutFallback(page: AnyPage, rows: StoredRows): ContentRe
  * into stored values, using `assetIds` to map seed asset names to media ids.
  */
 export function seedToStored(
-  page: AnyPage,
+  page: ContentSchema,
   seed: ContentRecord | undefined,
   assetIds: ReadonlyMap<string, string>,
 ): ContentRecord | undefined {
@@ -176,7 +176,7 @@ function listItemFromSeed(
 }
 
 /** All seed asset names referenced by a page's seeds (any locale). */
-export function seedAssets(page: AnyPage): string[] {
+export function seedAssets(page: ContentSchema): string[] {
   const assets = new Set<string>();
   const visit = (field: AnyField, value: unknown) => {
     if (field.kind === FieldKind.Image && isRecord(value) && typeof value.asset === 'string')
@@ -198,7 +198,7 @@ export function seedAssets(page: AnyPage): string[] {
 }
 
 /** Every media id referenced by resolved content (for one batched lookup). */
-export function collectMediaIds(page: AnyPage, content: ContentRecord): string[] {
+export function collectMediaIds(page: ContentSchema, content: ContentRecord): string[] {
   const ids = new Set<string>();
   const visit = (field: AnyField, value: unknown) => {
     if (field.kind === FieldKind.Image && isRecord(value) && typeof value.mediaId === 'string')
@@ -219,7 +219,7 @@ export function collectMediaIds(page: AnyPage, content: ContentRecord): string[]
 
 /** Replaces image values with resolved media (or null) for the public site. */
 export function resolveImages<T>(
-  page: AnyPage,
+  page: ContentSchema,
   content: ContentRecord,
   resolve: (image: ImageValue) => T | null,
 ): ContentRecord {
@@ -247,7 +247,7 @@ export function resolveImages<T>(
 }
 
 /** Field keys stored for a page that no longer exist in the schema (reported by content:sync). */
-export function findOrphans(page: AnyPage, record: ContentRecord | undefined): string[] {
+export function findOrphans(page: ContentSchema, record: ContentRecord | undefined): string[] {
   if (!record) return [];
   const orphans: string[] = [];
   for (const [sectionId, values] of Object.entries(record)) {

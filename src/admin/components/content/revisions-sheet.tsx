@@ -47,14 +47,14 @@ export function RevisionsSheet({
   const load = async () => {
     setRevisions(null);
     setSelected(null);
-    const result = await listRevisionsAction({ pageId: data.page.id, locale: data.locale });
+    const result = await listRevisionsAction({ target: data.document.target, locale: data.locale });
     if (result.ok) setRevisions(result.data);
     else toast.error(result.error);
   };
 
   const preview = async (id: string) => {
     setBusy(true);
-    const result = await getRevisionAction({ revisionId: id });
+    const result = await getRevisionAction({ target: data.document.target, revisionId: id });
     setBusy(false);
     if (result.ok) setSelected({ id, preview: result.data });
     else toast.error(result.error);
@@ -64,7 +64,11 @@ export function RevisionsSheet({
     if (!selected) return;
     if (dirty && !window.confirm('Restoring replaces your unsaved changes. Continue?')) return;
     setBusy(true);
-    const result = await restoreRevisionAction({ revisionId: selected.id, versions });
+    const result = await restoreRevisionAction({
+      target: data.document.target,
+      revisionId: selected.id,
+      versions,
+    });
     setBusy(false);
     if (!result.ok) {
       toast.error(result.error);
@@ -91,8 +95,7 @@ export function RevisionsSheet({
         <SheetHeader>
           <SheetTitle>Revision history</SheetTitle>
           <SheetDescription>
-            The last 20 saved versions of this page in this language. Restoring creates a new
-            version.
+            The last 20 saved versions in this language. Restoring creates a new version.
           </SheetDescription>
         </SheetHeader>
         <div className="grid min-h-0 flex-1 gap-4 px-4 pb-4 md:grid-cols-[14rem_1fr]">
@@ -159,7 +162,7 @@ function RevisionPreviewForm({ data, preview }: { data: EditorData; preview: Rev
     >
       <FormProvider {...form}>
         <fieldset disabled className="min-w-0">
-          <SectionFields sections={data.page.sections} />
+          <SectionFields sections={data.document.sections} />
         </fieldset>
       </FormProvider>
     </EditorProvider>

@@ -36,7 +36,7 @@ test.describe.serial('pages editor', () => {
     await expect(page.getByText('Image uploaded.')).toBeVisible();
     await expect(page.getByText('Unsaved changes')).toBeVisible();
     await saveButton(page).click();
-    await expect(page.getByText('Saved. The live page updates in a few seconds.')).toBeVisible();
+    await expect(page.getByText('Saved. The live site updates in a few seconds.')).toBeVisible();
 
     await expect.poll(() => liveH1(page, '/uk/about')).toBe(title);
     expect(await liveH1(page, '/about')).toBe('About us');
@@ -62,7 +62,7 @@ test.describe.serial('pages editor', () => {
 
     await heroTitle(second).fill('Contact (second editor)');
     await saveButton(second).click();
-    await expect(second.getByText('This page was changed by someone else')).toBeVisible();
+    await expect(second.getByText('This was changed by someone else')).toBeVisible();
     expect(await liveH1(second, '/contact')).toBe('Contact (first editor)');
     await first.close();
     await second.close();
