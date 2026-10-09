@@ -10,6 +10,12 @@ export const Permission = {
   PagesView: 'pages.view',
   PagesEdit: 'pages.edit',
   MediaUpload: 'media.upload',
+  /** Read the form inbox, mark read/archive, export CSV. */
+  FormsView: 'forms.view',
+  /** Delete submissions (GDPR requests). */
+  FormsDelete: 'forms.delete',
+  /** Settings → Forms: destinations and retention. */
+  FormsSettings: 'forms.settings',
   ManagersManage: 'managers.manage',
   SettingsManage: 'settings.manage',
   SecurityManage: 'security.manage',
@@ -22,6 +28,7 @@ const MANAGER_PERMISSIONS: readonly Permission[] = [
   Permission.PagesView,
   Permission.PagesEdit,
   Permission.MediaUpload,
+  Permission.FormsView,
   Permission.AccountManage,
 ];
 

@@ -58,7 +58,7 @@ export type DocumentSave = (
 export interface DocumentEditorProps {
   readonly data: EditorData;
   readonly locales: readonly LocaleOption[];
-  /** Admin URL of this editor without `?locale=` (the locale switcher appends it). */
+  /** Admin URL of this editor without `locale` (the locale switcher appends it). */
   readonly basePath: string;
   /** Extra form values under `extra.*` (e.g. collection item slug/status) with their validator. */
   readonly extra?: { readonly defaults: Record<string, unknown>; readonly schema: z.ZodType };
@@ -148,7 +148,7 @@ export function DocumentEditor({
 
   const switchLocale = (code: string) => {
     if (code === data.locale || !confirmLeave(isDirty)) return;
-    router.push(`${basePath}?locale=${code}`);
+    router.push(`${basePath}${basePath.includes('?') ? '&' : '?'}locale=${code}`);
   };
 
   return (

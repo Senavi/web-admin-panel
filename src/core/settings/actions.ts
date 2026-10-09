@@ -18,6 +18,7 @@ import { AuditAction, writeAudit } from '@/core/security/audit';
 import { readLocalizedSettings, readSiteSettings } from './repository';
 import {
   analyticsSettingsSchema,
+  formsSettingsSchema,
   brandingSettingsSchema,
   generalSettingsSchema,
   localizedSettingsSchema,
@@ -34,6 +35,7 @@ const GROUP_SCHEMAS = {
   status: siteStatusSettingsSchema,
   analytics: analyticsSettingsSchema,
   security: securitySettingsSchema,
+  forms: formsSettingsSchema,
 } satisfies Record<SettingsGroup, z.ZodType>;
 
 /** Keys whose value changed (audit summary; never values of secrets). */
@@ -43,9 +45,13 @@ function changedKeys(before: Record<string, unknown>, after: Record<string, unkn
   );
 }
 
-async function saveGroup<G extends SettingsGroup>(group: G, input: unknown): Promise<ActionResult> {
+async function saveGroup<G extends SettingsGroup>(
+  group: G,
+  input: unknown,
+  permission: Permission = Permission.SettingsManage,
+): Promise<ActionResult> {
   return runAction(async () => {
-    const user = await assertPermission(Permission.SettingsManage);
+    const user = await assertPermission(permission);
     const value = GROUP_SCHEMAS[group].parse(input) as Record<string, unknown>;
     const db = await getDb();
     const current = await readSiteSettings(db);
@@ -74,6 +80,11 @@ async function saveGroup<G extends SettingsGroup>(group: G, input: unknown): Pro
     updateTag(CacheTag.Sitemap);
     return ok(undefined, 'Settings saved.');
   });
+}
+
+/** Settings → Forms: delivery destinations per form and retention (admins only). */
+export async function saveFormsSettingsAction(input: unknown): Promise<ActionResult> {
+  return saveGroup('forms', input, Permission.FormsSettings);
 }
 
 export async function saveGeneralSettingsAction(input: unknown): Promise<ActionResult> {

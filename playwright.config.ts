@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { E2E_ENV } from './tests/e2e/support/env';
+
 /**
  * E2E tests run against `E2E_BASE_URL` when provided (e.g. a production build
  * started by CI), otherwise Playwright starts the zero-config dev server.
@@ -28,7 +30,7 @@ export default defineConfig({
     : {
         // Isolated database in .data/e2e, reset and seeded with test users before start.
         command: process.env.E2E_SERVER_COMMAND ?? `pnpm e2e:prepare && pnpm dev --port ${PORT}`,
-        env: { SITE_DATA_DIR: '.data/e2e' },
+        env: { SITE_DATA_DIR: '.data/e2e', ...E2E_ENV },
         url: baseURL,
         reuseExistingServer: false,
         timeout: 180_000,

@@ -42,6 +42,7 @@ import {
   siteStatusSettingsSchema,
 } from '@/core/settings/schema';
 
+import { FormsSettingsCard } from './forms-settings';
 import { SettingsForm } from './settings-form';
 
 export interface LocaleOption {
@@ -57,11 +58,14 @@ export function SettingsPanels({
   localized,
   locales,
   initialMedia,
+  forms,
 }: {
   settings: SiteSettings;
   localized: { locale: string; values: LocalizedSettings };
   locales: readonly LocaleOption[];
   initialMedia: Readonly<Record<string, MediaPreview>>;
+  /** Registered forms (Settings → Forms); hidden when the project has none. */
+  forms: ReadonlyArray<{ readonly id: string; readonly label: string }>;
 }) {
   const [media, setMedia] = useState(initialMedia);
   const addMedia = useCallback(
@@ -346,6 +350,8 @@ export function SettingsPanels({
           description="Applies to new sign-ins."
         />
       </SettingsForm>
+
+      {forms.length > 0 ? <FormsSettingsCard forms={forms} settings={settings.forms} /> : null}
     </div>
   );
 }

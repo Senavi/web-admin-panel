@@ -49,7 +49,7 @@ async function loadResolvedContent(pageId: string, locale: string): Promise<Cont
 
   const page = registry.byId(pageId);
   if (!page) throw new Error(`Unknown page "${pageId}".`);
-  return resolveDocumentContent(page, pageId, locale);
+  return loadDocumentContent(page, pageId, locale);
 }
 
 type RegisteredGlobal = (typeof registry.globals)[number];
@@ -79,11 +79,15 @@ async function loadGlobalContent(globalId: string, locale: string): Promise<Cont
   cacheTag(CacheTag.global(globalId), CacheTag.Settings);
   const global = contentRegistry.globalById(globalId);
   if (!global) throw new Error(`Unknown global "${globalId}".`);
-  return resolveDocumentContent(global, globalKey(global.id), locale);
+  return loadDocumentContent(global, globalKey(global.id), locale);
 }
 
-/** Stored rows → fallback chain (locale, default locale, seeds, defaults) → resolved images. */
-async function resolveDocumentContent(
+/**
+ * Stored rows → fallback chain (locale, default locale, seeds, defaults) →
+ * resolved images, for any page-table document. Not cached itself: callers
+ * wrap it in a `'use cache'` function with their own tags.
+ */
+export async function loadDocumentContent(
   schema: ContentSchema,
   key: string,
   locale: string,

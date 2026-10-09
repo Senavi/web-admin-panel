@@ -17,7 +17,7 @@ export async function resolveEditorLocale(
   const { general } = await readSiteSettings(await getDb());
   const requested = typeof query.locale === 'string' ? query.locale : general.defaultLocale;
   if (!general.enabledLocales.includes(requested)) {
-    redirect(`${basePath}?locale=${general.defaultLocale}`);
+    redirect(`${basePath}${basePath.includes('?') ? '&' : '?'}locale=${general.defaultLocale}`);
   }
   return {
     locale: requested,

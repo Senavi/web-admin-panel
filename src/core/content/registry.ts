@@ -3,6 +3,7 @@ import { PagesArea } from '@/core/project/paths';
 
 import { type AnyCollection, collectionBasePath } from './collection';
 import type { AnyGlobal } from './global';
+import type { AnyForm } from '@/core/forms/define';
 import type { AnyPage } from './define';
 
 /**
@@ -23,16 +24,19 @@ export interface RegistryInput<
   P extends readonly AnyPage[],
   C extends readonly AnyCollection[] = readonly [],
   G extends readonly AnyGlobal[] = readonly [],
+  F extends readonly AnyForm[] = readonly [],
 > {
   readonly pages: P;
   readonly collections?: C;
   readonly globals?: G;
+  readonly forms?: F;
 }
 
 export interface PageRegistry<
   P extends readonly AnyPage[] = readonly AnyPage[],
   C extends readonly AnyCollection[] = readonly AnyCollection[],
   G extends readonly AnyGlobal[] = readonly AnyGlobal[],
+  F extends readonly AnyForm[] = readonly AnyForm[],
 > {
   readonly pages: P;
   readonly ids: readonly P[number]['id'][];
@@ -43,6 +47,8 @@ export interface PageRegistry<
   collectionById(id: string): C[number] | undefined;
   readonly globals: G;
   globalById(id: string): G[number] | undefined;
+  readonly forms: F;
+  formById(id: string): F[number] | undefined;
 }
 
 /** Stable ids are kebab-case: they are DB keys and admin URL segments. */
@@ -59,16 +65,18 @@ export function assertContentId(kind: string, id: string): void {
 
 export function createRegistry<const P extends readonly AnyPage[]>(
   pages: P,
-): PageRegistry<P, readonly [], readonly []>;
+): PageRegistry<P, readonly [], readonly [], readonly []>;
 export function createRegistry<
   const P extends readonly AnyPage[],
   const C extends readonly AnyCollection[] = readonly [],
   const G extends readonly AnyGlobal[] = readonly [],
->(input: RegistryInput<P, C, G>): PageRegistry<P, C, G>;
+  const F extends readonly AnyForm[] = readonly [],
+>(input: RegistryInput<P, C, G, F>): PageRegistry<P, C, G, F>;
 export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): PageRegistry {
   const pages = isPageList(input) ? input : input.pages;
   const collections = isPageList(input) ? [] : (input.collections ?? []);
   const globals = isPageList(input) ? [] : (input.globals ?? []);
+  const forms = isPageList(input) ? [] : (input.forms ?? []);
   const byId = new Map<string, AnyPage>();
   const byPath = new Map<string, AnyPage>();
   for (const page of pages) {
@@ -131,6 +139,18 @@ export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): Pa
     globalById.set(global.id, global);
   }
 
+  const formById = new Map<string, AnyForm>();
+  for (const form of forms) {
+    assertContentId('Form', form.id);
+    if (formById.has(form.id)) throw new Error(`Duplicate form id "${form.id}".`);
+    if (form.successRedirectPageId && !byId.has(form.successRedirectPageId)) {
+      throw new Error(
+        `Form "${form.id}": successRedirectPageId "${form.successRedirectPageId}" is not a registered page.`,
+      );
+    }
+    formById.set(form.id, form);
+  }
+
   const buildTree = (parent: string | null): PageTreeNode[] =>
     pages
       .filter((page) => page.parent === parent)
@@ -146,13 +166,16 @@ export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): Pa
     collectionById: (id) => collectionById.get(id),
     globals,
     globalById: (id) => globalById.get(id),
+    forms,
+    formById: (id) => formById.get(id),
   };
 }
 
 type AnyRegistryInput = RegistryInput<
   readonly AnyPage[],
   readonly AnyCollection[],
-  readonly AnyGlobal[]
+  readonly AnyGlobal[],
+  readonly AnyForm[]
 >;
 
 function isPageList(input: readonly AnyPage[] | AnyRegistryInput): input is readonly AnyPage[] {

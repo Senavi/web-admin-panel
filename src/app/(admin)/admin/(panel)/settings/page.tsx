@@ -5,6 +5,7 @@ import { SettingsPanels } from '@/admin/components/settings/settings-panels';
 import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
 import type { MediaPreview } from '@/core/content/editor-types';
+import { contentRegistry } from '@/core/content/project-registry';
 import { getDb } from '@/core/db/client';
 import { localeInfo } from '@/core/i18n/locales';
 import { loadMedia } from '@/core/media/resolve';
@@ -43,6 +44,7 @@ export default async function SettingsPage() {
         localized={{ locale, values: localized }}
         locales={projectConfig.localeCodes.map((code) => ({ code, label: localeInfo(code).label }))}
         initialMedia={media}
+        forms={contentRegistry.forms.map((form) => ({ id: form.id, label: form.label }))}
       />
     </>
   );

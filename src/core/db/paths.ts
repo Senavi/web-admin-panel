@@ -23,3 +23,6 @@ export const MIGRATIONS_DIR = path.join(/*turbopackIgnore: true*/ ROOT, 'src/cor
 
 /** Project convention: seed images referenced by page seeds (`{ asset: 'hero.webp' }`). */
 export const SEED_ASSETS_DIR = path.join(/*turbopackIgnore: true*/ ROOT, 'src/content/seed/assets');
+
+/** Emails written by the `dev` mail provider (form submissions in development and tests). */
+export const MAIL_DIR = path.join(DATA_DIR, 'mail');

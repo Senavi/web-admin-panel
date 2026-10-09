@@ -14,6 +14,8 @@ import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 
+import { E2E_ENV } from '../tests/e2e/support/env';
+
 const DB_PORT = Number(process.env.E2E_DB_PORT ?? 54339);
 const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3400);
 const DATA_DIR = '.data/e2e-prod';
@@ -27,6 +29,7 @@ const env: Record<string, string | undefined> = {
   NEXT_PUBLIC_SITE_URL: `http://localhost:${APP_PORT}`,
   STORAGE_DRIVER: 'local',
   ALLOW_LOCAL_STORAGE_IN_PRODUCTION: 'true',
+  ...E2E_ENV,
 };
 delete env.NODE_OPTIONS;
 

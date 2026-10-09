@@ -20,6 +20,14 @@ export const StorageDriver = {
 } as const;
 export type StorageDriver = (typeof StorageDriver)[keyof typeof StorageDriver];
 
+/** How form emails are sent. `dev` writes them to `<data dir>/mail/` (development, CI). */
+export const MailProvider = {
+  Dev: 'dev',
+  Resend: 'resend',
+  Smtp: 'smtp',
+} as const;
+export type MailProvider = (typeof MailProvider)[keyof typeof MailProvider];
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -48,6 +56,28 @@ export const envSchema = z
 
     /** Protects /api/cron/maintenance. Cron endpoint is disabled when unset. */
     CRON_SECRET: optionalString.pipe(z.string().min(16).optional()),
+
+    /** Form email delivery: dev (files), resend or smtp. Default: dev outside production. */
+    MAIL_PROVIDER: z.enum([MailProvider.Dev, MailProvider.Resend, MailProvider.Smtp]).optional(),
+    /** Sender of form emails, e.g. `Website <forms@example.com>`. */
+    MAIL_FROM: optionalString,
+    RESEND_API_KEY: optionalString,
+    SMTP_HOST: optionalString,
+    SMTP_PORT: optionalString.pipe(
+      z
+        .string()
+        .regex(/^[0-9]{1,5}$/)
+        .transform(Number)
+        .optional(),
+    ),
+    SMTP_USER: optionalString,
+    SMTP_PASSWORD: optionalString,
+    /** Signs form webhook requests (`X-Signature: sha256=…`). Min 16 chars. */
+    FORMS_WEBHOOK_SECRET: optionalString.pipe(z.string().min(16).optional()),
+    /** Telegram bot token for form notifications (chat id is set in Settings → Forms). */
+    TELEGRAM_BOT_TOKEN: optionalString,
+    /** Cloudflare Turnstile secret (with projectConfig.forms.turnstile.siteKey). */
+    TURNSTILE_SECRET_KEY: optionalString,
 
     /** Development/test only: alternative local data directory (default `.data`). */
     SITE_DATA_DIR: optionalString,
@@ -92,6 +122,19 @@ export const envSchema = z
             message: `${key} is required when the Supabase storage driver is used.`,
           });
         }
+      }
+    }
+    const mailRequirements: Record<string, ReadonlyArray<keyof typeof env>> = {
+      [MailProvider.Resend]: ['RESEND_API_KEY', 'MAIL_FROM'],
+      [MailProvider.Smtp]: ['SMTP_HOST', 'MAIL_FROM'],
+    };
+    for (const key of mailRequirements[env.MAIL_PROVIDER ?? ''] ?? []) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required when MAIL_PROVIDER=${env.MAIL_PROVIDER}.`,
+        });
       }
     }
     if (isProduction && driver === StorageDriver.Local && !env.ALLOW_LOCAL_STORAGE_IN_PRODUCTION) {

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { parseEnv, type Env } from './env-schema';
 
-export { StorageDriver, resolveStorageDriver, type Env } from './env-schema';
+export { MailProvider, StorageDriver, resolveStorageDriver, type Env } from './env-schema';
 
 let cached: Env | undefined;
 

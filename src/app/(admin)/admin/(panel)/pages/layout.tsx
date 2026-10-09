@@ -6,6 +6,7 @@ import { registry } from '@/content';
 import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
 import { countItems } from '@/core/collections/admin';
+import { countNew } from '@/core/forms/inbox';
 import { loadPageStatuses } from '@/core/content/editor';
 import { contentRegistry } from '@/core/content/project-registry';
 import type { PageTreeNode } from '@/core/content/registry';
@@ -29,11 +30,15 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
   await requirePermission(Permission.PagesView);
   const db = await getDb();
   const { general } = await readSiteSettings(db);
-  const [statuses, itemCounts] = await Promise.all([
+  const [statuses, itemCounts, unread] = await Promise.all([
     loadPageStatuses(db, general.enabledLocales),
     countItems(
       db,
       contentRegistry.collections.map((collection) => collection.id),
+    ),
+    countNew(
+      db,
+      contentRegistry.forms.map((form) => form.id),
     ),
   ]);
   const groups: SidebarGroup[] = [];
@@ -63,6 +68,22 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
         label: global.label,
         href: pagesAreaHref(PagesArea.SiteWide, global.id),
       })),
+    });
+  }
+
+  if (contentRegistry.forms.length > 0) {
+    groups.push({
+      id: PagesArea.Forms,
+      title: 'Forms',
+      items: contentRegistry.forms.map((form) => {
+        const count = unread[form.id] ?? 0;
+        return {
+          id: form.id,
+          label: form.label,
+          href: pagesAreaHref(PagesArea.Forms, form.id),
+          ...(count > 0 ? { count, countLabel: `${count} new` } : {}),
+        };
+      }),
     });
   }
 

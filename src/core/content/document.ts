@@ -11,6 +11,7 @@ import { localizedPath } from '@/core/i18n/routing';
 import { collectionItemPath, CollectionItemStatus } from './collection';
 import { type ContentSchema, seoDefaultsFor } from './define';
 import { globalKey } from './global';
+import { formKey } from '@/core/forms/define';
 import { contentRegistry } from './project-registry';
 import { DocumentKind, type DocumentTarget } from './document-target';
 import type { DocumentStore } from './store';
@@ -131,6 +132,23 @@ function globalDocument(id: string): ContentDocument | null {
   };
 }
 
+function formDocument(id: string): ContentDocument | null {
+  const form = contentRegistry.formById(id);
+  if (!form) return null;
+  return {
+    target: { kind: DocumentKind.Form, id },
+    key: formKey(form.id),
+    label: form.label,
+    schema: form.texts,
+    store: pageStore,
+    hasSeo: false,
+    seoDefaults: () => NO_SEO_DEFAULTS,
+    publicPath: () => null,
+    auditTarget: (locale) => `form:${form.id}:${locale}`,
+    tagsToInvalidate: () => [CacheTag.form(form.id)],
+  };
+}
+
 /** Resolves a target to its document, or null when it doesn't exist (any more). */
 export async function resolveDocument(target: DocumentTarget): Promise<ContentDocument | null> {
   switch (target.kind) {
@@ -140,5 +158,7 @@ export async function resolveDocument(target: DocumentTarget): Promise<ContentDo
       return itemDocument(target.collectionId, target.itemId);
     case DocumentKind.Global:
       return globalDocument(target.id);
+    case DocumentKind.Form:
+      return formDocument(target.id);
   }
 }

@@ -17,6 +17,7 @@ import type { StorageAdapter } from '@/core/storage/types';
 import { CollectionItemStatus, itemSeedSchema } from './collection';
 import type { ContentSchema } from './define';
 import { globalKey } from './global';
+import { formKey } from '@/core/forms/define';
 import { contentRegistry as registry } from './project-registry';
 import type { DocumentStore } from './store';
 import { collectionItemStore, pageStore } from './stores/table-store';
@@ -67,6 +68,14 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
       db,
       storage,
       { label: globalKey(global.id), key: globalKey(global.id), schema: global, store: pageStore },
+      report,
+    );
+  }
+  for (const form of registry.forms) {
+    await syncDocument(
+      db,
+      storage,
+      { label: formKey(form.id), key: formKey(form.id), schema: form.texts, store: pageStore },
       report,
     );
   }

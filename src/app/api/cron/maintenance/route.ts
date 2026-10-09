@@ -1,11 +1,11 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import { runAnalyticsMaintenance } from '@/core/analytics/maintenance';
+import { runMaintenance } from '@/core/maintenance';
 import { getDb } from '@/core/db/client';
 import { env } from '@/core/env';
 
 /**
- * Scheduled maintenance (analytics rollups + retention cleanup).
+ * Scheduled maintenance (analytics rollups, form delivery retries, retention cleanup).
  * Vercel Cron and the Netlify scheduled function call it with
  * `Authorization: Bearer $CRON_SECRET`. Disabled when CRON_SECRET is unset;
  * the same work also runs lazily, so the app is correct without a scheduler.
@@ -18,7 +18,7 @@ async function handle(request: Request): Promise<Response> {
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
     return new Response('Unauthorized', { status: 401 });
   }
-  const summary = await runAnalyticsMaintenance(await getDb(), { force: true });
+  const summary = await runMaintenance(await getDb(), { force: true });
   return Response.json(summary, { headers: { 'Cache-Control': 'no-store' } });
 }
 

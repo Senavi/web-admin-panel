@@ -483,3 +483,38 @@ revisions with a namespaced key (`global:site`). Page ids are validated kebab-ca
 tag `global:{id}`; header/footer components read it, so saving updates every page that
 rendered it. Contact values got `f.email()` / `f.phone()` (validated, with `mailtoHref` /
 `telHref`), and social profile links use `f.link()` so only safe URL schemes are stored.
+
+### D-069 Public forms post to a route handler, not a server action
+
+Site pages are prerendered (Cache Components + Partial Prefetching). Two server-action
+behaviours break forms there: the no-JavaScript POST is answered by resuming the static
+shell, which drops `useActionState`'s form state; and with JavaScript the action response
+carries the cached page as Flight data, so the client re-renders the page and resets the
+form. Public forms therefore use one endpoint, `POST /api/forms/submit`:
+
+- before hydration (or without JavaScript) the `<form>` posts natively (browser validation;
+  answers: redirect to the thank-you page, or a minimal page for confirm/errors/success);
+- once hydrated, `useSiteForm` validates inline and submits the same endpoint with `fetch`
+  (`Accept: application/json` → JSON state), so the page never reloads.
+
+Admin actions stay server actions (admin pages are dynamic).
+
+### D-070 Spam protection without third parties
+
+Honeypot field; signed minimum fill time (HMAC token, 3 s – 24 h) fetched by the hydrated
+form from `/api/forms/token`, so pages with forms stay fully static (a streamed per-request
+token would never reach the form without JavaScript, and arrived too late with it).
+Without JavaScript the first submit returns a small confirm page carrying a fresh token.
+Missing or too-fast/forged tokens: confirm step or silent drop. DB-backed rate limits reuse
+the sign-in throttle (`login_throttle`, keys `form:<id>` and `form:<id>:ip:<hash>`): 5 per
+visitor per 10 minutes, 200 per form per hour. Optional Cloudflare Turnstile via
+`projectConfig.forms.turnstile` adds its CSP sources automatically.
+
+### D-071 Delivery is per destination and never blocks the visitor
+
+Submissions are stored first; email (dev files / Resend / SMTP via nodemailer), signed
+webhook (`X-Signature: sha256=<hex HMAC>`, https or localhost only) and Telegram are
+delivered independently and recorded per destination on the submission (shown in the
+inbox). Failures are retried by the maintenance job (5 attempts within 7 days); retention
+(Settings → Forms, default 12 months) deletes old submissions. Secrets only in env; the
+email body is plain text; nothing from a submission is logged.

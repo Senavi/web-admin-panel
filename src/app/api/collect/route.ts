@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 
 import { collectPayloadSchema, recordPageView } from '@/core/analytics/collect';
-import { runAnalyticsMaintenance } from '@/core/analytics/maintenance';
+import { runMaintenance } from '@/core/maintenance';
 import { getAuthSecret } from '@/core/auth/secret';
 import { getDb } from '@/core/db/client';
 import { getClientIp } from '@/core/security/request';
@@ -64,6 +64,6 @@ export async function POST(request: Request): Promise<Response> {
     defaultLocale: state.defaultLocale,
   });
   // Rollups / cleanup run lazily (throttled to once an hour) after the response.
-  after(() => runAnalyticsMaintenance(db).then(() => undefined));
+  after(() => runMaintenance(db).then(() => undefined));
   return NO_CONTENT();
 }

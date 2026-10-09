@@ -54,6 +54,11 @@ jobs:
       STORAGE_DRIVER: local
       ALLOW_LOCAL_STORAGE_IN_PRODUCTION: 'true'
       E2E_BASE_URL: http://localhost:3100
+      # Same test-only values as tests/e2e/support/env.ts.
+      MAIL_PROVIDER: dev
+      MAIL_FROM: Site Starter <forms@example.test>
+      FORMS_WEBHOOK_SECRET: e2e-webhook-secret-0123456789
+      CRON_SECRET: e2e-cron-secret-0123456789
     steps:
       - uses: actions/checkout@v5
       # Installs the pnpm version from package.json#packageManager before setup-node

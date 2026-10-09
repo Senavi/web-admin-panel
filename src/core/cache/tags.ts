@@ -19,6 +19,8 @@ export const CacheTag = {
   collectionList: (collectionId: string) => `collection:${collectionId}:list`,
   /** One global (header/footer texts…): every page that renders it. */
   global: (globalId: string) => `global:${globalId}`,
+  /** Editable texts of one form. */
+  form: (formId: string) => `form:${formId}`,
   /** One media item (rows are immutable; tag exists for deletes). */
   media: (mediaId: string) => `media:${mediaId}`,
   /** Active staff list published to the request proxy (user disabled, password changed…). */

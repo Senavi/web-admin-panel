@@ -6,15 +6,19 @@ import { BreakdownCard } from '@/admin/components/overview/breakdown-card';
 import { KpiCard } from '@/admin/components/overview/kpi-card';
 import { RangeSelect } from '@/admin/components/overview/range-select';
 import { RecentActivity } from '@/admin/components/overview/recent-activity';
+import { SubmissionsCard } from '@/admin/components/overview/submissions-card';
 import { SiteStatusCard } from '@/admin/components/overview/site-status-card';
 import { VisitorsChart } from '@/admin/components/overview/visitors-chart';
-import { runAnalyticsMaintenance } from '@/core/analytics/maintenance';
+import { runMaintenance } from '@/core/maintenance';
 import { getOverview, parseRange, RANGE_LABELS } from '@/core/analytics/queries';
 import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
 import { getDb, getDbInfo } from '@/core/db/client';
 import { auditLog } from '@/core/db/schema';
 import { describeAuditTargets } from '@/core/security/audit-targets';
+import { contentRegistry } from '@/core/content/project-registry';
+import { countNew } from '@/core/forms/inbox';
+import { PagesArea, pagesAreaHref } from '@/core/project/paths';
 import { readSiteSettings } from '@/core/settings/repository';
 
 export const metadata: Metadata = { title: 'Overview' };
@@ -26,14 +30,20 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
   await requirePermission(Permission.OverviewView);
   const range = parseRange((await searchParams).range);
   const db = await getDb();
-  await runAnalyticsMaintenance(db); // throttled: at most hourly
+  await runMaintenance(db); // throttled: at most hourly
   const [overview, settings, activity] = await Promise.all([
     getOverview(db, range),
     readSiteSettings(db),
     db.select().from(auditLog).orderBy(desc(auditLog.ts)).limit(RECENT_ACTIVITY),
   ]);
   const { current, previous, breakdowns } = overview;
-  const targetLabels = await describeAuditTargets(db, activity);
+  const [targetLabels, newSubmissions] = await Promise.all([
+    describeAuditTargets(db, activity),
+    countNew(
+      db,
+      contentRegistry.forms.map((form) => form.id),
+    ),
+  ]);
 
   return (
     <>
@@ -74,6 +84,17 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
           }))}
         />
       </section>
+      {contentRegistry.forms.length > 0 ? (
+        <section aria-label="Forms" className="grid gap-4 lg:grid-cols-2">
+          <SubmissionsCard
+            forms={contentRegistry.forms.map((form) => ({
+              label: form.label,
+              href: pagesAreaHref(PagesArea.Forms, form.id),
+              count: newSubmissions[form.id] ?? 0,
+            }))}
+          />
+        </section>
+      ) : null}
     </>
   );
 }

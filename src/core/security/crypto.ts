@@ -74,4 +74,5 @@ export const HmacPurpose = {
   GateToken: 'site-gate-token',
   SiteState: 'site-state-request',
   IpHash: 'ip-hash',
+  FormToken: 'form-timing-token',
 } as const;

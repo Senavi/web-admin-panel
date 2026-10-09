@@ -43,5 +43,23 @@
     "backToBlog": "All posts",
     "preview": "Preview: this is how the post will look. It may not be published yet.",
     "exitPreview": "Exit preview"
+  },
+  "forms": {
+    "errors": {
+      "required": "This field is required.",
+      "tooLong": "This is too long.",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidPhone": "Enter a valid phone number.",
+      "invalidOption": "Choose one of the options.",
+      "consent": "Please confirm to continue."
+    },
+    "summaryTitle": "Please fix the following:",
+    "required": "required",
+    "sending": "Sending…",
+    "rateLimited": "Too many messages from your connection. Please try again later.",
+    "error": "Something went wrong. Please try again.",
+    "choose": "Choose…",
+    "sendAnother": "Send another message",
+    "confirm": "Please check your message and press “Send message” again to send it."
   }
 }

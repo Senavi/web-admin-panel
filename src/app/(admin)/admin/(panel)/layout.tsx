@@ -19,6 +19,7 @@ const BREADCRUMB_LABELS = {
   [AdminRoute.Pages.slice(1)]: byId(contentRegistry.pages, (page) => page.label),
   [PagesArea.Collections]: byId(contentRegistry.collections, (collection) => collection.label),
   [PagesArea.SiteWide]: byId(contentRegistry.globals, (global) => global.label),
+  [PagesArea.Forms]: byId(contentRegistry.forms, (form) => form.label),
 };
 const BREADCRUMB_CHILD_LABELS = byId(
   contentRegistry.collections,

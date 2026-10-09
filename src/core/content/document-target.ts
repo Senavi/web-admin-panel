@@ -8,6 +8,7 @@ export const DocumentKind = {
   Page: 'page',
   Item: 'item',
   Global: 'global',
+  Form: 'form',
 } as const;
 export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind];
 
@@ -21,5 +22,6 @@ export const documentTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(DocumentKind.Page), id: ID }),
   z.object({ kind: z.literal(DocumentKind.Item), collectionId: ID, itemId: z.uuid() }),
   z.object({ kind: z.literal(DocumentKind.Global), id: ID }),
+  z.object({ kind: z.literal(DocumentKind.Form), id: ID }),
 ]);
 export type DocumentTarget = z.infer<typeof documentTargetSchema>;

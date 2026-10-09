@@ -66,12 +66,17 @@ export function Text({
   variant = 'body',
   tone = 'default',
   className,
+  id,
+  role,
   children,
 }: {
   as?: ElementType;
   variant?: TextVariant;
-  tone?: 'default' | 'muted' | 'primary' | 'inverse';
+  tone?: 'default' | 'muted' | 'primary' | 'inverse' | 'danger';
   className?: string;
+  /** For `aria-describedby` targets (form help and errors). */
+  id?: string;
+  role?: 'alert' | 'status';
   children: ReactNode;
 }) {
   const toneClass = {
@@ -79,6 +84,11 @@ export function Text({
     muted: 'text-muted-foreground',
     primary: 'text-primary',
     inverse: 'text-inverse-foreground',
+    danger: 'text-danger',
   }[tone];
-  return <Tag className={cx(TEXT_CLASS[variant], toneClass, className)}>{children}</Tag>;
+  return (
+    <Tag id={id} role={role} className={cx(TEXT_CLASS[variant], toneClass, className)}>
+      {children}
+    </Tag>
+  );
 }

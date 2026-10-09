@@ -39,6 +39,11 @@ export interface ProjectConfigInput<TLocale extends string = string> {
    * only shown once in the admin.
    */
   readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
+  /**
+   * Site forms. `turnstile.siteKey` turns on Cloudflare Turnstile for every form
+   * (also set TURNSTILE_SECRET_KEY); its CSP sources are added automatically.
+   */
+  readonly forms?: ProjectFormsConfig;
   /** Brand defaults used before an admin uploads branding in Settings. */
   readonly brand?: {
     readonly themeColor?: string;
@@ -66,11 +71,19 @@ export interface UserInvite {
   readonly reason: 'created' | 'password-reset';
 }
 
+export interface ProjectFormsConfig {
+  readonly turnstile?: { readonly siteKey: string };
+}
+
+/** Origin of Cloudflare Turnstile (script + challenge iframe). */
+export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
+
 export interface ProjectConfig<TLocale extends string = string> extends Required<
-  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited' | 'csp'>
+  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited' | 'csp' | 'forms'>
 > {
   readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
   readonly csp: SiteCspSources;
+  readonly forms: ProjectFormsConfig;
   readonly brand: { readonly themeColor: string; readonly backgroundColor: string };
   readonly localeCodes: readonly TLocale[];
 }
@@ -107,7 +120,8 @@ export function defineProjectConfig<const TLocale extends string>(
     adminPath,
     siteRoutes: input.siteRoutes ?? [],
     onUserInvited: input.onUserInvited,
-    csp: validateCsp(input.csp ?? {}),
+    csp: withTurnstile(validateCsp(input.csp ?? {}), input.forms),
+    forms: input.forms ?? {},
     brand: {
       themeColor: input.brand?.themeColor ?? DEFAULT_THEME_COLOR,
       backgroundColor: input.brand?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
@@ -141,4 +155,16 @@ function validateCsp(csp: SiteCspSources): SiteCspSources {
     }
   }
   return csp;
+}
+
+/** Adds the Turnstile origin to script-src and frame-src when Turnstile is configured. */
+function withTurnstile(csp: SiteCspSources, forms: ProjectFormsConfig | undefined): SiteCspSources {
+  if (!forms?.turnstile) return csp;
+  if (!/^[A-Za-z0-9_-]{8,}$/.test(forms.turnstile.siteKey)) {
+    throw new Error('project.config: forms.turnstile.siteKey looks invalid.');
+  }
+  const add = (sources: readonly string[] | undefined) => [
+    ...new Set([...(sources ?? []), TURNSTILE_ORIGIN]),
+  ];
+  return { ...csp, scriptSrc: add(csp.scriptSrc), frameSrc: add(csp.frameSrc) };
 }

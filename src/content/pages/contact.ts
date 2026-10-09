@@ -33,9 +33,16 @@ export const contactPage = definePage({
         mapLink: f.link({ label: 'Map link' }),
       },
     }),
+    defineSection({
+      id: 'form',
+      label: 'Contact form',
+      description: 'Form fields and messages are edited in Pages → Forms → Contact form.',
+      fields: { title: f.text({ label: 'Heading above the form', max: 80 }) },
+    }),
   ],
   seed: {
     en: {
+      form: { title: 'Write to us' },
       intro: {
         title: 'Contact us',
         lead: 'Questions, ideas or a project in mind? We would love to hear from you.',
@@ -46,6 +53,7 @@ export const contactPage = definePage({
       },
     },
     uk: {
+      form: { title: 'Напишіть нам' },
       intro: {
         title: 'Контакти',
         lead: 'Маєте запитання, ідеї чи проєкт? Ми будемо раді вас почути.',

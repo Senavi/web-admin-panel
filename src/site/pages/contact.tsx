@@ -3,6 +3,7 @@ import { getGlobalContent } from '@/core/content/loader';
 import type { PageViewProps } from '@/core/content/page-route';
 
 import { ContactDetails } from '../sections/contact';
+import { ContactFormSection } from '../sections/contact-form';
 import { PageIntro } from '../sections/page-intro';
 
 export async function ContactView({ content, locale }: PageViewProps<'contact'>) {
@@ -11,6 +12,7 @@ export async function ContactView({ content, locale }: PageViewProps<'contact'>)
     <>
       <PageIntro title={content.intro.title} lead={content.intro.lead} />
       <ContactDetails content={content.details} contacts={contacts} />
+      <ContactFormSection locale={locale} title={content.form.title} />
     </>
   );
 }

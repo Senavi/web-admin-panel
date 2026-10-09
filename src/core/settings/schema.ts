@@ -78,6 +78,59 @@ export const securitySettingsSchema = z.object({
   sessionLifetimeDays: z.number().int().min(1).max(90).default(7),
 });
 
+/** https only; plain http is accepted for localhost (local tools and tests). */
+export const webhookUrlSchema = z
+  .url('Use a full URL starting with https://')
+  .max(2000)
+  .refine((value) => {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' ||
+      (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))
+    );
+  }, 'Use an https:// URL.');
+
+export const formDestinationsSchema = z
+  .object({
+    email: z
+      .object({
+        enabled: z.boolean().default(false),
+        recipients: z.array(z.email('Enter a valid email address.')).max(10).default([]),
+      })
+      .prefault({}),
+    webhook: z
+      .object({
+        enabled: z.boolean().default(false),
+        url: z.union([z.literal(''), webhookUrlSchema]).default(''),
+      })
+      .prefault({}),
+    telegram: z
+      .object({
+        enabled: z.boolean().default(false),
+        /** Numeric chat id (`-100…` for groups) or `@channel`. */
+        chatId: trimmed(64)
+          .regex(/^(-?[0-9]+|@[A-Za-z0-9_]{5,})?$/, 'Use a numeric chat id or @channel.')
+          .default(''),
+      })
+      .prefault({}),
+  })
+  .superRefine((value, ctx) => {
+    if (value.email.enabled && value.email.recipients.length === 0)
+      ctx.addIssue({ code: 'custom', path: ['email', 'recipients'], message: 'Add a recipient.' });
+    if (value.webhook.enabled && !value.webhook.url)
+      ctx.addIssue({ code: 'custom', path: ['webhook', 'url'], message: 'Enter the webhook URL.' });
+    if (value.telegram.enabled && !value.telegram.chatId)
+      ctx.addIssue({ code: 'custom', path: ['telegram', 'chatId'], message: 'Enter the chat id.' });
+  });
+export type FormDestinations = z.output<typeof formDestinationsSchema>;
+
+export const formsSettingsSchema = z.object({
+  /** Submissions older than this are deleted by the maintenance job. */
+  retentionMonths: z.number().int().min(1).max(60).default(12),
+  /** Per form id. Forms without an entry are stored in the inbox only. */
+  destinations: z.record(z.string().max(64), formDestinationsSchema).default({}),
+});
+
 export const siteSettingsSchema = z.object({
   general: generalSettingsSchema.prefault({}),
   seo: seoSettingsSchema.prefault({}),
@@ -85,6 +138,7 @@ export const siteSettingsSchema = z.object({
   status: siteStatusSettingsSchema.prefault({}),
   analytics: analyticsSettingsSchema.prefault({}),
   security: securitySettingsSchema.prefault({}),
+  forms: formsSettingsSchema.prefault({}),
 });
 
 export type SiteSettings = z.output<typeof siteSettingsSchema>;

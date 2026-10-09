@@ -11,7 +11,10 @@ export const AUDIT_GROUPS = {
   all: { label: 'All events', prefixes: [] },
   auth: { label: 'Sign-ins & sessions', prefixes: ['auth.'] },
   users: { label: 'Users', prefixes: ['user.'] },
-  content: { label: 'Content & media', prefixes: ['content.', 'seo.', 'media.', 'collection.'] },
+  content: {
+    label: 'Content & media',
+    prefixes: ['content.', 'seo.', 'media.', 'collection.', 'form.'],
+  },
   settings: { label: 'Settings & database', prefixes: ['settings.', 'database.'] },
 } as const;
 export type AuditGroup = keyof typeof AUDIT_GROUPS;
