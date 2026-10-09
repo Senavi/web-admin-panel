@@ -2,7 +2,8 @@ import { ClockIcon, MailIcon, MapPinIcon, PhoneIcon } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
-import type { SitePageContent } from '@/core/content/loader';
+import { mailtoHref, telHref } from '@/core/content/contact-links';
+import type { SiteGlobalContent, SitePageContent } from '@/core/content/loader';
 
 import { ButtonLink } from '../components/ui/button';
 import { Container, Section } from '../components/ui/layout';
@@ -10,8 +11,15 @@ import { RichText } from '../components/ui/rich-text';
 import { Heading, Text } from '../components/ui/typography';
 
 type Details = SitePageContent<'contact'>['details'];
+type Contacts = SiteGlobalContent<'site'>['contacts'];
 
-export async function ContactDetails({ content }: { content: Details }) {
+export async function ContactDetails({
+  content,
+  contacts,
+}: {
+  content: Details;
+  contacts: Contacts;
+}) {
   const t = await getTranslations('contact');
   return (
     <Section labelledBy="contact-details-title">
@@ -20,29 +28,29 @@ export async function ContactDetails({ content }: { content: Details }) {
           {t('detailsTitle')}
         </h2>
         <dl className="flex flex-col gap-6">
-          {content.email ? (
+          {contacts.email ? (
             <Item icon={<MailIcon aria-hidden className="size-5" />} label={t('email')}>
               <a
-                href={`mailto:${content.email}`}
+                href={mailtoHref(contacts.email)}
                 className="text-primary underline underline-offset-4"
               >
-                {content.email}
+                {contacts.email}
               </a>
             </Item>
           ) : null}
-          {content.phone ? (
+          {contacts.phone ? (
             <Item icon={<PhoneIcon aria-hidden className="size-5" />} label={t('phone')}>
               <a
-                href={`tel:${content.phone.replace(/\s+/g, '')}`}
+                href={telHref(contacts.phone)}
                 className="text-primary underline underline-offset-4"
               >
-                {content.phone}
+                {contacts.phone}
               </a>
             </Item>
           ) : null}
-          {content.address ? (
+          {contacts.address ? (
             <Item icon={<MapPinIcon aria-hidden className="size-5" />} label={t('address')}>
-              <address className="whitespace-pre-line not-italic">{content.address}</address>
+              <address className="whitespace-pre-line not-italic">{contacts.address}</address>
             </Item>
           ) : null}
         </dl>

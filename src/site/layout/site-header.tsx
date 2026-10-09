@@ -2,6 +2,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
+import { telHref } from '@/core/content/contact-links';
+import { getGlobalContent } from '@/core/content/loader';
 import { localeInfo } from '@/core/i18n/locales';
 import { localizedPath } from '@/core/i18n/routing';
 import type { SiteLogo } from '@/core/media/branding';
@@ -25,6 +27,7 @@ export async function SiteHeader({
 }) {
   const t = await getTranslations('nav');
   const common = await getTranslations('common');
+  const { contacts } = await getGlobalContent('site', locale);
   const href = (pageId: string) => localizedPath(pagePath(pageId), locale, defaultLocale);
   const links = HEADER_NAV.map((item) => ({ href: href(item.pageId), label: t(item.messageKey) }));
   const switcher = (
@@ -71,6 +74,15 @@ export async function SiteHeader({
               ))}
             </ul>
           </nav>
+          {contacts.phone ? (
+            <a
+              href={telHref(contacts.phone)}
+              className="text-nav text-foreground hover:text-primary"
+              aria-label={`${common('phone')}: ${contacts.phone}`}
+            >
+              {contacts.phone}
+            </a>
+          ) : null}
           {switcher}
         </div>
 

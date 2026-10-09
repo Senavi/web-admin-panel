@@ -7,6 +7,7 @@ import { z } from 'zod';
 export const DocumentKind = {
   Page: 'page',
   Item: 'item',
+  Global: 'global',
 } as const;
 export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind];
 
@@ -19,5 +20,6 @@ const ID = z
 export const documentTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(DocumentKind.Page), id: ID }),
   z.object({ kind: z.literal(DocumentKind.Item), collectionId: ID, itemId: z.uuid() }),
+  z.object({ kind: z.literal(DocumentKind.Global), id: ID }),
 ]);
 export type DocumentTarget = z.infer<typeof documentTargetSchema>;

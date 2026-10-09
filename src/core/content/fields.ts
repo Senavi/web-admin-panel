@@ -19,6 +19,8 @@ export const FieldKind = {
   Number: 'number',
   Select: 'select',
   Color: 'color',
+  Email: 'email',
+  Phone: 'phone',
 } as const;
 export type FieldKind = (typeof FieldKind)[keyof typeof FieldKind];
 
@@ -82,6 +84,14 @@ export interface SelectField<V extends string = string> extends FieldBase<'selec
   readonly options: readonly SelectOption<V>[];
 }
 export type ColorField = FieldBase<'color', string>;
+/** Validated email address (render with `mailtoHref`). */
+export interface EmailField extends FieldBase<'email', string> {
+  readonly placeholder?: string;
+}
+/** Validated phone number (render with `telHref`). */
+export interface PhoneField extends FieldBase<'phone', string> {
+  readonly placeholder?: string;
+}
 
 /** Fields allowed inside list items (no nested lists). */
 export type ScalarField =
@@ -93,7 +103,9 @@ export type ScalarField =
   | BooleanField
   | NumberField
   | SelectField
-  | ColorField;
+  | ColorField
+  | EmailField
+  | PhoneField;
 
 export type ListItemFields = Readonly<Record<string, ScalarField>>;
 
@@ -207,6 +219,16 @@ export const f = {
 
   color: (options: CommonOptions<string> = {}): ColorField =>
     base(FieldKind.Color, options, '#000000'),
+
+  email: (options: CommonOptions<string> & Pick<EmailField, 'placeholder'> = {}): EmailField => ({
+    ...base(FieldKind.Email, options, ''),
+    ...(options.placeholder ? { placeholder: options.placeholder } : {}),
+  }),
+
+  phone: (options: CommonOptions<string> & Pick<PhoneField, 'placeholder'> = {}): PhoneField => ({
+    ...base(FieldKind.Phone, options, ''),
+    ...(options.placeholder ? { placeholder: options.placeholder } : {}),
+  }),
 
   list: <const I extends ListItemFields>(
     options: Omit<CommonOptions<ListItem<I>[]>, 'default'> & {

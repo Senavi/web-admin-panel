@@ -16,6 +16,8 @@ import type {
   NumberField,
   SelectField,
   TextareaField,
+  EmailField,
+  PhoneField,
   TextField,
 } from '@/core/content/fields';
 
@@ -29,10 +31,17 @@ function Counter({ name, max }: { name: string; max?: number }) {
   return <CharCounter length={typeof value === 'string' ? value.length : 0} max={max} />;
 }
 
-export function TextControl({ name, field, label, contentPath }: FieldControlProps<TextField>) {
+export function TextControl({
+  name,
+  field,
+  label,
+  contentPath,
+  type = 'text',
+}: FieldControlProps<TextField | EmailField | PhoneField> & { type?: 'text' | 'email' | 'tel' }) {
   const { register } = useFormContext();
   const { readOnly } = useEditor();
   const id = controlId(name);
+  const max = 'max' in field ? field.max : undefined;
   return (
     <FieldShell
       id={id}
@@ -42,11 +51,25 @@ export function TextControl({ name, field, label, contentPath }: FieldControlPro
       required={field.required}
       shared={!field.localized}
       contentPath={contentPath}
-      aside={<Counter name={name} max={field.max} />}
+      aside={<Counter name={name} max={max} />}
     >
-      <Input id={id} placeholder={field.placeholder} readOnly={readOnly} {...register(name)} />
+      <Input
+        id={id}
+        type={type}
+        placeholder={field.placeholder}
+        readOnly={readOnly}
+        {...register(name)}
+      />
     </FieldShell>
   );
+}
+
+export function EmailControl(props: FieldControlProps<EmailField>) {
+  return <TextControl {...props} type="email" />;
+}
+
+export function PhoneControl(props: FieldControlProps<PhoneField>) {
+  return <TextControl {...props} type="tel" />;
 }
 
 export function TextareaControl({

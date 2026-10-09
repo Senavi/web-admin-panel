@@ -17,6 +17,8 @@ export const CacheTag = {
   collectionItem: (collectionId: string, slug: string) => `collection:${collectionId}:${slug}`,
   /** List pages, counts and "latest items" blocks of a collection. */
   collectionList: (collectionId: string) => `collection:${collectionId}:list`,
+  /** One global (header/footer texts…): every page that renders it. */
+  global: (globalId: string) => `global:${globalId}`,
   /** One media item (rows are immutable; tag exists for deletes). */
   media: (mediaId: string) => `media:${mediaId}`,
   /** Active staff list published to the request proxy (user disabled, password changed…). */

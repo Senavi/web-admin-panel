@@ -92,6 +92,10 @@ function describeTarget(target: string, people: ReadonlyMap<string, string>): st
   switch (kind) {
     case 'user':
       return people.get(id) ?? 'Deleted user';
+    case 'global': {
+      const global = contentRegistry.globalById(id);
+      return `${global?.label ?? id}${extra ? ` (${extra})` : ''}`;
+    }
     case 'page': {
       const page = registry.byId(id);
       return `${page?.label ?? id}${extra ? ` (${extra})` : ''}`;

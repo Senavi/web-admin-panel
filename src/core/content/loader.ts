@@ -8,8 +8,10 @@ import { getDb } from '@/core/db/client';
 import { loadMedia, seedAssetIds, toResolvedImage } from '@/core/media/resolve';
 import { getSiteSettings } from '@/core/settings/loader';
 
-import type { ResolvedPageContent } from './define';
+import type { ContentSchema, ResolvedPageContent } from './define';
 import type { ImageValue } from './fields';
+import { globalKey, type ResolvedGlobalContent } from './global';
+import { contentRegistry } from './project-registry';
 import { readPageRows, storedRowsFor } from './repository';
 import {
   collectMediaIds,
@@ -47,23 +49,62 @@ async function loadResolvedContent(pageId: string, locale: string): Promise<Cont
 
   const page = registry.byId(pageId);
   if (!page) throw new Error(`Unknown page "${pageId}".`);
+  return resolveDocumentContent(page, pageId, locale);
+}
+
+type RegisteredGlobal = (typeof registry.globals)[number];
+export type GlobalId = RegisteredGlobal['id'];
+type GlobalById<Id extends GlobalId> = Extract<RegisteredGlobal, { id: Id }>;
+
+/** Fully typed content of a registered global, as the public site receives it. */
+export type SiteGlobalContent<Id extends GlobalId> = ResolvedGlobalContent<
+  GlobalById<Id>['sections']
+>;
+
+/**
+ * Content of a global (header/footer texts, contacts…) in a locale, typed from
+ * its definition, with the same fallback chain as pages. Cached and tagged
+ * `global:{id}`: saving it updates every page that rendered it.
+ */
+export async function getGlobalContent<Id extends GlobalId>(
+  globalId: Id,
+  locale: string,
+): Promise<SiteGlobalContent<Id>> {
+  return (await loadGlobalContent(globalId, locale)) as unknown as SiteGlobalContent<Id>;
+}
+
+async function loadGlobalContent(globalId: string, locale: string): Promise<ContentRecord> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(CacheTag.global(globalId), CacheTag.Settings);
+  const global = contentRegistry.globalById(globalId);
+  if (!global) throw new Error(`Unknown global "${globalId}".`);
+  return resolveDocumentContent(global, globalKey(global.id), locale);
+}
+
+/** Stored rows → fallback chain (locale, default locale, seeds, defaults) → resolved images. */
+async function resolveDocumentContent(
+  schema: ContentSchema,
+  key: string,
+  locale: string,
+): Promise<ContentRecord> {
   const db = await getDb();
   const { defaultLocale } = (await getSiteSettings()).general;
 
   const [rows, assetIds] = await Promise.all([
-    readPageRows(db, pageId, [locale, defaultLocale]),
-    seedAssetIds(db, seedAssets(page)),
+    readPageRows(db, key, [locale, defaultLocale]),
+    seedAssetIds(db, seedAssets(schema)),
   ]);
-  const seed = page.seed as Partial<Record<string, ContentRecord>> | undefined;
-  const content = resolveWithFallback(page, {
+  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
+  const content = resolveWithFallback(schema, {
     primary: storedRowsFor(rows, locale),
     defaultLocale: locale === defaultLocale ? undefined : storedRowsFor(rows, defaultLocale),
     seeds: [
-      seedToStored(page, seed?.[locale], assetIds),
-      seedToStored(page, seed?.[defaultLocale], assetIds),
+      seedToStored(schema, seed?.[locale], assetIds),
+      seedToStored(schema, seed?.[defaultLocale], assetIds),
     ],
   });
 
-  const mediaById = await loadMedia(db, collectMediaIds(page, content));
-  return resolveImages(page, content, (image: ImageValue) => toResolvedImage(image, mediaById));
+  const mediaById = await loadMedia(db, collectMediaIds(schema, content));
+  return resolveImages(schema, content, (image: ImageValue) => toResolvedImage(image, mediaById));
 }

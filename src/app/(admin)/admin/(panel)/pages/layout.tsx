@@ -54,6 +54,18 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
     });
   }
 
+  if (contentRegistry.globals.length > 0) {
+    groups.push({
+      id: PagesArea.SiteWide,
+      title: 'Site-wide',
+      items: contentRegistry.globals.map((global) => ({
+        id: global.id,
+        label: global.label,
+        href: pagesAreaHref(PagesArea.SiteWide, global.id),
+      })),
+    });
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="lg:sticky lg:top-20 lg:self-start">

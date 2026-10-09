@@ -16,7 +16,7 @@ describe('savePageContent', () => {
   let db: Database;
   let close: () => Promise<void>;
   let author: { id: string; name: string };
-  const page = registry.byId('contact');
+  const page = registry.byId('team');
   if (!page) throw new Error('demo page missing');
 
   const content = (title: string): ContentRecord => {
@@ -24,7 +24,7 @@ describe('savePageContent', () => {
     return {
       ...base,
       intro: { ...base.intro, title },
-      details: { ...base.details, email: 'team@example.com' },
+      members: { ...base.members, showBios: false },
     };
   };
 
@@ -43,7 +43,7 @@ describe('savePageContent', () => {
 
   it('creates shared + localized rows on first save and reports changes', async () => {
     const result = await savePageContent(db, {
-      pageId: 'contact',
+      pageId: 'team',
       locale: 'en',
       content: content('Hello'),
       seo: parsePageSeo({}),
@@ -55,14 +55,14 @@ describe('savePageContent', () => {
     const [shared] = await db
       .select()
       .from(pageContent)
-      .where(and(eq(pageContent.pageId, 'contact'), eq(pageContent.locale, SHARED_LOCALE)));
-    expect((shared?.data as ContentRecord).details?.email).toBe('team@example.com');
+      .where(and(eq(pageContent.pageId, 'team'), eq(pageContent.locale, SHARED_LOCALE)));
+    expect((shared?.data as ContentRecord).members?.showBios).toBe(false);
   });
 
   it('rejects a save based on an outdated version', async () => {
     await expect(
       savePageContent(db, {
-        pageId: 'contact',
+        pageId: 'team',
         locale: 'en',
         content: content('Stale'),
         seo: parsePageSeo({}),
@@ -74,7 +74,7 @@ describe('savePageContent', () => {
 
   it('only bumps rows that changed', async () => {
     const result = await savePageContent(db, {
-      pageId: 'contact',
+      pageId: 'team',
       locale: 'en',
       content: content('Hello again'),
       seo: parsePageSeo({}),
@@ -89,7 +89,7 @@ describe('savePageContent', () => {
     let versions = { shared: 1, localized: 2, seo: 0 };
     for (let i = 0; i < MAX_REVISIONS + 3; i += 1) {
       ({ versions } = await savePageContent(db, {
-        pageId: 'contact',
+        pageId: 'team',
         locale: 'en',
         content: content(`Title ${i}`),
         seo: parsePageSeo({}),
@@ -100,16 +100,16 @@ describe('savePageContent', () => {
     const rows = await db
       .select()
       .from(pageRevisions)
-      .where(and(eq(pageRevisions.pageId, 'contact'), eq(pageRevisions.locale, 'en')));
+      .where(and(eq(pageRevisions.pageId, 'team'), eq(pageRevisions.locale, 'en')));
     expect(rows).toHaveLength(MAX_REVISIONS);
   });
 
   it('preserves orphaned keys it does not know', async () => {
     await db
       .insert(pageContent)
-      .values({ pageId: 'contact', locale: 'uk', data: { intro: { legacyField: 'keep me' } } });
+      .values({ pageId: 'team', locale: 'uk', data: { intro: { legacyField: 'keep me' } } });
     await savePageContent(db, {
-      pageId: 'contact',
+      pageId: 'team',
       locale: 'uk',
       content: content('Привіт'),
       seo: parsePageSeo({}),
@@ -119,7 +119,7 @@ describe('savePageContent', () => {
     const [row] = await db
       .select()
       .from(pageContent)
-      .where(and(eq(pageContent.pageId, 'contact'), eq(pageContent.locale, 'uk')));
+      .where(and(eq(pageContent.pageId, 'team'), eq(pageContent.locale, 'uk')));
     expect((row?.data as ContentRecord).intro).toMatchObject({
       title: 'Привіт',
       legacyField: 'keep me',

@@ -10,8 +10,10 @@ import { RichTextControl } from './rich-text-control';
 import {
   BooleanControl,
   ColorControl,
+  EmailControl,
   LinkControl,
   NumberControl,
+  PhoneControl,
   SelectControl,
   TextareaControl,
   TextControl,
@@ -35,6 +37,8 @@ export const FIELD_CONTROLS: {
   [FieldKind.Number]: NumberControl,
   [FieldKind.Select]: SelectControl,
   [FieldKind.Color]: ColorControl,
+  [FieldKind.Email]: EmailControl,
+  [FieldKind.Phone]: PhoneControl,
 };
 
 export function FieldControl(props: FieldControlProps) {

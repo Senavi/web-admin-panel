@@ -27,10 +27,8 @@ export const contactPage = definePage({
     defineSection({
       id: 'details',
       label: 'Contact details',
+      description: 'Email, phone and address are edited in Pages → Site-wide → Header & footer.',
       fields: {
-        email: f.text({ label: 'Email', localized: false, max: 120 }),
-        phone: f.text({ label: 'Phone', localized: false, max: 40 }),
-        address: f.textarea({ label: 'Address', max: 300, rows: 3 }),
         hours: f.richText({ label: 'Opening hours', max: 500 }),
         mapLink: f.link({ label: 'Map link' }),
       },
@@ -43,9 +41,6 @@ export const contactPage = definePage({
         lead: 'Questions, ideas or a project in mind? We would love to hear from you.',
       },
       details: {
-        email: 'hello@example.com',
-        phone: '+380 44 000 00 00',
-        address: '1 Example Street\nKyiv, Ukraine',
         hours: richTextFromParagraphs('Monday to Friday: 9:00–18:00', 'Weekends: closed'),
         mapLink: { label: 'Open in maps', href: 'https://www.openstreetmap.org/', external: true },
       },
@@ -56,7 +51,6 @@ export const contactPage = definePage({
         lead: 'Маєте запитання, ідеї чи проєкт? Ми будемо раді вас почути.',
       },
       details: {
-        address: 'вул. Прикладна, 1\nКиїв, Україна',
         hours: richTextFromParagraphs('Понеділок–п’ятниця: 9:00–18:00', 'Вихідні: зачинено'),
         mapLink: {
           label: 'Відкрити на мапі',

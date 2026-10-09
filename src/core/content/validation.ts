@@ -12,6 +12,20 @@ import { richTextDocSchema, richTextToPlainText } from './rich-text';
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|\/(?!\/)|#)/i;
 const REQUIRED = 'This field is required.';
+/** Pragmatic email check (one @, a dot in the domain, no spaces). */
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const PHONE = /^\+?[0-9][0-9 ()\-.]{3,38}[0-9]$/;
+
+/** Empty is allowed unless required; anything else must match. */
+function optionalPattern(required: boolean, pattern: RegExp, message: string, max: number) {
+  return z
+    .string()
+    .trim()
+    .max(max, `Use at most ${max} characters.`)
+    .refine((value) => (value === '' ? !required : pattern.test(value)), {
+      error: (issue) => (issue.input === '' ? REQUIRED : message),
+    });
+}
 
 function textSchema(options: { required: boolean; min?: number; max?: number }) {
   let schema = z.string().trim();
@@ -92,6 +106,15 @@ export function fieldSchema(field: AnyField): z.ZodType {
       return z.enum(field.options.map((option) => option.value) as [string, ...string[]]);
     case FieldKind.Color:
       return z.string().regex(HEX_COLOR, 'Use a hex color like #1d4ed8.');
+    case FieldKind.Email:
+      return optionalPattern(field.required, EMAIL, 'Enter a valid email address.', 254);
+    case FieldKind.Phone:
+      return optionalPattern(
+        field.required,
+        PHONE,
+        'Enter a phone number with digits, spaces, dashes or brackets (e.g. +380 44 000 00 00).',
+        40,
+      );
     case FieldKind.List: {
       let schema = z.array(listItemSchema(field.of));
       if (field.min !== undefined)

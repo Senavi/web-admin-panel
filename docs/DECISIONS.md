@@ -474,3 +474,12 @@ using the cache, and the item route renders the preview fully dynamically. The i
 also re-checks the session before showing drafts. Next.js 16.4 still logs an
 "Unexpected cache miss" warning for the previewed URL (Draft Mode bypasses caches); it is
 harmless.
+
+### D-068 Globals live in the page tables under `global:<id>`
+
+A global is a page without a route or SEO, so it reuses the page tables, store, editor and
+revisions with a namespaced key (`global:site`). Page ids are validated kebab-case, so the
+`:` keeps the namespaces apart without a migration. `getGlobalContent` is cached with the
+tag `global:{id}`; header/footer components read it, so saving updates every page that
+rendered it. Contact values got `f.email()` / `f.phone()` (validated, with `mailtoHref` /
+`telHref`), and social profile links use `f.link()` so only safe URL schemes are stored.

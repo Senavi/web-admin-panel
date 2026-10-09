@@ -2,6 +2,7 @@ import { matchesRoute } from '@/core/i18n/route-match';
 import { PagesArea } from '@/core/project/paths';
 
 import { type AnyCollection, collectionBasePath } from './collection';
+import type { AnyGlobal } from './global';
 import type { AnyPage } from './define';
 
 /**
@@ -21,14 +22,17 @@ export interface PageTreeNode {
 export interface RegistryInput<
   P extends readonly AnyPage[],
   C extends readonly AnyCollection[] = readonly [],
+  G extends readonly AnyGlobal[] = readonly [],
 > {
   readonly pages: P;
   readonly collections?: C;
+  readonly globals?: G;
 }
 
 export interface PageRegistry<
   P extends readonly AnyPage[] = readonly AnyPage[],
   C extends readonly AnyCollection[] = readonly AnyCollection[],
+  G extends readonly AnyGlobal[] = readonly AnyGlobal[],
 > {
   readonly pages: P;
   readonly ids: readonly P[number]['id'][];
@@ -37,6 +41,8 @@ export interface PageRegistry<
   tree(): PageTreeNode[];
   readonly collections: C;
   collectionById(id: string): C[number] | undefined;
+  readonly globals: G;
+  globalById(id: string): G[number] | undefined;
 }
 
 /** Stable ids are kebab-case: they are DB keys and admin URL segments. */
@@ -53,16 +59,16 @@ export function assertContentId(kind: string, id: string): void {
 
 export function createRegistry<const P extends readonly AnyPage[]>(
   pages: P,
-): PageRegistry<P, readonly []>;
+): PageRegistry<P, readonly [], readonly []>;
 export function createRegistry<
   const P extends readonly AnyPage[],
   const C extends readonly AnyCollection[] = readonly [],
->(input: RegistryInput<P, C>): PageRegistry<P, C>;
-export function createRegistry(
-  input: readonly AnyPage[] | RegistryInput<readonly AnyPage[], readonly AnyCollection[]>,
-): PageRegistry {
+  const G extends readonly AnyGlobal[] = readonly [],
+>(input: RegistryInput<P, C, G>): PageRegistry<P, C, G>;
+export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): PageRegistry {
   const pages = isPageList(input) ? input : input.pages;
   const collections = isPageList(input) ? [] : (input.collections ?? []);
+  const globals = isPageList(input) ? [] : (input.globals ?? []);
   const byId = new Map<string, AnyPage>();
   const byPath = new Map<string, AnyPage>();
   for (const page of pages) {
@@ -118,6 +124,13 @@ export function createRegistry(
     }
   }
 
+  const globalById = new Map<string, AnyGlobal>();
+  for (const global of globals) {
+    assertContentId('Global', global.id);
+    if (globalById.has(global.id)) throw new Error(`Duplicate global id "${global.id}".`);
+    globalById.set(global.id, global);
+  }
+
   const buildTree = (parent: string | null): PageTreeNode[] =>
     pages
       .filter((page) => page.parent === parent)
@@ -131,11 +144,17 @@ export function createRegistry(
     tree: () => buildTree(null),
     collections,
     collectionById: (id) => collectionById.get(id),
+    globals,
+    globalById: (id) => globalById.get(id),
   };
 }
 
-function isPageList(
-  input: readonly AnyPage[] | RegistryInput<readonly AnyPage[], readonly AnyCollection[]>,
-): input is readonly AnyPage[] {
+type AnyRegistryInput = RegistryInput<
+  readonly AnyPage[],
+  readonly AnyCollection[],
+  readonly AnyGlobal[]
+>;
+
+function isPageList(input: readonly AnyPage[] | AnyRegistryInput): input is readonly AnyPage[] {
   return Array.isArray(input);
 }

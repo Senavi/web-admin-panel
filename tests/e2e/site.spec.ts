@@ -32,7 +32,9 @@ test.describe('demo site', () => {
 
   test('shared values fall back across locales', async ({ page }) => {
     await page.goto('/uk/contact');
-    await expect(page.getByRole('link', { name: 'hello@example.com' })).toBeVisible();
+    await expect(
+      page.locator('main').getByRole('link', { name: 'hello@example.com' }),
+    ).toBeVisible();
   });
 
   test('images are served and have alt text', async ({ page }) => {

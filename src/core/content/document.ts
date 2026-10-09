@@ -10,6 +10,7 @@ import { localizedPath } from '@/core/i18n/routing';
 
 import { collectionItemPath, CollectionItemStatus } from './collection';
 import { type ContentSchema, seoDefaultsFor } from './define';
+import { globalKey } from './global';
 import { contentRegistry } from './project-registry';
 import { DocumentKind, type DocumentTarget } from './document-target';
 import type { DocumentStore } from './store';
@@ -113,6 +114,23 @@ async function itemDocument(collectionId: string, itemId: string): Promise<Conte
   };
 }
 
+function globalDocument(id: string): ContentDocument | null {
+  const global = contentRegistry.globalById(id);
+  if (!global) return null;
+  return {
+    target: { kind: DocumentKind.Global, id },
+    key: globalKey(global.id),
+    label: global.label,
+    schema: global,
+    store: pageStore,
+    hasSeo: false,
+    seoDefaults: () => NO_SEO_DEFAULTS,
+    publicPath: () => null,
+    auditTarget: (locale) => `global:${global.id}:${locale}`,
+    tagsToInvalidate: () => [CacheTag.global(global.id)],
+  };
+}
+
 /** Resolves a target to its document, or null when it doesn't exist (any more). */
 export async function resolveDocument(target: DocumentTarget): Promise<ContentDocument | null> {
   switch (target.kind) {
@@ -120,5 +138,7 @@ export async function resolveDocument(target: DocumentTarget): Promise<ContentDo
       return pageDocument(target.id);
     case DocumentKind.Item:
       return itemDocument(target.collectionId, target.itemId);
+    case DocumentKind.Global:
+      return globalDocument(target.id);
   }
 }

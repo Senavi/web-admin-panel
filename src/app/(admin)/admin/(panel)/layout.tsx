@@ -18,6 +18,7 @@ const byId = <T extends { id: string }>(items: readonly T[], label: (item: T) =>
 const BREADCRUMB_LABELS = {
   [AdminRoute.Pages.slice(1)]: byId(contentRegistry.pages, (page) => page.label),
   [PagesArea.Collections]: byId(contentRegistry.collections, (collection) => collection.label),
+  [PagesArea.SiteWide]: byId(contentRegistry.globals, (global) => global.label),
 };
 const BREADCRUMB_CHILD_LABELS = byId(
   contentRegistry.collections,

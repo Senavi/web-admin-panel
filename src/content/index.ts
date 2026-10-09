@@ -1,11 +1,12 @@
 /**
- * PROJECT: content registry. Every page of the public site and every
- * collection is listed here; the admin, sitemap and content checks are built
+ * PROJECT: content registry. Every page of the public site, every collection
+ * and every global is listed here; the admin, sitemap and content checks are built
  * from it. See docs/CONTENT_SCHEMA.md.
  */
 import { createRegistry } from '@/core/content/registry';
 
 import { blog } from './collections/blog';
+import { siteGlobals } from './globals/site';
 import { aboutPage } from './pages/about';
 import { blogPage } from './pages/blog';
 import { contactPage } from './pages/contact';
@@ -15,4 +16,5 @@ import { teamPage } from './pages/team';
 export const registry = createRegistry({
   pages: [homePage, aboutPage, teamPage, blogPage, contactPage],
   collections: [blog],
+  globals: [siteGlobals],
 });

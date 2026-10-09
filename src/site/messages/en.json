@@ -4,7 +4,8 @@
     "menu": "Menu",
     "mainNavigation": "Main navigation",
     "language": "Language",
-    "home": "Home"
+    "home": "Home",
+    "phone": "Phone"
   },
   "nav": {
     "about": "About",
@@ -14,7 +15,8 @@
   },
   "footer": {
     "rights": "All rights reserved.",
-    "demoNotice": "Demo site of the Next.js site starter."
+    "contact": "Contact",
+    "follow": "Follow us"
   },
   "contact": {
     "detailsTitle": "Contact details",
