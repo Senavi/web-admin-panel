@@ -49,6 +49,10 @@ test.describe('admin authentication', () => {
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await page.goto('/admin/account');
     await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible();
+    // Sections start collapsed except the first; the closed header shows a summary.
+    const devices = page.getByRole('button', { name: /Signed-in devices/ });
+    await expect(devices).toContainText(/device/);
+    await devices.click();
     await expect(page.getByText('This device')).toBeVisible();
   });
 

@@ -6,6 +6,7 @@ import { updateTag } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
+import { z } from 'zod';
 
 import { ActionErrorCode, fail, ok, type ActionResult } from '@/core/actions/result';
 import { GuardError, runAction } from '@/core/actions/run';
@@ -167,6 +168,23 @@ export async function updateProfileAction(input: unknown): Promise<ActionResult>
       summary: { fields: ['name'] },
     });
     return ok(undefined, 'Profile updated.');
+  });
+}
+
+/** Turns developer mode (technical settings in the admin) on or off for the signed-in user. */
+export async function setDeveloperModeAction(input: unknown): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await assertSignedIn();
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(input);
+    const db = await getDb();
+    await db.update(users).set({ developerMode: enabled }).where(eq(users.id, user.id));
+    await writeAudit(db, {
+      action: AuditAction.UserUpdate,
+      actor: { id: user.id, email: user.email },
+      target: `user:${user.id}`,
+      summary: { fields: ['developerMode'], developerMode: enabled },
+    });
+    return ok(undefined, enabled ? 'Developer mode is on.' : 'Developer mode is off.');
   });
 }
 

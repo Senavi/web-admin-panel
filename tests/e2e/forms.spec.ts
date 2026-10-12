@@ -6,7 +6,9 @@ import path from 'node:path';
 import { type Browser, expect, type Page, test } from '@playwright/test';
 
 import { login } from './support/auth';
+import { setDeveloperMode } from './support/developer';
 import { E2E_ENV } from './support/env';
+import { openSettingsTab, saveSettingsTab } from './support/settings';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
 
 /** Same data dir as the server under test (dev e2e: .data/e2e; prod e2e: SITE_DATA_DIR). */
@@ -72,22 +74,19 @@ async function inboxCount(page: Page, search: string): Promise<number> {
   return (await rows.count()) - 1;
 }
 
-/** Settings → Forms for the contact form (as admin). */
+/** Settings → Requests for the contact form (as admin; the webhook needs developer mode). */
 async function configureDelivery(page: Page, options: { email: boolean; webhook: boolean }) {
-  await page.goto('/admin/settings');
-  const form = page.locator('form[aria-label="Forms"][data-hydrated]');
-  await expect(form).toBeVisible();
-  const toggle = async (name: string, on: boolean) => {
-    const control = form.getByRole('switch', { name, exact: true });
-    if ((await control.getAttribute('aria-checked')) !== String(on)) await control.click();
-  };
-  await toggle('Email', options.email);
-  await form.getByLabel('Recipients').fill('inbox@example.test');
-  await toggle('Webhook', options.webhook);
+  await setDeveloperMode(page, true);
+  const form = await openSettingsTab(page, 'requests', 'Requests');
+  // Email goes to the listed recipients; an empty list sends no email.
+  await form.getByLabel('Send requests to').fill(options.email ? 'inbox@example.test' : '');
+  const webhook = form.getByRole('switch', { name: 'Webhook (CRM, Zapier, Make)' });
+  if ((await webhook.getAttribute('aria-checked')) !== String(options.webhook))
+    await webhook.click();
   await form.getByLabel('Webhook URL').fill(WEBHOOK_URL);
-  if (!(await form.getByRole('button', { name: 'Save' }).isEnabled())) return; // unchanged
-  await form.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Settings saved.').last()).toBeVisible();
+  if (await page.getByRole('region', { name: 'Unsaved changes' }).isVisible()) {
+    await saveSettingsTab(page);
+  }
 }
 
 interface Received {
@@ -321,8 +320,8 @@ test.describe.serial('forms', () => {
     });
     expect(await replay.text()).toContain('You are not allowed to perform this action.');
 
-    await page.goto('/admin/settings');
-    await expect(page.locator('form[aria-label="Forms"]')).toHaveCount(0);
+    await page.goto('/admin/settings?tab=requests');
+    await expect(page.locator('form[aria-label="Requests"]')).toHaveCount(0);
     await manager.close();
   });
 });

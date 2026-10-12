@@ -1,7 +1,12 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 
 import { login } from './support/auth';
-import { updateSiteStatus, VISITOR_HEADERS, waitForPublicSite } from './support/settings';
+import {
+  updateSiteStatus,
+  VISITOR_HEADERS,
+  waitForPublicSite,
+  openSettingsTab,
+} from './support/settings';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
 
 test.describe.serial('site gate', () => {
@@ -92,15 +97,15 @@ test.describe.serial('site gate', () => {
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await login(adminPage, E2E_ADMIN);
-    await adminPage.goto('/admin/settings');
-    const form = adminPage.locator('form[aria-label="Analytics"][data-hydrated]');
-    await expect(form).toBeVisible();
-    await form.getByRole('switch', { name: 'Exclude staff visits' }).click();
+    const form = await openSettingsTab(adminPage, 'general', 'General');
+    // Same name with a trailing space: the form is dirty, the stored value doesn't change.
+    const name = form.getByLabel('Site name');
+    await name.fill(`${await name.inputValue()} `);
     const [actionRequest] = await Promise.all([
       adminPage.waitForRequest(
         (req) => req.method() === 'POST' && Boolean(req.headers()['next-action']),
       ),
-      form.getByRole('button', { name: 'Save' }).click(),
+      adminPage.getByRole('button', { name: 'Save changes' }).click(),
     ]);
     await expect(adminPage.getByText('Settings saved.')).toBeVisible();
     await adminContext.close();

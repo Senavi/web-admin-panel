@@ -17,5 +17,7 @@ export default defineConfig({
     include: ['tests/unit/**/*.test.ts', 'src/**/*.test.ts'],
     environment: 'node',
     restoreMocks: true,
+    // Suites set up migrated in-memory PGlite databases; under parallel load that can exceed 10 s.
+    hookTimeout: 30_000,
   },
 });

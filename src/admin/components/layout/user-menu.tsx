@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOutIcon, UserCogIcon } from 'lucide-react';
+import { CodeIcon, LogOutIcon, UserCogIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { ACCOUNT_NAV } from '@/admin/navigation';
@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/admin/ui/avatar';
 import { Button } from '@/admin/ui/button';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -18,6 +19,8 @@ import {
 import { signOutAction } from '@/core/auth/actions';
 import { ROLE_LABELS, type Role } from '@/core/auth/roles';
 
+import { useToggleDeveloperMode } from './developer-mode';
+
 export function UserMenu({ name, email, role }: { name: string; email: string; role: Role }) {
   const initials = name
     .split(/\s+/)
@@ -25,6 +28,7 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const developer = useToggleDeveloperMode();
 
   return (
     <DropdownMenu>
@@ -55,8 +59,19 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
         <DropdownMenuSeparator />
         <DropdownMenuItem render={<Link href={ACCOUNT_NAV.href} />}>
           <UserCogIcon />
-          Account
+          Account and password
         </DropdownMenuItem>
+        <DropdownMenuCheckboxItem
+          checked={developer.enabled}
+          disabled={developer.pending}
+          onCheckedChange={(checked) => developer.toggle(checked)}
+        >
+          <CodeIcon />
+          <span className="flex flex-col">
+            Developer mode
+            <span className="text-xs text-muted-foreground">Shows technical settings</span>
+          </span>
+        </DropdownMenuCheckboxItem>
         <DropdownMenuItem onClick={() => void signOutAction()}>
           <LogOutIcon />
           Sign out

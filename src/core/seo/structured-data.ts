@@ -7,6 +7,7 @@ import type { FieldMap } from '@/core/content/fields';
 import { getLocaleSettings } from '@/core/i18n/locales';
 import { localizedPath } from '@/core/i18n/routing';
 import { getSiteLogo } from '@/core/media/branding';
+import { getMediaInfo } from '@/core/media/resolve';
 import { getSiteSettings } from '@/core/settings/loader';
 
 import { breadcrumbJsonLd, type JsonLdObject, organizationJsonLd, websiteJsonLd } from './json-ld';
@@ -50,7 +51,9 @@ export async function buildStructuredData(pageId: string, locale: string): Promi
   const data: JsonLdObject[] = [breadcrumbJsonLd(crumbs)];
   if (page.path === '/') {
     const org = settings.seo.organization;
-    const logo = await getSiteLogo();
+    // Organization data defaults to the site name and logo; a custom logo overrides it.
+    const customLogo = org.logoId ? await getMediaInfo(org.logoId) : null;
+    const logo = customLogo ?? (await getSiteLogo());
     data.push(
       websiteJsonLd({ name: settings.general.siteName, url: url('/'), inLanguage: locale }),
     );

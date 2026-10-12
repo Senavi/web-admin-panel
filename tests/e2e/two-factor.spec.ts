@@ -7,6 +7,7 @@ import { E2E_MANAGER } from './support/users';
 test('user can enable TOTP 2FA and must use it to sign in', async ({ page, context }) => {
   await login(page, E2E_MANAGER);
   await page.goto('/admin/account');
+  await page.getByRole('button', { name: /Two-factor authentication/ }).click();
 
   await page.getByLabel('Confirm with your password to set it up').fill(E2E_MANAGER.password);
   await page.getByRole('button', { name: 'Set up two-factor authentication' }).click();
@@ -39,6 +40,7 @@ test('user can enable TOTP 2FA and must use it to sign in', async ({ page, conte
 
   // Turn it off again so other tests can sign in with a password only.
   await page.goto('/admin/account');
+  await page.getByRole('button', { name: /Two-factor authentication/ }).click();
   await page.getByLabel('Confirm with your password to turn it off').fill(E2E_MANAGER.password);
   await page.getByRole('button', { name: 'Turn off two-factor authentication' }).click();
   await expect(page.getByText('Set up two-factor authentication')).toBeVisible();

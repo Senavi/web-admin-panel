@@ -6,33 +6,77 @@ export interface StatusChange {
   readonly indexing?: boolean;
 }
 
-const SWITCHES: Record<keyof StatusChange, { label: string; confirm: string }> = {
-  maintenance: { label: 'Maintenance mode', confirm: 'Turn on' },
-  privateMode: { label: 'Private mode', confirm: 'Make private' },
-  indexing: { label: 'Search engine indexing', confirm: 'Stop indexing' },
+/** Settings tab (`?tab=`), switch label and confirmation button of each status switch. */
+const SWITCHES: Record<
+  keyof StatusChange,
+  { tab: string; form: string; label: string; confirm: string }
+> = {
+  maintenance: {
+    tab: 'access',
+    form: 'Site access',
+    label: 'Pause the site',
+    confirm: 'Pause the site',
+  },
+  privateMode: {
+    tab: 'access',
+    form: 'Site access',
+    label: 'Private site',
+    confirm: 'Make private',
+  },
+  indexing: {
+    tab: 'search',
+    form: 'Google & sharing',
+    label: 'Show the site in Google',
+    confirm: 'Hide from Google',
+  },
 };
 
-/** Changes Settings → Site status through the UI (as a signed-in admin). */
-export async function updateSiteStatus(page: Page, change: StatusChange): Promise<void> {
-  await page.goto('/admin/settings');
-  const form = page.locator('form[aria-label="Site status"][data-hydrated]');
+/** Opens a Settings tab and returns its (hydrated) form. */
+export async function openSettingsTab(page: Page, tab: string, label: string) {
+  await page.goto(`/admin/settings?tab=${tab}`);
+  const form = page.locator(`form[aria-label="${label}"][data-hydrated]`);
   await expect(form).toBeVisible();
-  for (const [key, value] of Object.entries(change) as Array<[keyof StatusChange, boolean]>) {
-    const toggle = form.getByRole('switch', { name: SWITCHES[key].label });
-    if ((await toggle.getAttribute('aria-checked')) !== String(value)) await toggle.click();
-  }
-  await form.getByRole('button', { name: 'Save' }).click();
-  // Turning something "dangerous" on asks for confirmation (one dialog per change).
+  return form;
+}
+
+/** Saves a dirty Settings tab (sticky bar) and confirms dialogs for "dangerous" changes. */
+export async function saveSettingsTab(page: Page, confirmations: readonly string[] = []) {
+  await page
+    .getByRole('region', { name: 'Unsaved changes' })
+    .getByRole('button', { name: 'Save changes' })
+    .click();
   const dialog = page.getByRole('alertdialog');
-  const confirmations = (Object.entries(change) as Array<[keyof StatusChange, boolean]>).filter(
-    ([key, value]) => (key === 'indexing' ? value === false : value === true),
-  );
-  for (const [key] of confirmations) {
+  for (const confirm of confirmations) {
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: SWITCHES[key].confirm }).click();
+    await dialog.getByRole('button', { name: confirm }).click();
     await expect(dialog).toBeHidden();
   }
   await expect(page.getByText('Settings saved.').last()).toBeVisible();
+}
+
+/** Changes the site status switches through the UI (as a signed-in admin), one tab at a time. */
+export async function updateSiteStatus(page: Page, change: StatusChange): Promise<void> {
+  const byTab = new Map<string, Array<[keyof StatusChange, boolean]>>();
+  for (const [key, value] of Object.entries(change) as Array<[keyof StatusChange, boolean]>) {
+    const tab = SWITCHES[key].tab;
+    byTab.set(tab, [...(byTab.get(tab) ?? []), [key, value]]);
+  }
+  for (const entries of byTab.values()) {
+    const first = SWITCHES[entries[0]?.[0] ?? 'maintenance'];
+    const form = await openSettingsTab(page, first.tab, first.form);
+    const confirmations: string[] = [];
+    let changed = false;
+    for (const [key, value] of entries) {
+      const toggle = form.getByRole('switch', { name: SWITCHES[key].label });
+      if ((await toggle.getAttribute('aria-checked')) === String(value)) continue;
+      await toggle.click();
+      changed = true;
+      // Turning something "dangerous" on asks for confirmation.
+      if (key === 'indexing' ? value === false : value === true)
+        confirmations.push(SWITCHES[key].confirm);
+    }
+    if (changed) await saveSettingsTab(page, confirmations);
+  }
 }
 
 /** Plain HTTP GET as an anonymous browser-like client (no cookies). */
@@ -49,16 +93,18 @@ export async function waitForPublicSite(baseURL: string | undefined): Promise<vo
   await context.dispose();
 }
 
+const LOCALE_LABELS: Record<string, string> = { en: 'English', uk: 'Українська' };
+
 /** Enables exactly these locales in Settings → General (default stays `en`). */
 export async function setEnabledLocales(page: Page, locales: readonly string[]): Promise<void> {
-  await page.goto('/admin/settings');
-  const form = page.locator('form[aria-label="General"][data-hydrated]');
-  await expect(form).toBeVisible();
+  const form = await openSettingsTab(page, 'general', 'General');
+  let changed = false;
   for (const code of ['en', 'uk']) {
-    const box = form.getByRole('checkbox', { name: new RegExp(`\\(${code}\\)`) });
-    if ((await box.getAttribute('aria-checked')) !== String(locales.includes(code)))
+    const box = form.getByRole('checkbox', { name: LOCALE_LABELS[code] });
+    if ((await box.getAttribute('aria-checked')) !== String(locales.includes(code))) {
       await box.click();
+      changed = true;
+    }
   }
-  await form.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Settings saved.').last()).toBeVisible();
+  if (changed) await saveSettingsTab(page);
 }

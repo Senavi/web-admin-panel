@@ -31,6 +31,8 @@ export const users = pgTable(
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     /** Bumped on password change / disable to invalidate signed site-gate cookies. */
     sessionVersion: integer('session_version').notNull().default(0),
+    /** Display preference: shows technical settings in the admin. Not access control. */
+    developerMode: boolean('developer_mode').notNull().default(false),
     ...timestamps,
   },
   (table) => [index('users_role_idx').on(table.role)],

@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { login } from './support/auth';
+import { setDeveloperMode } from './support/developer';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
 
 const sidebar = (page: Page) =>
@@ -9,16 +10,35 @@ const sidebar = (page: Page) =>
     .or(page.locator('[data-sidebar="sidebar"]'));
 
 test.describe('admin shell', () => {
-  test('local DB banner shows on the login page and admin screens', async ({ page }) => {
+  test('the local DB banner shows only in developer mode', async ({ page }) => {
     // E2E runs on PGlite unless DATABASE_URL is set (CI Postgres), where it must be absent.
     const expectBanner = !process.env.DATABASE_URL;
     await page.goto('/admin/login');
-    await expect(page.getByTestId('local-db-banner')).toHaveCount(expectBanner ? 1 : 0);
+    await expect(page.getByTestId('local-db-banner')).toHaveCount(0);
     await login(page, E2E_ADMIN);
+    await page.goto('/admin');
+    await expect(page.getByTestId('local-db-banner')).toHaveCount(0);
+    await setDeveloperMode(page, true);
     for (const path of ['/admin', '/admin/account', '/admin/pages', '/admin/settings']) {
       await page.goto(path);
       await expect(page.getByTestId('local-db-banner')).toHaveCount(expectBanner ? 1 : 0);
     }
+    await setDeveloperMode(page, false);
+    await expect(page.getByTestId('local-db-banner')).toHaveCount(0);
+  });
+
+  test('developer settings are only rendered in developer mode', async ({ page }) => {
+    await login(page, E2E_ADMIN);
+    await setDeveloperMode(page, false);
+    await page.goto('/admin/settings?tab=brand');
+    await expect(page.locator('form[aria-label="Brand"][data-hydrated]')).toBeVisible();
+    await expect(page.getByText('Developer settings')).toHaveCount(0);
+    await expect(page.getByText('Browser theme color')).toHaveCount(0);
+    await setDeveloperMode(page, true);
+    await page.goto('/admin/settings?tab=brand');
+    await expect(page.getByRole('region', { name: 'Developer settings' })).toBeVisible();
+    await expect(page.getByText('Browser theme color')).toBeVisible();
+    await setDeveloperMode(page, false);
   });
 
   test('breadcrumbs show page labels, not ids', async ({ page }) => {

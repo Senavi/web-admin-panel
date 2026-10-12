@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 
 import { AdminHeader } from '@/admin/components/layout/admin-header';
 import { AppSidebar } from '@/admin/components/layout/app-sidebar';
+import { DeveloperModeProvider } from '@/admin/components/layout/developer-mode';
 import { GateRefresher } from '@/admin/components/layout/gate-refresher';
 import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from '@/admin/ui/sidebar';
@@ -37,21 +38,23 @@ export default async function AdminPanelLayout({ children }: LayoutProps<'/admin
   const defaultOpen = cookieStore.get(SIDEBAR_COOKIE_NAME)?.value !== 'false';
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar role={user.role} siteName={settings.general.siteName} />
-      <SidebarInset>
-        <LocalDbBanner />
-        <AdminHeader
-          user={user}
-          status={settings.status}
-          labels={BREADCRUMB_LABELS}
-          childLabels={BREADCRUMB_CHILD_LABELS}
-        />
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6">
-          {children}
-        </div>
-      </SidebarInset>
-      <GateRefresher />
-    </SidebarProvider>
+    <DeveloperModeProvider enabled={user.developerMode}>
+      <SidebarProvider defaultOpen={defaultOpen}>
+        <AppSidebar role={user.role} siteName={settings.general.siteName} />
+        <SidebarInset>
+          <LocalDbBanner developerMode={user.developerMode} />
+          <AdminHeader
+            user={user}
+            status={settings.status}
+            labels={BREADCRUMB_LABELS}
+            childLabels={BREADCRUMB_CHILD_LABELS}
+          />
+          <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6">
+            {children}
+          </div>
+        </SidebarInset>
+        <GateRefresher />
+      </SidebarProvider>
+    </DeveloperModeProvider>
   );
 }

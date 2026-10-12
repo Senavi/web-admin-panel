@@ -6,9 +6,12 @@ import { getDbInfo } from '@/core/db/client';
 import { DbMode } from '@/core/db/types';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 
-/** Shown on every admin screen (including login) while the embedded PGlite database is used. */
-export function LocalDbBanner() {
-  if (getDbInfo().mode !== DbMode.Local) return null;
+/**
+ * Shown while the embedded PGlite database is used (development only), to
+ * signed-in staff in developer mode.
+ */
+export function LocalDbBanner({ developerMode }: { developerMode: boolean }) {
+  if (!developerMode || getDbInfo().mode !== DbMode.Local) return null;
   return (
     <div
       role="status"
@@ -17,7 +20,7 @@ export function LocalDbBanner() {
     >
       <span className="flex items-center gap-2">
         <DatabaseIcon className="size-4 shrink-0" aria-hidden />
-        Using local database. Data is stored on this machine only.
+        Using the local database. Data is stored on this computer only.
       </span>
       <Button
         size="sm"

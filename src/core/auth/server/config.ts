@@ -77,6 +77,7 @@ export function createAuth(db: Database) {
         mustChangePassword: { type: 'boolean', required: true, defaultValue: false, input: false },
         lastLoginAt: { type: 'date', required: false, input: false },
         sessionVersion: { type: 'number', required: true, defaultValue: 0, input: false },
+        developerMode: { type: 'boolean', required: true, defaultValue: false, input: false },
       },
     },
     rateLimit: {

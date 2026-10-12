@@ -21,6 +21,8 @@ export interface CurrentUser {
   readonly twoFactorEnabled: boolean;
   readonly sessionVersion: number;
   readonly sessionId: string;
+  /** Shows technical settings in the admin (a display preference, not a permission). */
+  readonly developerMode: boolean;
 }
 
 /** Thrown by `assertPermission` in server actions and route handlers. */
@@ -49,6 +51,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     twoFactorEnabled: user.twoFactorEnabled === true,
     sessionVersion: user.sessionVersion,
     sessionId: session.id,
+    developerMode: user.developerMode === true,
   };
 });
 

@@ -1,10 +1,4 @@
-import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
-
+/** Sign-in screens. The local-database banner is a developer-mode hint, shown only inside the admin. */
 export default function AdminAuthLayout({ children }: LayoutProps<'/admin'>) {
-  return (
-    <div className="flex min-h-svh flex-col">
-      <LocalDbBanner />
-      {children}
-    </div>
-  );
+  return <div className="flex min-h-svh flex-col">{children}</div>;
 }

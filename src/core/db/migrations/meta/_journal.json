@@ -29,6 +29,13 @@
       "when": 1791539710459,
       "tag": "0003_forms",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791795179624,
+      "tag": "0004_developer_mode",
+      "breakpoints": true
     }
   ]
 }
