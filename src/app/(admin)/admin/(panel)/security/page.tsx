@@ -1,171 +1,76 @@
-import { and, desc, eq, gt, ilike, or, type SQL } from 'drizzle-orm';
+import { desc, eq, gt } from 'drizzle-orm';
 import { DatabaseIcon } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { DeveloperSection } from '@/admin/components/layout/developer-mode';
 import { PageHeader } from '@/admin/components/layout/page-header';
 import { SectionCard } from '@/admin/components/layout/section-card';
-import {
-  AUDIT_GROUPS,
-  type AuditGroup,
-  AuditLogTable,
-} from '@/admin/components/security/audit-log-table';
+import { ActivityList } from '@/admin/components/security/activity-list';
 import { ConnectSupabaseWizard } from '@/admin/components/security/connect-supabase-wizard';
-import { EnvTable } from '@/admin/components/security/env-table';
 import { SessionsTable } from '@/admin/components/security/sessions-table';
-import { Badge } from '@/admin/ui/badge';
+import { StatusCard } from '@/admin/components/security/status-card';
 import { Button } from '@/admin/ui/button';
 import { Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
-import { auditLog, sessions, users } from '@/core/db/schema';
+import { sessions, users } from '@/core/db/schema';
 import { DbMode } from '@/core/db/types';
-import { isProduction } from '@/core/env';
+import { env, isProduction } from '@/core/env';
 import { adminHref, AdminRoute } from '@/core/project/paths';
-import { envStatus } from '@/core/security/env-catalog';
-import { describeAuditTargets } from '@/core/security/audit-targets';
-import { checkDatabase, checkStorage } from '@/core/security/health';
+import { recentActivity } from '@/core/security/activity';
+import { checkSiteHealth } from '@/core/security/status';
 
 export const metadata: Metadata = { title: 'Security' };
 export const instant = false;
 
-const PAGE_SIZE = 25;
+const RECENT_ACTIVITY = 8;
 
-function Status({ ok, children }: { ok: boolean; children: React.ReactNode }) {
-  return <Badge variant={ok ? 'secondary' : 'destructive'}>{children}</Badge>;
+function Line({ label, value, sub }: { label: string; value: string; sub?: string | null }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-md border p-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium">{value}</span>
+      {sub ? <span className="text-xs break-all text-muted-foreground">{sub}</span> : null}
+    </div>
+  );
 }
 
-export default async function SecurityPage({ searchParams }: PageProps<'/admin/security'>) {
+/** Address prefilled in the Connect Supabase hosting step (a localhost URL is not useful there). */
+function productionSiteUrl(): string {
+  const url = env().NEXT_PUBLIC_SITE_URL;
+  return url && !/localhost|127\.0\.0\.1/.test(url) ? url : 'https://example.com';
+}
+
+export default async function SecurityPage() {
   const me = await requirePermission(Permission.SecurityManage);
-  const params = await searchParams;
-  const group: AuditGroup =
-    typeof params.group === 'string' && params.group in AUDIT_GROUPS
-      ? (params.group as AuditGroup)
-      : 'all';
-  const query = typeof params.q === 'string' ? params.q.trim().slice(0, 100) : '';
-  const page = Math.max(1, Number(params.page) || 1);
   const production = isProduction();
-
   const db = await getDb();
-  const filters: SQL[] = [];
-  const prefixes: readonly string[] = AUDIT_GROUPS[group].prefixes;
-  if (prefixes.length > 0) {
-    const anyPrefix = or(...prefixes.map((prefix) => ilike(auditLog.action, `${prefix}%`)));
-    if (anyPrefix) filters.push(anyPrefix);
-  }
-  if (query) {
-    const text = or(ilike(auditLog.actorEmail, `%${query}%`), ilike(auditLog.target, `%${query}%`));
-    if (text) filters.push(text);
-  }
-
-  const [database, storage, sessionRows, auditRows] = await Promise.all([
-    checkDatabase(),
-    checkStorage(),
+  const [health, sessionRows, activity] = await Promise.all([
+    checkSiteHealth(),
     db
       .select({
         id: sessions.id,
         email: users.email,
         userAgent: sessions.userAgent,
         createdAt: sessions.createdAt,
-        expiresAt: sessions.expiresAt,
       })
       .from(sessions)
       .innerJoin(users, eq(users.id, sessions.userId))
       .where(gt(sessions.expiresAt, new Date()))
       .orderBy(desc(sessions.createdAt)),
-    db
-      .select()
-      .from(auditLog)
-      .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(auditLog.ts))
-      .limit(PAGE_SIZE + 1)
-      .offset((page - 1) * PAGE_SIZE),
+    recentActivity(db, RECENT_ACTIVITY),
   ]);
-
-  const targetLabels = await describeAuditTargets(db, auditRows);
+  const { database, storage } = health;
+  const local = database.mode === DbMode.Local;
 
   return (
     <>
-      <PageHeader
-        title="Security"
-        description="Database, storage, environment, sessions and audit log."
-      />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard id="database" title="Database">
-          <dl className="text-sm flex flex-col gap-2">
-            <div className="flex justify-between gap-2">
-              <dt className="text-muted-foreground">Mode</dt>
-              <dd>
-                {database.mode === DbMode.Local ? 'Local (PGlite, this machine only)' : 'Postgres'}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-muted-foreground">Host</dt>
-              <dd className="text-xs font-mono">{database.host ?? '—'}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-muted-foreground">Connection</dt>
-              <dd>
-                <Status ok={database.ok}>
-                  {database.ok ? `OK · ${database.latencyMs} ms` : (database.error ?? 'Failed')}
-                </Status>
-              </dd>
-            </div>
-          </dl>
-          {!production && database.mode === DbMode.Local ? (
-            <div className="mt-4">
-              <ConnectSupabaseWizard
-                trigger={
-                  <Button>
-                    <DatabaseIcon />
-                    Connect Supabase
-                  </Button>
-                }
-              />
-            </div>
-          ) : null}
-          {production ? (
-            <p className="text-sm mt-4 text-muted-foreground">
-              Database and storage are configured with environment variables on your hosting
-              platform (Vercel: Project → Settings → Environment Variables; Netlify: Site
-              configuration → Environment variables). Secrets are never stored in the database. See
-              the checklist below and docs/DEPLOYMENT.md.
-            </p>
-          ) : null}
-        </SectionCard>
-        <SectionCard id="storage" title="Storage">
-          <dl className="text-sm flex flex-col gap-2">
-            <div className="flex justify-between gap-2">
-              <dt className="text-muted-foreground">Adapter</dt>
-              <dd>{storage.driver === 'local' ? 'Local filesystem' : 'Supabase Storage'}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-muted-foreground">Location</dt>
-              <dd className="text-xs font-mono">{storage.location}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>
-                <Status ok={storage.ok}>{storage.ok ? 'OK' : (storage.error ?? 'Failed')}</Status>
-              </dd>
-            </div>
-          </dl>
-        </SectionCard>
-      </div>
+      <PageHeader title="Security" description="Who is signed in and what changed." />
+      <StatusCard problems={health.problems} okText={health.okText} />
       <SectionCard
-        id="environment"
-        title="Environment"
-        description={
-          production
-            ? 'Required variables must be set on the hosting platform.'
-            : 'Values come from .env.local / the shell.'
-        }
-      >
-        <EnvTable rows={envStatus(process.env)} production={production} />
-      </SectionCard>
-      <SectionCard
-        id="sessions"
-        title="Active sessions"
-        description="Every signed-in device of every user."
+        id="devices"
+        title="Signed-in devices"
+        description="Every device where someone is signed in to the admin."
       >
         <SessionsTable
           rows={sessionRows.map((row) => ({
@@ -173,32 +78,48 @@ export default async function SecurityPage({ searchParams }: PageProps<'/admin/s
             email: row.email,
             userAgent: row.userAgent,
             createdAt: row.createdAt.toISOString(),
-            expiresAt: row.expiresAt.toISOString(),
             current: row.id === me.sessionId,
           }))}
         />
       </SectionCard>
-      <SectionCard
-        id="audit-log"
-        title="Audit log"
-        description="Admin actions and sign-in attempts."
-      >
-        <AuditLogTable
-          rows={auditRows.slice(0, PAGE_SIZE).map((row) => ({
-            id: row.id,
-            ts: row.ts.toISOString(),
-            action: row.action,
-            actorEmail: row.actorEmail,
-            target: row.target ? (targetLabels.get(row.target) ?? row.target) : null,
-            summary: row.summary ? JSON.stringify(row.summary) : null,
-          }))}
-          group={group}
-          query={query}
-          page={page}
-          hasNext={auditRows.length > PAGE_SIZE}
-          basePath={adminHref(AdminRoute.Security)}
-        />
-      </SectionCard>
+      <ActivityList items={activity} fullLogHref={adminHref(AdminRoute.Activity)} />
+      <DeveloperSection id="developer-settings">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Line
+            label="Database"
+            value={
+              database.ok
+                ? `${local ? 'Local database (this computer)' : 'Postgres'} · OK · ${database.latencyMs} ms`
+                : `${local ? 'Local database' : 'Postgres'} · ${database.error ?? 'Failed'}`
+            }
+            sub={local ? 'Not used on the live site' : database.host}
+          />
+          <Line
+            label="File storage"
+            value={`${storage.driver === 'local' ? 'Local folder' : 'Supabase Storage'} · ${
+              storage.ok ? 'OK' : (storage.error ?? 'Failed')
+            }`}
+            sub={storage.location}
+          />
+          <Line label="Email" value={health.mail.line} />
+        </div>
+        {!production && local ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <ConnectSupabaseWizard
+              siteUrl={productionSiteUrl()}
+              trigger={
+                <Button>
+                  <DatabaseIcon />
+                  Connect Supabase
+                </Button>
+              }
+            />
+            <span className="text-sm text-muted-foreground">
+              Step-by-step guide for Vercel or Netlify
+            </span>
+          </div>
+        ) : null}
+      </DeveloperSection>
     </>
   );
 }

@@ -16,7 +16,6 @@ export interface GlobalSessionRow {
   readonly email: string;
   readonly userAgent: string | null;
   readonly createdAt: string;
-  readonly expiresAt: string;
   readonly current: boolean;
 }
 
@@ -29,13 +28,12 @@ export function SessionsTable({ rows }: { rows: readonly GlobalSessionRow[] }) {
     <div className="flex flex-col gap-3">
       {dialog}
       <div className="overflow-x-auto rounded-md border">
-        <Table aria-label="Active sessions">
+        <Table aria-label="Signed-in devices">
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
+              <TableHead>Person</TableHead>
               <TableHead>Device</TableHead>
               <TableHead>Signed in</TableHead>
-              <TableHead>Expires</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -47,7 +45,6 @@ export function SessionsTable({ rows }: { rows: readonly GlobalSessionRow[] }) {
                 <TableCell>{row.email}</TableCell>
                 <TableCell>{describeAgent(row.userAgent)}</TableCell>
                 <TableCell>{formatDateTime(row.createdAt)}</TableCell>
-                <TableCell>{formatDateTime(row.expiresAt)}</TableCell>
                 <TableCell className="text-end">
                   {row.current ? (
                     <Badge variant="secondary">This device</Badge>
@@ -58,7 +55,7 @@ export function SessionsTable({ rows }: { rows: readonly GlobalSessionRow[] }) {
                       disabled={revoke.pending}
                       onClick={() => void revoke.run({ sessionId: row.id })}
                     >
-                      Revoke
+                      Sign out
                     </Button>
                   )}
                 </TableCell>
@@ -73,16 +70,16 @@ export function SessionsTable({ rows }: { rows: readonly GlobalSessionRow[] }) {
           disabled={revokeAll.pending || rows.length <= 1}
           onClick={() =>
             void confirm({
-              title: 'Sign everyone out?',
-              description: 'All sessions except yours are revoked immediately.',
-              confirmLabel: 'Revoke all',
+              title: 'Sign out everyone else?',
+              description: 'Every other device is signed out right away. You stay signed in.',
+              confirmLabel: 'Sign out everyone else',
               destructive: true,
             }).then((yes) => {
               if (yes) void revokeAll.run(undefined);
             })
           }
         >
-          Revoke all other sessions
+          Sign out everyone else
         </Button>
       </div>
     </div>

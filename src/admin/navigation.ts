@@ -71,6 +71,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
   managers: 'Managers',
   settings: 'Settings',
   security: 'Security',
+  activity: 'Activity',
 };
 
 /** True when `pathname` is `href` or below it (Overview only matches exactly). */

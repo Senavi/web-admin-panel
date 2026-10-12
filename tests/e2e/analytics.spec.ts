@@ -7,7 +7,7 @@ async function kpis(page: Page): Promise<{ visitors: number; views: number }> {
   await page.goto('/admin?range=today');
   const read = async (id: string) =>
     Number((await page.getByTestId(id).textContent())?.replace(/\D/g, '') ?? '0');
-  return { visitors: await read('kpi-unique-visitors'), views: await read('kpi-page-views') };
+  return { visitors: await read('kpi-visitors'), views: await read('kpi-page-views') };
 }
 
 test('visiting demo pages records page views and a unique visitor; bots are ignored', async ({

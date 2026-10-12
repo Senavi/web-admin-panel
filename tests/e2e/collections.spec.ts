@@ -147,7 +147,7 @@ test.describe.serial('collections', () => {
     await second.close();
   });
 
-  test('deleting a post: 404, gone from the sitemap, the audit log shows its title', async ({
+  test('deleting a post: 404, gone from the sitemap, the activity log shows its title', async ({
     page,
   }) => {
     await login(page, E2E_ADMIN);
@@ -161,8 +161,8 @@ test.describe.serial('collections', () => {
     await expect.poll(async () => (await visit(page, `/blog/${slug}`)).status).toBe(404);
     expect(await sitemap(page)).not.toContain(renamed);
 
-    await page.goto('/admin/security');
-    const audit = page.getByRole('table', { name: 'Audit log' });
+    await page.goto('/admin/security/activity');
+    const audit = page.getByRole('table', { name: 'Activity' });
     await expect(audit).toContainText('Deleted an item');
     await expect(audit).toContainText(`Blog: ${title}`);
   });

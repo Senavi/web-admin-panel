@@ -7,9 +7,11 @@ import { GateRefresher } from '@/admin/components/layout/gate-refresher';
 import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from '@/admin/ui/sidebar';
 import { contentRegistry } from '@/core/content/project-registry';
-import { AdminRoute, PagesArea } from '@/core/project/paths';
+import { adminHref, AdminRoute, PagesArea } from '@/core/project/paths';
+import { can, Permission } from '@/core/auth/permissions';
 import { requireUser } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
+import { countNew } from '@/core/forms/inbox';
 import { readSiteSettings } from '@/core/settings/repository';
 
 const byId = <T extends { id: string }>(items: readonly T[], label: (item: T) => string) =>
@@ -34,13 +36,26 @@ export const instant = false;
 export default async function AdminPanelLayout({ children }: LayoutProps<'/admin'>) {
   // Per-page guards apply the 2FA policy (Account must stay reachable to set it up).
   const user = await requireUser({ allowMissingTwoFactor: true });
-  const [cookieStore, settings] = await Promise.all([cookies(), getDb().then(readSiteSettings)]);
+  const db = await getDb();
+  const canReadForms = can(user.role, Permission.FormsView) && contentRegistry.forms.length > 0;
+  const [cookieStore, settings, unread] = await Promise.all([
+    cookies(),
+    readSiteSettings(db),
+    canReadForms
+      ? countNew(
+          db,
+          contentRegistry.forms.map((form) => form.id),
+        )
+      : Promise.resolve({} as Record<string, number>),
+  ]);
   const defaultOpen = cookieStore.get(SIDEBAR_COOKIE_NAME)?.value !== 'false';
+  const newRequests = Object.values(unread).reduce((sum, value) => sum + value, 0);
+  const badges = newRequests > 0 ? { [adminHref(AdminRoute.Pages)]: `${newRequests} new` } : {};
 
   return (
     <DeveloperModeProvider enabled={user.developerMode}>
       <SidebarProvider defaultOpen={defaultOpen}>
-        <AppSidebar role={user.role} siteName={settings.general.siteName} />
+        <AppSidebar role={user.role} siteName={settings.general.siteName} badges={badges} />
         <SidebarInset>
           <LocalDbBanner developerMode={user.developerMode} />
           <AdminHeader

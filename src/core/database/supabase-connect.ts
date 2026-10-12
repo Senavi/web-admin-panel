@@ -24,7 +24,13 @@ const postgresUrl = z
 
 export const supabaseConnectionSchema = z.object({
   supabaseUrl: z.url('Enter the project URL, e.g. https://xyz.supabase.co').trim(),
-  anonKey: z.string().trim().min(20, 'Paste the anon (public) key.'),
+  /** Optional: only used to double-check the project URL. */
+  anonKey: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined)
+    .pipe(z.string().min(20, 'Paste the anon (public) key or leave it empty.').optional()),
   serviceRoleKey: z.string().trim().min(20, 'Paste the service_role key.'),
   databaseUrl: postgresUrl,
   directUrl: postgresUrl,
@@ -76,9 +82,11 @@ export async function testSupabaseConnection(input: SupabaseConnection): Promise
     checkPostgres('Database (pooled)', input.databaseUrl),
     checkPostgres('Database (direct)', input.directUrl),
     storage.storage.listBuckets(),
-    fetch(`${input.supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
-      headers: { apikey: input.anonKey },
-    }).catch(() => null),
+    input.anonKey
+      ? fetch(`${input.supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
+          headers: { apikey: input.anonKey },
+        }).catch(() => null)
+      : Promise.resolve(undefined),
   ]);
   return [
     pooled,
@@ -86,13 +94,17 @@ export async function testSupabaseConnection(input: SupabaseConnection): Promise
     buckets.error
       ? { name: 'Storage (service role)', ok: false, message: buckets.error.message }
       : { name: 'Storage (service role)', ok: true, message: `${buckets.data.length} bucket(s)` },
-    anon?.ok
-      ? { name: 'Anon key', ok: true, message: 'Accepted' }
-      : {
-          name: 'Anon key',
-          ok: false,
-          message: anon ? `Rejected (${anon.status})` : 'Project URL unreachable',
-        },
+    ...(anon === undefined
+      ? []
+      : [
+          anon?.ok
+            ? { name: 'Anon key', ok: true, message: 'Accepted' }
+            : {
+                name: 'Anon key',
+                ok: false,
+                message: anon ? `Rejected (${anon.status})` : 'Project URL unreachable',
+              },
+        ]),
   ];
 }
 
@@ -187,7 +199,7 @@ export function writeEnvLocal(input: SupabaseConnection): string[] {
     DATABASE_URL: input.databaseUrl,
     DIRECT_URL: input.directUrl,
     SUPABASE_URL: input.supabaseUrl,
-    SUPABASE_ANON_KEY: input.anonKey,
+    ...(input.anonKey ? { SUPABASE_ANON_KEY: input.anonKey } : {}),
     SUPABASE_SERVICE_ROLE_KEY: input.serviceRoleKey,
     SUPABASE_STORAGE_BUCKET: input.bucket,
     STORAGE_DRIVER: 'supabase',

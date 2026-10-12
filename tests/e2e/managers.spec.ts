@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { setDeveloperMode } from './support/developer';
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
 
@@ -103,31 +104,35 @@ test.describe.serial('managers', () => {
     await expect(rowFor(page, email)).toHaveCount(0);
   });
 
-  test('Security page shows database, environment, sessions and the audit log', async ({
+  test('Security shows status, signed-in devices and activity; the full log filters', async ({
     page,
   }) => {
     await login(page, E2E_ADMIN);
+    await setDeveloperMode(page, false);
     await page.goto('/admin/security');
-    await expect(page.getByRole('heading', { name: 'Database' })).toBeVisible();
-    const env = page.getByRole('table', { name: 'Environment variables' });
-    await expect(env).toContainText('AUTH_SECRET');
-    await expect(page.getByRole('table', { name: 'Active sessions' })).toContainText(
+    await expect(page.getByRole('region', { name: 'Status' })).toContainText('Everything works');
+    await expect(page.getByRole('table', { name: 'Signed-in devices' })).toContainText(
       E2E_ADMIN.email,
     );
-    const audit = page.getByRole('table', { name: 'Audit log' });
-    await expect(audit).toContainText('Deleted a user');
+    // Technical details and the env table are not shown to clients.
+    await expect(page.getByRole('region', { name: 'Developer settings' })).toHaveCount(0);
+    await expect(page.getByText('AUTH_SECRET')).toHaveCount(0);
+    const recent = page.getByRole('list', { name: 'Recent activity' });
+    await expect(recent).toContainText('signed in');
+    expect(await recent.textContent()).not.toMatch(RAW_USER_TARGET);
+
+    await page.getByRole('link', { name: 'Show all activity' }).click();
+    await expect(page.getByRole('heading', { name: 'Activity', level: 1 })).toBeVisible();
+    const log = page.getByRole('table', { name: 'Activity' });
+    await expect(log).toContainText('Deleted a user');
     await page.getByRole('combobox', { name: 'Event type' }).selectOption('auth');
     await page.getByRole('button', { name: 'Filter' }).click();
-    await expect(audit).toContainText('Signed in');
-    await expect(audit).not.toContainText('Deleted a user');
-    // Secrets are never shown in full, and masks stay readable (no percent-encoding).
-    const envText = (await env.textContent()) ?? '';
-    expect(envText).not.toMatch(/ci-only-secret|e2e-production-secret/);
-    expect(envText).not.toContain('%E2%80%A2');
-    // Audit targets show names, not raw ids.
-    expect(await audit.textContent()).not.toMatch(RAW_USER_TARGET);
+    await expect(log).toContainText('Signed in');
+    await expect(log).not.toContainText('Deleted a user');
+    // Targets show names, not raw ids.
+    expect(await log.textContent()).not.toMatch(RAW_USER_TARGET);
     await page.goto('/admin');
-    await expect(page.getByText('Recent activity')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Recent activity' })).toBeVisible();
     expect(await page.locator('main').textContent()).not.toMatch(RAW_USER_TARGET);
   });
 });

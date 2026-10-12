@@ -24,8 +24,8 @@ test('editing the phone in Site-wide updates the header and footer of every page
   await page.goto('/admin/pages/site-wide/site');
   await expect(page.locator('form[data-hydrated]')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Header & footer', level: 1 })).toBeVisible();
-  // Site-wide content has no SEO tab.
-  await expect(page.getByRole('tab', { name: 'SEO' })).toHaveCount(0);
+  // Site-wide content has no Google & sharing tab.
+  await expect(page.getByRole('tab', { name: 'Google & sharing' })).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Phone' }).fill(phone);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText(/^Saved\./)).toBeVisible();

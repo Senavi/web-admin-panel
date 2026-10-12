@@ -1,100 +1,143 @@
-import { desc } from 'drizzle-orm';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
+import { CollapsibleSection } from '@/admin/components/layout/accordion';
 import { PageHeader } from '@/admin/components/layout/page-header';
 import { BreakdownCard } from '@/admin/components/overview/breakdown-card';
 import { KpiCard } from '@/admin/components/overview/kpi-card';
 import { RangeSelect } from '@/admin/components/overview/range-select';
-import { RecentActivity } from '@/admin/components/overview/recent-activity';
-import { SubmissionsCard } from '@/admin/components/overview/submissions-card';
-import { SiteStatusCard } from '@/admin/components/overview/site-status-card';
 import { VisitorsChart } from '@/admin/components/overview/visitors-chart';
-import { runMaintenance } from '@/core/maintenance';
+import { projectConfig } from '@project/config';
 import { getOverview, parseRange, RANGE_LABELS } from '@/core/analytics/queries';
-import { Permission } from '@/core/auth/permissions';
+import { can, Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
-import { getDb, getDbInfo } from '@/core/db/client';
-import { auditLog } from '@/core/db/schema';
-import { describeAuditTargets } from '@/core/security/audit-targets';
 import { contentRegistry } from '@/core/content/project-registry';
+import { getDb } from '@/core/db/client';
 import { countNew } from '@/core/forms/inbox';
-import { PagesArea, pagesAreaHref } from '@/core/project/paths';
+import { runMaintenance } from '@/core/maintenance';
+import { adminHref, AdminRoute, PagesArea, pagesAreaHref } from '@/core/project/paths';
+import type { SiteSettings } from '@/core/settings/schema';
 import { readSiteSettings } from '@/core/settings/repository';
 
 export const metadata: Metadata = { title: 'Overview' };
 export const instant = false;
 
-const RECENT_ACTIVITY = 10;
+function siteStateText(status: SiteSettings['status']): string {
+  if (status.maintenance.enabled) return 'The site is paused';
+  if (status.privateMode) return 'The site is private';
+  return 'The site is live';
+}
+
+function localeNames(codes: readonly string[]): string {
+  return codes
+    .map(
+      (code) =>
+        projectConfig.supportedLocales.find((locale) => locale.code === code)?.label ?? code,
+    )
+    .join(', ');
+}
 
 export default async function OverviewPage({ searchParams }: PageProps<'/admin'>) {
-  await requirePermission(Permission.OverviewView);
+  const user = await requirePermission(Permission.OverviewView);
   const range = parseRange((await searchParams).range);
   const db = await getDb();
   await runMaintenance(db); // throttled: at most hourly
-  const [overview, settings, activity] = await Promise.all([
+  const forms = contentRegistry.forms;
+  const showRequests = forms.length > 0 && can(user.role, Permission.FormsView);
+  const [overview, settings, unread] = await Promise.all([
     getOverview(db, range),
     readSiteSettings(db),
-    db.select().from(auditLog).orderBy(desc(auditLog.ts)).limit(RECENT_ACTIVITY),
+    showRequests
+      ? countNew(
+          db,
+          forms.map((form) => form.id),
+        )
+      : Promise.resolve({} as Record<string, number>),
   ]);
   const { current, previous, breakdowns } = overview;
-  const [targetLabels, newSubmissions] = await Promise.all([
-    describeAuditTargets(db, activity),
-    countNew(
-      db,
-      contentRegistry.forms.map((form) => form.id),
-    ),
-  ]);
+  const newRequests = Object.values(unread).reduce((sum, value) => sum + value, 0);
+  // The inbox with the most new requests (or the first form).
+  const inboxForm =
+    [...forms].sort((a, b) => (unread[b.id] ?? 0) - (unread[a.id] ?? 0))[0] ?? forms[0];
+
+  const statusParts = [
+    siteStateText(settings.status),
+    settings.status.indexing ? 'Visible in Google' : 'Hidden from Google',
+    localeNames(settings.general.enabledLocales),
+  ];
 
   return (
     <>
       <PageHeader
         title="Overview"
-        description={`${RANGE_LABELS[range]} · cookieless analytics`}
+        description={`How the site is doing · ${RANGE_LABELS[range].toLowerCase()}`}
         actions={<RangeSelect value={range} />}
       />
       <section aria-label="Key metrics" className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Unique visitors" value={current.visitors} previous={previous.visitors} />
+        <KpiCard label="Visitors" value={current.visitors} previous={previous.visitors} />
         <KpiCard label="Page views" value={current.views} previous={previous.views} />
-        <KpiCard
-          label="Pages per visit"
-          value={current.pagesPerVisit}
-          previous={previous.pagesPerVisit}
-          decimals={2}
-        />
+        {showRequests && inboxForm ? (
+          <KpiCard
+            label="New requests"
+            value={newRequests}
+            footer={
+              <Link
+                href={pagesAreaHref(PagesArea.Forms, inboxForm.id)}
+                className="text-sm font-medium underline-offset-4 hover:underline"
+              >
+                Open the inbox
+              </Link>
+            }
+          />
+        ) : (
+          <KpiCard
+            label="Pages per visit"
+            value={current.pagesPerVisit}
+            previous={previous.pagesPerVisit}
+            decimals={2}
+          />
+        )}
       </section>
       <VisitorsChart series={overview.series} />
-      <section aria-label="Breakdowns" className="grid gap-4 lg:grid-cols-2">
-        <BreakdownCard title="Top pages" rows={breakdowns.path} />
-        <BreakdownCard title="Top referrers" rows={breakdowns.referrer} />
-        <BreakdownCard title="Devices" rows={breakdowns.device} />
-        <BreakdownCard title="Browsers" rows={breakdowns.browser} />
-        {breakdowns.country.length > 0 ? (
-          <BreakdownCard title="Countries" rows={breakdowns.country} />
+      <section aria-label="Pages and sources" className="grid gap-4 lg:grid-cols-2">
+        <BreakdownCard title="Most visited pages" rows={breakdowns.path} />
+        <BreakdownCard title="Where visitors come from" rows={breakdowns.referrer} />
+      </section>
+      <CollapsibleSection
+        id="more-statistics"
+        title="More statistics"
+        summary="Devices, browsers, countries"
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <BreakdownCard title="Devices" rows={breakdowns.device} />
+          <BreakdownCard title="Browsers" rows={breakdowns.browser} />
+          {breakdowns.country.length > 0 ? (
+            <BreakdownCard title="Countries" rows={breakdowns.country} />
+          ) : null}
+        </div>
+      </CollapsibleSection>
+      <p
+        aria-label="Site status"
+        className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground"
+      >
+        {statusParts.map((part, index) => (
+          <span key={part} className="flex items-center gap-2">
+            {index > 0 ? <span aria-hidden>·</span> : null}
+            {part}
+          </span>
+        ))}
+        {can(user.role, Permission.SecurityManage) ? (
+          <span className="flex items-center gap-2">
+            <span aria-hidden>·</span>
+            <Link
+              href={adminHref(AdminRoute.Activity)}
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Recent activity
+            </Link>
+          </span>
         ) : null}
-      </section>
-      <section aria-label="Status and activity" className="grid gap-4 lg:grid-cols-2">
-        <SiteStatusCard settings={settings} db={getDbInfo()} />
-        <RecentActivity
-          rows={activity.map((row) => ({
-            id: row.id,
-            ts: row.ts.toISOString(),
-            action: row.action,
-            actorEmail: row.actorEmail,
-            target: row.target ? (targetLabels.get(row.target) ?? row.target) : null,
-          }))}
-        />
-      </section>
-      {contentRegistry.forms.length > 0 ? (
-        <section aria-label="Forms" className="grid gap-4 lg:grid-cols-2">
-          <SubmissionsCard
-            forms={contentRegistry.forms.map((form) => ({
-              label: form.label,
-              href: pagesAreaHref(PagesArea.Forms, form.id),
-              count: newSubmissions[form.id] ?? 0,
-            }))}
-          />
-        </section>
-      ) : null}
+      </p>
     </>
   );
 }

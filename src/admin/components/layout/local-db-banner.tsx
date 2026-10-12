@@ -27,7 +27,7 @@ export function LocalDbBanner({ developerMode }: { developerMode: boolean }) {
         variant="outline"
         className="h-7"
         nativeButton={false}
-        render={<Link href={`${adminHref(AdminRoute.Security)}#database`} />}
+        render={<Link href={`${adminHref(AdminRoute.Security)}#developer-settings`} />}
       >
         Connect Supabase
       </Button>

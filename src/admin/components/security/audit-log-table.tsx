@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { auditActionLabel } from '@/core/security/audit-labels';
 
 export const AUDIT_GROUPS = {
-  all: { label: 'All events', prefixes: [] },
-  auth: { label: 'Sign-ins & sessions', prefixes: ['auth.'] },
-  users: { label: 'Users', prefixes: ['user.'] },
+  all: { label: 'Everything', prefixes: [] },
+  auth: { label: 'Sign-ins & devices', prefixes: ['auth.'] },
+  users: { label: 'Managers', prefixes: ['user.'] },
   content: {
     label: 'Content & media',
     prefixes: ['content.', 'seo.', 'media.', 'collection.', 'form.'],
@@ -28,7 +28,7 @@ export interface AuditRow {
   readonly summary: string | null;
 }
 
-/** Server-rendered, URL-driven audit log (GET filters contain no secrets). */
+/** Server-rendered, URL-driven activity log (GET filters contain no secrets). */
 export function AuditLogTable({
   rows,
   group,
@@ -45,14 +45,14 @@ export function AuditLogTable({
   basePath: string;
 }) {
   const href = (nextPage: number) =>
-    `${basePath}?${new URLSearchParams({ group, q: query, page: String(nextPage) }).toString()}#audit-log`;
+    `${basePath}?${new URLSearchParams({ group, q: query, page: String(nextPage) }).toString()}#activity`;
   return (
     <div className="flex flex-col gap-3">
       <form
         method="get"
-        action={`${basePath}#audit-log`}
+        action={`${basePath}#activity`}
         className="flex flex-wrap items-center gap-2"
-        aria-label="Filter audit log"
+        aria-label="Filter activity"
       >
         <select
           name="group"
@@ -69,8 +69,8 @@ export function AuditLogTable({
         <Input
           name="q"
           defaultValue={query}
-          placeholder="Actor email or target"
-          aria-label="Search audit log"
+          placeholder="Email or name"
+          aria-label="Search activity"
           className="max-w-64"
         />
         <Button type="submit" variant="outline" size="sm">
@@ -78,13 +78,13 @@ export function AuditLogTable({
         </Button>
       </form>
       <div className="overflow-x-auto rounded-md border">
-        <Table aria-label="Audit log">
+        <Table aria-label="Activity">
           <TableHeader>
             <TableRow>
               <TableHead>Time</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Actor</TableHead>
-              <TableHead>Target</TableHead>
+              <TableHead>What happened</TableHead>
+              <TableHead>Who</TableHead>
+              <TableHead>Where</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -103,16 +103,13 @@ export function AuditLogTable({
                       <span>{auditActionLabel(row.action)}</span>
                       {row.action.endsWith('.failure') || row.action.endsWith('.locked') ? (
                         <Badge variant="destructive" className="w-fit">
-                          {row.action}
+                          Warning
                         </Badge>
                       ) : null}
                     </span>
                   </TableCell>
                   <TableCell>{row.actorEmail ?? '—'}</TableCell>
-                  <TableCell
-                    className="text-xs max-w-72 truncate font-mono"
-                    title={row.summary ?? undefined}
-                  >
+                  <TableCell className="max-w-72 truncate" title={row.summary ?? undefined}>
                     {row.target ?? '—'}
                   </TableCell>
                 </TableRow>

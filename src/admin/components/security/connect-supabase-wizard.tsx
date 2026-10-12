@@ -2,28 +2,33 @@
 
 import {
   CheckCircle2Icon,
-  CircleIcon,
+  CheckIcon,
+  CopyIcon,
   ExternalLinkIcon,
   Loader2Icon,
   XCircleIcon,
 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { Fragment, type ReactElement, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
+import { cn } from '@/admin/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/admin/ui/alert';
 import { Button } from '@/admin/ui/button';
 import { Checkbox } from '@/admin/ui/checkbox';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/admin/ui/dialog';
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/admin/ui/field';
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/admin/ui/field';
 import { Input } from '@/admin/ui/input';
 import { Label } from '@/admin/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import type { ActionResult } from '@/core/actions/result';
 import {
   migrateSupabaseAction,
@@ -32,234 +37,490 @@ import {
   testSupabaseAction,
   writeSupabaseEnvAction,
 } from '@/core/database/actions';
+import type { CheckResult } from '@/core/database/supabase-connect';
 
-const FIELDS = [
-  {
-    name: 'supabaseUrl',
-    label: 'Project URL',
-    where: 'Project Settings → Data API → Project URL',
-    secret: false,
-    placeholder: 'https://xyz.supabase.co',
-  },
-  {
-    name: 'anonKey',
-    label: 'anon (public) key',
-    where: 'Project Settings → API Keys → anon public',
-    secret: true,
-    placeholder: '',
-  },
-  {
-    name: 'serviceRoleKey',
-    label: 'service_role key',
-    where: 'Project Settings → API Keys → service_role (secret)',
-    secret: true,
-    placeholder: '',
-  },
-  {
-    name: 'databaseUrl',
-    label: 'Pooled DATABASE_URL',
-    where: 'Connect → Transaction pooler (port 6543)',
-    secret: true,
-    placeholder: 'postgresql://postgres.xyz:…@…pooler.supabase.com:6543/postgres',
-  },
-  {
-    name: 'directUrl',
-    label: 'Direct DIRECT_URL',
-    where: 'Connect → Direct connection / Session pooler (port 5432)',
-    secret: true,
-    placeholder: 'postgresql://postgres:…@db.xyz.supabase.co:5432/postgres',
-  },
+import {
+  CREATE_PROJECT_STEPS,
+  HOSTING_GUIDES,
+  HostingPlatform,
+  HostingVariable,
+  KEY_FIELDS,
+  type KeyField,
+  PREPARE_TASKS,
+  SECRET_HOSTING_VARIABLES,
+  SUPABASE_DASHBOARD_URL,
+} from './hosting-guides';
+
+const STEP_LABELS = [
+  'Create project',
+  'Paste keys',
+  'Prepare database',
+  'Add to hosting',
+  'Done',
 ] as const;
+const LAST_STEP = STEP_LABELS.length;
+const SECRET_BYTES = 32;
 
-type Values = Record<(typeof FIELDS)[number]['name'], string> & { bucket: string };
-type StepState = 'idle' | 'running' | 'done' | 'failed';
+type Keys = Record<KeyField['name'], string>;
+type TaskState = 'idle' | 'running' | 'done' | 'failed';
 
-const STEPS = [
-  'Test connection',
-  'Run migrations',
-  'Migrate data',
-  'Secure the database',
-  'Save to .env.local',
-] as const;
-
-function StepIcon({ state }: { state: StepState }) {
-  if (state === 'running')
-    return <Loader2Icon className="size-4 animate-spin" aria-label="Running" />;
-  if (state === 'done')
-    return <CheckCircle2Icon className="text-emerald-600 size-4" aria-label="Done" />;
-  if (state === 'failed')
-    return <XCircleIcon className="text-destructive size-4" aria-label="Failed" />;
-  return <CircleIcon className="size-4 text-muted-foreground" aria-hidden />;
+/** Text with `**bold**` parts (hosting-guides.ts). */
+function Rich({ text }: { text: string }) {
+  return (
+    <>
+      {text
+        .split('**')
+        .map((part, index) =>
+          index % 2 === 1 ? (
+            <strong key={index}>{part}</strong>
+          ) : (
+            <Fragment key={index}>{part}</Fragment>
+          ),
+        )}
+    </>
+  );
 }
 
-/** Multi-step dialog that moves the local database to Supabase (development only). */
-export function ConnectSupabaseWizard({ trigger }: { trigger: ReactNode }) {
-  const [values, setValues] = useState<Values>({
+function Steps({ items }: { items: readonly string[] }) {
+  return (
+    <ol className="text-sm flex list-decimal flex-col gap-2 ps-5">
+      {items.map((item) => (
+        <li key={item}>
+          <Rich text={item} />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** A random secret (base64url), generated in the browser for the hosting variables. */
+function randomSecret(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(SECRET_BYTES));
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function mask(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.password) {
+      url.password = '****';
+      return url.toString();
+    }
+  } catch {
+    // Not a URL.
+  }
+  return value.length <= 8 ? '••••' : `••••${value.slice(-4)}`;
+}
+
+function TaskIcon({ state, index }: { state: TaskState; index: number }) {
+  if (state === 'running')
+    return <Loader2Icon className="size-4 animate-spin" aria-label="In progress" />;
+  if (state === 'done')
+    return (
+      <CheckIcon className="text-emerald-600 dark:text-emerald-400 size-4" aria-label="Done" />
+    );
+  if (state === 'failed')
+    return <XCircleIcon className="text-destructive size-4" aria-label="Failed" />;
+  return (
+    <span className="text-xs w-4 text-center text-muted-foreground" aria-hidden>
+      {index + 1}
+    </span>
+  );
+}
+
+/**
+ * Connect Supabase (development only): create a project, paste the keys, let
+ * the app prepare the database and write `.env.local`, then copy the variables
+ * to Vercel or Netlify. Five steps with a progress bar.
+ */
+export function ConnectSupabaseWizard({
+  trigger,
+  siteUrl,
+}: {
+  trigger: ReactNode;
+  /** Prefilled NEXT_PUBLIC_SITE_URL for the hosting step. */
+  siteUrl: string;
+}) {
+  const [step, setStep] = useState(1);
+  const [keys, setKeys] = useState<Keys>({
     supabaseUrl: '',
-    anonKey: '',
     serviceRoleKey: '',
     databaseUrl: '',
     directUrl: '',
-    bucket: 'media',
+    anonKey: '',
   });
-  const [states, setStates] = useState<StepState[]>(STEPS.map(() => 'idle'));
-  const [details, setDetails] = useState<ReactNode[]>(STEPS.map(() => null));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [checking, setChecking] = useState(false);
+  const [checks, setChecks] = useState<readonly CheckResult[] | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
   const [copyData, setCopyData] = useState(true);
-  const filled = FIELDS.every((field) => values[field.name].trim() !== '');
+  const [tasks, setTasks] = useState<TaskState[]>(PREPARE_TASKS.map(() => 'idle'));
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [host, setHost] = useState<HostingPlatform>(HostingPlatform.Vercel);
+  const [address, setAddress] = useState(siteUrl);
+  const [secrets, setSecrets] = useState<{ auth: string; cron: string } | null>(null);
 
-  const runStep = async <T,>(
-    index: number,
-    action: (input: unknown) => Promise<ActionResult<T>>,
-    describe: (data: T) => ReactNode,
-  ) => {
-    setStates((current) => current.map((state, i) => (i === index ? 'running' : state)));
-    const result = await action(values);
-    const failedChecks =
-      result.ok &&
-      Array.isArray(result.data) &&
-      result.data.some((check: { ok: boolean }) => !check.ok);
-    setStates((current) =>
-      current.map((state, i) =>
-        i === index ? (result.ok && !failedChecks ? 'done' : 'failed') : state,
-      ),
-    );
-    setDetails((current) =>
-      current.map((detail, i) =>
-        i === index ? (
-          result.ok ? (
-            describe(result.data)
-          ) : (
-            <span className="text-destructive">{result.error}</span>
-          )
-        ) : (
-          detail
-        ),
-      ),
-    );
-    if (result.ok && result.message) toast.success(result.message);
+  const connected = checks !== null && checks.every((check) => check.ok);
+  const preparing = tasks.includes('running');
+  const prepared = tasks.every((state) => state === 'done');
+  const input = { ...keys, bucket: 'media' };
+
+  const setKey = (name: KeyField['name'], value: string) => {
+    setKeys((current) => ({ ...current, [name]: value }));
+    setChecks(null);
   };
 
-  const canRun = (index: number) =>
-    filled &&
-    states.slice(0, index).every((state, i) => state === 'done' || (i === 2 && !copyData));
+  const checkConnection = async () => {
+    setChecking(true);
+    setCheckError(null);
+    setFieldErrors({});
+    const result = await testSupabaseAction(input);
+    setChecking(false);
+    if (!result.ok) {
+      setFieldErrors(result.fieldErrors ?? {});
+      setCheckError(result.error);
+      return;
+    }
+    setChecks(result.data);
+  };
+
+  const prepare = async () => {
+    setTaskError(null);
+    const steps: Array<() => Promise<ActionResult<unknown>>> = [
+      () => migrateSupabaseAction(input),
+      () => migrateSupabaseDataAction(input),
+      () => secureSupabaseAction(input),
+      () => writeSupabaseEnvAction(input),
+    ];
+    for (const [index, run] of steps.entries()) {
+      if (tasks[index] === 'done') continue;
+      if (index === 1 && !copyData) {
+        setTasks((current) => current.map((state, i) => (i === index ? 'done' : state)));
+        continue;
+      }
+      setTasks((current) => current.map((state, i) => (i === index ? 'running' : state)));
+      const result = await run();
+      setTasks((current) =>
+        current.map((state, i) => (i === index ? (result.ok ? 'done' : 'failed') : state)),
+      );
+      if (!result.ok) {
+        setTaskError(result.error);
+        return;
+      }
+    }
+  };
+
+  const variables = (generated: { auth: string; cron: string } | null) =>
+    [
+      [HostingVariable.SiteUrl, address.trim()],
+      [HostingVariable.DatabaseUrl, keys.databaseUrl.trim()],
+      [HostingVariable.DirectUrl, keys.directUrl.trim()],
+      [HostingVariable.SupabaseUrl, keys.supabaseUrl.trim()],
+      [HostingVariable.ServiceRoleKey, keys.serviceRoleKey.trim()],
+      [HostingVariable.AuthSecret, generated?.auth ?? ''],
+      [HostingVariable.CronSecret, generated?.cron ?? ''],
+    ] as const;
+
+  const copyAll = async () => {
+    const generated = secrets ?? { auth: randomSecret(), cron: randomSecret() };
+    setSecrets(generated);
+    const text = variables(generated)
+      .map(([name, value]) => `${name}=${value}`)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(`${text}\n`);
+      toast.success(`Copied ${variables(generated).length} variables`);
+    } catch {
+      toast.error('Could not copy. Allow clipboard access and try again.');
+    }
+  };
+
+  const next = (): { label: string; disabled: boolean; run: () => void } => {
+    switch (step) {
+      case 1:
+        return { label: 'I have created the project', disabled: false, run: () => setStep(2) };
+      case 2:
+        return connected
+          ? { label: 'Next', disabled: false, run: () => setStep(3) }
+          : {
+              label: checking ? 'Checking…' : 'Check connection',
+              disabled: checking,
+              run: () => void checkConnection(),
+            };
+      case 3:
+        return prepared
+          ? { label: 'Next', disabled: false, run: () => setStep(4) }
+          : {
+              label: preparing ? 'Preparing…' : 'Prepare database',
+              disabled: preparing,
+              run: () => void prepare(),
+            };
+      case 4:
+        return {
+          label: 'I have added them and redeployed',
+          disabled: false,
+          run: () => setStep(5),
+        };
+      default:
+        return { label: '', disabled: true, run: () => undefined };
+    }
+  };
+  const primary = next();
 
   return (
     <Dialog>
-      <DialogTrigger render={trigger as React.ReactElement} />
+      <DialogTrigger render={trigger as ReactElement} />
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Connect Supabase</DialogTitle>
-          <DialogDescription>
-            Moves this project from the local database to Supabase Postgres + Storage. Values are
-            written to <code>.env.local</code> only and never stored in the database.{' '}
-            <a
-              href="https://supabase.com/dashboard/projects"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 underline"
-            >
-              Open Supabase <ExternalLinkIcon className="size-3" />
-            </a>
-          </DialogDescription>
+          <DialogDescription>Takes about 5 minutes. You do it once per site.</DialogDescription>
         </DialogHeader>
-        <FieldGroup>
-          {FIELDS.map((field) => (
-            <Field key={field.name}>
-              <FieldLabel htmlFor={`sb-${field.name}`}>{field.label}</FieldLabel>
-              <Input
-                id={`sb-${field.name}`}
-                type={field.secret ? 'password' : 'url'}
-                autoComplete="off"
-                placeholder={field.placeholder}
-                value={values[field.name]}
-                onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
-              />
-              <FieldDescription>Where to find it: {field.where}</FieldDescription>
-            </Field>
-          ))}
-        </FieldGroup>
 
-        <ol className="mt-4 flex flex-col gap-3" aria-label="Steps">
-          {STEPS.map((step, index) => (
-            <li key={step} className="flex flex-col gap-2 rounded-md border p-3">
-              <div className="flex items-center gap-2">
-                <StepIcon state={states[index] ?? 'idle'} />
-                <span className="text-sm font-medium flex-1">
-                  {index + 1}. {step}
-                </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={
-                    !canRun(index) || states[index] === 'running' || (index === 2 && !copyData)
-                  }
-                  onClick={() => {
-                    if (index === 0)
-                      void runStep(0, testSupabaseAction, (checks) => (
-                        <ul className="text-xs">
-                          {checks.map((check) => (
-                            <li key={check.name} className={check.ok ? '' : 'text-destructive'}>
-                              {check.ok ? '✓' : '✗'} {check.name}: {check.message}
-                            </li>
-                          ))}
-                        </ul>
-                      ));
-                    if (index === 1)
-                      void runStep(1, migrateSupabaseAction, () => 'Schema is up to date.');
-                    if (index === 2)
-                      void runStep(
-                        2,
-                        migrateSupabaseDataAction,
-                        (data) =>
-                          `${Object.values(data.rows).reduce((a, b) => a + b, 0)} rows and ${data.files} files copied.`,
-                      );
-                    if (index === 3)
-                      void runStep(
-                        3,
-                        secureSupabaseAction,
-                        (data) =>
-                          `RLS enabled on ${data.tables.length} tables; bucket is public-read, server-write.`,
-                      );
-                    if (index === 4)
-                      void runStep(
-                        4,
-                        writeSupabaseEnvAction,
-                        (data) => `Wrote ${data.variables.join(', ')}.`,
-                      );
-                  }}
-                >
-                  Run
-                </Button>
-              </div>
-              {index === 2 ? (
-                <div className="flex items-center gap-2 ps-6">
-                  <Checkbox
-                    id="sb-copy"
-                    checked={copyData}
-                    onCheckedChange={(checked) => setCopyData(checked === true)}
-                  />
-                  <Label htmlFor="sb-copy" className="text-xs font-normal">
-                    Copy users, settings, content, revisions and media (recommended)
-                  </Label>
-                </div>
-              ) : null}
-              {details[index] ? (
-                <div className="text-xs ps-6 text-muted-foreground">{details[index]}</div>
-              ) : null}
+        <ol aria-label="Progress" className="grid grid-cols-5 gap-2">
+          {STEP_LABELS.map((label, index) => (
+            <li
+              key={label}
+              aria-current={step === index + 1 ? 'step' : undefined}
+              className="flex flex-col gap-1.5"
+            >
+              <span
+                className={cn('h-1 rounded-full', step >= index + 1 ? 'bg-primary' : 'bg-muted')}
+              />
+              <span
+                className={cn(
+                  'text-xs hidden sm:block',
+                  step === index + 1 ? 'font-medium' : 'text-muted-foreground',
+                )}
+              >
+                {index + 1}. {label}
+              </span>
             </li>
           ))}
         </ol>
-        {states[4] === 'done' ? (
-          <Alert>
-            <CheckCircle2Icon />
-            <AlertTitle>Restart the dev server</AlertTitle>
-            <AlertDescription>
-              Stop and start <code>pnpm dev</code>. The local database banner disappears once the
-              app runs on Supabase.
-            </AlertDescription>
-          </Alert>
-        ) : null}
+
+        <section aria-label={STEP_LABELS[step - 1]} className="flex flex-col gap-4">
+          {step === 1 ? (
+            <>
+              <h3 className="font-medium">Create a Supabase project</h3>
+              <Steps items={CREATE_PROJECT_STEPS} />
+              <div>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <a href={SUPABASE_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" />
+                  }
+                >
+                  Open Supabase
+                  <ExternalLinkIcon />
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {step === 2 ? (
+            <>
+              <h3 className="font-medium">Paste the keys</h3>
+              <p className="text-sm text-muted-foreground">
+                In your Supabase project, copy each value and paste it here. They are saved only on
+                this computer, never in the database.
+              </p>
+              <FieldGroup>
+                {KEY_FIELDS.map((field) => {
+                  const error = fieldErrors[field.name]?.[0];
+                  return (
+                    <Field key={field.name} data-invalid={error ? true : undefined}>
+                      <FieldLabel htmlFor={`sb-${field.name}`}>{field.label}</FieldLabel>
+                      <Input
+                        id={`sb-${field.name}`}
+                        type={field.secret ? 'password' : 'url'}
+                        autoComplete="off"
+                        placeholder={field.placeholder}
+                        value={keys[field.name]}
+                        aria-invalid={error ? true : undefined}
+                        onChange={(event) => setKey(field.name, event.target.value)}
+                      />
+                      <FieldDescription>Where: {field.where}</FieldDescription>
+                      {error ? <FieldError>{error}</FieldError> : null}
+                    </Field>
+                  );
+                })}
+              </FieldGroup>
+              {checkError ? (
+                <Alert variant="destructive">
+                  <XCircleIcon />
+                  <AlertDescription>{checkError}</AlertDescription>
+                </Alert>
+              ) : null}
+              {checks && !connected ? (
+                <Alert variant="destructive">
+                  <XCircleIcon />
+                  <AlertTitle>Some keys don’t work</AlertTitle>
+                  <AlertDescription>
+                    <ul>
+                      {checks
+                        .filter((check) => !check.ok)
+                        .map((check) => (
+                          <li key={check.name}>
+                            {check.name}: {check.message}
+                          </li>
+                        ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {connected ? (
+                <Alert>
+                  <CheckCircle2Icon />
+                  <AlertDescription>Connected. Database and file storage answer.</AlertDescription>
+                </Alert>
+              ) : null}
+            </>
+          ) : null}
+
+          {step === 3 ? (
+            <>
+              <h3 className="font-medium">Prepare the database</h3>
+              <p className="text-sm text-muted-foreground">
+                One click. Your local content, images and admin users move to Supabase.
+              </p>
+              <ol aria-label="Preparation" className="flex flex-col gap-2">
+                {PREPARE_TASKS.map((task, index) => (
+                  <li key={task} className="text-sm flex items-center gap-3">
+                    <TaskIcon state={tasks[index] ?? 'idle'} index={index} />
+                    <span
+                      className={cn(tasks[index] === 'idle' && 'text-muted-foreground')}
+                      data-state={tasks[index]}
+                    >
+                      {task}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="sb-copy"
+                  checked={copyData}
+                  disabled={preparing || tasks[1] === 'done'}
+                  onCheckedChange={(checked) => setCopyData(checked === true)}
+                />
+                <Label htmlFor="sb-copy" className="text-sm font-normal">
+                  Copy my local content, images and users
+                </Label>
+              </div>
+              {taskError ? (
+                <Alert variant="destructive">
+                  <XCircleIcon />
+                  <AlertTitle>A step failed</AlertTitle>
+                  <AlertDescription>{taskError} Fix it and click Prepare again.</AlertDescription>
+                </Alert>
+              ) : null}
+            </>
+          ) : null}
+
+          {step === 4 ? (
+            <>
+              <h3 className="font-medium">Add the keys to your hosting</h3>
+              <Tabs value={host} onValueChange={(value) => setHost(value as HostingPlatform)}>
+                <p className="text-sm mb-2 text-muted-foreground">Where is the site published?</p>
+                <TabsList>
+                  {HOSTING_GUIDES.map((guide) => (
+                    <TabsTrigger key={guide.id} value={guide.id}>
+                      {guide.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {HOSTING_GUIDES.map((guide) => (
+                  <TabsContent key={guide.id} value={guide.id} className="pt-3">
+                    <Steps items={guide.steps} />
+                  </TabsContent>
+                ))}
+              </Tabs>
+              <Field>
+                <FieldLabel htmlFor="sb-site-url">Site address</FieldLabel>
+                <Input
+                  id="sb-site-url"
+                  type="url"
+                  value={address}
+                  onChange={(event) => setAddress(event.target.value)}
+                />
+                <FieldDescription>Change it if the domain is different.</FieldDescription>
+              </Field>
+              <div className="rounded-md border">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      {variables(secrets).length} variables
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Secret values are hidden here, copied in full
+                    </span>
+                  </div>
+                  <Button type="button" size="sm" onClick={() => void copyAll()}>
+                    <CopyIcon />
+                    Copy all
+                  </Button>
+                </div>
+                <dl aria-label="Variables" className="text-xs flex flex-col divide-y font-mono">
+                  {variables(secrets).map(([name, value]) => (
+                    <div key={name} className="flex flex-wrap justify-between gap-x-4 px-3 py-2">
+                      <dt>{name}</dt>
+                      <dd className="break-all text-muted-foreground">
+                        {!value
+                          ? 'generated when you copy'
+                          : SECRET_HOSTING_VARIABLES.has(name)
+                            ? mask(value)
+                            : value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                The site address and the two secrets were filled in for you. Keep the copied text
+                private: it gives full access to the database.
+              </p>
+            </>
+          ) : null}
+
+          {step === LAST_STEP ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <CheckCircle2Icon
+                aria-hidden
+                className="text-emerald-600 dark:text-emerald-400 size-8"
+              />
+              <h3 className="font-medium">Supabase is connected</h3>
+              <p className="text-sm max-w-md text-muted-foreground">
+                Restart the local server (stop <code>pnpm dev</code> and start it again). After the
+                redeploy finishes, the live site uses the same database.
+              </p>
+            </div>
+          ) : null}
+        </section>
+
+        <DialogFooter>
+          {step > 1 && step < LAST_STEP ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={preparing || checking}
+              onClick={() => setStep(step - 1)}
+            >
+              Back
+            </Button>
+          ) : null}
+          {step === LAST_STEP ? (
+            <DialogClose render={<Button type="button" />}>Done</DialogClose>
+          ) : (
+            <Button type="button" disabled={primary.disabled} onClick={primary.run}>
+              {primary.disabled ? <Loader2Icon className="animate-spin" /> : null}
+              {primary.label}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

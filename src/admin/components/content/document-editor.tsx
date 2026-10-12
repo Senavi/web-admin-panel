@@ -252,7 +252,7 @@ export function DocumentEditor({
             <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
               <TabsList>
                 <TabsTrigger value="content">Content</TabsTrigger>
-                <TabsTrigger value="seo">SEO</TabsTrigger>
+                <TabsTrigger value="seo">Google &amp; sharing</TabsTrigger>
               </TabsList>
               <TabsContent value="content" keepMounted className="pt-4">
                 <SectionFields sections={data.document.sections} />

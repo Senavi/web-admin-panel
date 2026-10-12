@@ -1,10 +1,12 @@
 'use client';
 
-import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { useState } from 'react';
+import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
 
+import { AccordionSection } from '@/admin/components/layout/accordion';
 import { CharCounter } from '@/admin/components/forms/char-counter';
 import { MediaPicker } from '@/admin/components/media/media-picker';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/admin/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/admin/ui/card';
 import { FieldGroup } from '@/admin/ui/field';
 import { Input } from '@/admin/ui/input';
 import { Switch } from '@/admin/ui/switch';
@@ -32,7 +34,7 @@ function SearchPreview({
   const title = useText('seo.title') || fallbackTitle;
   const description = useText('seo.description') || fallbackDescription;
   return (
-    <div className="rounded-md border bg-background p-4" aria-label="Search result preview">
+    <div className="rounded-md border bg-background p-4" aria-label="Google preview">
       <p className="text-xs truncate text-muted-foreground">{url}</p>
       <p className="text-lg text-blue-700 dark:text-blue-400 truncate">
         {title.slice(0, 70) || 'Untitled'}
@@ -44,6 +46,14 @@ function SearchPreview({
   );
 }
 
+/** Fields in the closed "Advanced" block (it opens when one of them has an error). */
+const ADVANCED_FIELDS = ['noindex', 'canonical', 'ogTitle', 'ogDescription'] as const;
+
+/**
+ * The "Google & sharing" tab of a page editor: a Google preview, title,
+ * description and share picture; rarely needed options (hide from Google,
+ * canonical address, share texts) sit in a closed "Advanced" block.
+ */
 export function SeoPanel({
   publicUrl,
   defaults,
@@ -54,29 +64,44 @@ export function SeoPanel({
   const { register } = useFormContext();
   const title = useText('seo.title');
   const description = useText('seo.description');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const { errors, submitCount } = useFormState({ name: 'seo' });
+  const seoErrors = (errors.seo ?? {}) as Record<string, unknown>;
+  const advancedInvalid = ADVANCED_FIELDS.some((field) => seoErrors[field] !== undefined);
+
+  // An error inside opens the block after a save attempt, until it is closed again.
+  const [closedAtSubmit, setClosedAtSubmit] = useState(0);
+  const open = advancedOpen || (advancedInvalid && submitCount > closedAtSubmit);
+  const onOpenChange = (next: boolean) => {
+    setAdvancedOpen(next);
+    if (!next) setClosedAtSubmit(submitCount);
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>
-            <h2>Search engines</h2>
+            <h2>How it looks in Google</h2>
           </CardTitle>
-          <CardDescription>
-            Leave empty to use the page defaults (“{defaults.title}”).
-          </CardDescription>
         </CardHeader>
         <CardContent>
+          <SearchPreview
+            url={publicUrl}
+            fallbackTitle={defaults.title}
+            fallbackDescription={defaults.description}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
           <FieldGroup>
-            <SearchPreview
-              url={publicUrl}
-              fallbackTitle={defaults.title}
-              fallbackDescription={defaults.description}
-            />
             <FieldShell
               id="seo-title"
               name="seo.title"
-              label="Meta title"
+              label="Title in Google"
+              help={`Leave empty to use “${defaults.title}”.`}
               aside={
                 <CharCounter
                   length={title.length}
@@ -90,7 +115,8 @@ export function SeoPanel({
             <FieldShell
               id="seo-description"
               name="seo.description"
-              label="Meta description"
+              label="Description in Google"
+              help="One or two sentences."
               aside={
                 <CharCounter
                   length={description.length}
@@ -106,65 +132,62 @@ export function SeoPanel({
                 {...register('seo.description')}
               />
             </FieldShell>
-            <FieldShell
-              id="seo-canonical"
-              name="seo.canonical"
-              label="Canonical URL"
-              help="Only set this when the same content lives at another URL."
-            >
-              <Input id="seo-canonical" placeholder="https://…" {...register('seo.canonical')} />
-            </FieldShell>
-            <FieldShell
-              id="seo-noindex"
-              name="seo.noindex"
-              label="Hide this page from search engines"
-              help="Adds noindex and removes it from the sitemap."
-            >
-              <Controller
-                name="seo.noindex"
-                render={({ field }) => (
-                  <Switch
-                    id="seo-noindex"
-                    checked={Boolean(field.value)}
-                    onCheckedChange={(checked) => field.onChange(checked)}
-                  />
-                )}
-              />
-            </FieldShell>
-          </FieldGroup>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2>Social sharing (Open Graph)</h2>
-          </CardTitle>
-          <CardDescription>
-            Used when the page is shared on social networks and messengers.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <FieldShell id="seo-og-title" name="seo.ogTitle" label="Share title">
-              <Input
-                id="seo-og-title"
-                placeholder="Defaults to the meta title"
-                {...register('seo.ogTitle')}
-              />
-            </FieldShell>
-            <FieldShell id="seo-og-description" name="seo.ogDescription" label="Share description">
-              <Textarea
-                id="seo-og-description"
-                rows={2}
-                placeholder="Defaults to the meta description"
-                {...register('seo.ogDescription')}
-              />
-            </FieldShell>
             <OgImage />
           </FieldGroup>
         </CardContent>
       </Card>
+
+      <AccordionSection
+        title="Advanced"
+        summary="Rarely needed"
+        open={open}
+        onOpenChange={onOpenChange}
+        invalid={advancedInvalid}
+      >
+        <FieldGroup>
+          <FieldShell
+            id="seo-noindex"
+            name="seo.noindex"
+            label="Hide this page from Google"
+            help="The page stays on the site but doesn’t appear in search."
+          >
+            <Controller
+              name="seo.noindex"
+              render={({ field }) => (
+                <Switch
+                  id="seo-noindex"
+                  checked={Boolean(field.value)}
+                  onCheckedChange={(checked) => field.onChange(checked)}
+                />
+              )}
+            />
+          </FieldShell>
+          <FieldShell
+            id="seo-canonical"
+            name="seo.canonical"
+            label="Main address of this content"
+            help="Only if the same text is published at another address."
+          >
+            <Input id="seo-canonical" placeholder="Leave empty" {...register('seo.canonical')} />
+          </FieldShell>
+          <FieldShell
+            id="seo-og-title"
+            name="seo.ogTitle"
+            label="Title when shared"
+            help="Leave empty to use the title in Google."
+          >
+            <Input id="seo-og-title" {...register('seo.ogTitle')} />
+          </FieldShell>
+          <FieldShell
+            id="seo-og-description"
+            name="seo.ogDescription"
+            label="Description when shared"
+            help="Leave empty to use the description in Google."
+          >
+            <Textarea id="seo-og-description" rows={2} {...register('seo.ogDescription')} />
+          </FieldShell>
+        </FieldGroup>
+      </AccordionSection>
     </div>
   );
 }
@@ -175,8 +198,8 @@ function OgImage() {
     <FieldShell
       id="seo-og-image"
       name="seo.ogImageId"
-      label="Share image"
-      help="Recommended: 1200×630. Defaults to the site’s default share image."
+      label="Picture when shared in messengers"
+      help="Optional. 1200×630 works best. The site’s default picture is used otherwise."
     >
       <Controller
         name="seo.ogImageId"
@@ -185,7 +208,7 @@ function OgImage() {
           return (
             <MediaPicker
               id="seo-og-image"
-              label="Share image"
+              label="Picture when shared in messengers"
               mediaId={mediaId}
               preview={mediaId ? media[mediaId] : undefined}
               onChange={field.onChange}

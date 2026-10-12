@@ -45,7 +45,7 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
   if (contentRegistry.collections.length > 0) {
     groups.push({
       id: PagesArea.Collections,
-      title: 'Collections',
+      title: 'Blog & lists',
       items: contentRegistry.collections.map((collection) => {
         const count = itemCounts[collection.id] ?? 0;
         return {
@@ -62,7 +62,7 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
   if (contentRegistry.globals.length > 0) {
     groups.push({
       id: PagesArea.SiteWide,
-      title: 'Site-wide',
+      title: 'Every page',
       items: contentRegistry.globals.map((global) => ({
         id: global.id,
         label: global.label,

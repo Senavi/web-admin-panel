@@ -13,6 +13,7 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -21,7 +22,16 @@ import { signOutAction } from '@/core/auth/actions';
 import type { Role } from '@/core/auth/roles';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 
-export function AppSidebar({ role, siteName }: { role: Role; siteName: string }) {
+export function AppSidebar({
+  role,
+  siteName,
+  badges = {},
+}: {
+  role: Role;
+  siteName: string;
+  /** Short text next to a nav item, keyed by its href (e.g. "3 new" on Pages). */
+  badges?: Readonly<Record<string, string>>;
+}) {
   const pathname = usePathname();
   const items = navForRole(role);
 
@@ -62,6 +72,11 @@ export function AppSidebar({ role, siteName }: { role: Role; siteName: string })
                       <item.icon />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
+                    {badges[item.href] ? (
+                      <SidebarMenuBadge className="rounded-full bg-primary px-1.5 text-primary-foreground peer-hover/menu-button:text-primary-foreground peer-data-active/menu-button:text-primary-foreground">
+                        {badges[item.href]}
+                      </SidebarMenuBadge>
+                    ) : null}
                   </SidebarMenuItem>
                 );
               })}

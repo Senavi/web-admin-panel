@@ -53,15 +53,19 @@ export function useToggleDeveloperMode() {
 export function DeveloperSection({
   children,
   title = 'Developer settings',
+  id,
 }: {
   children: ReactNode;
   title?: string;
+  /** Anchor for links (e.g. the local-database banner → Security). */
+  id?: string;
 }) {
   if (!useDeveloperMode()) return null;
   return (
     <section
+      id={id}
       aria-label={title}
-      className="flex flex-col gap-4 rounded-lg border border-dashed p-4"
+      className="flex scroll-mt-20 flex-col gap-4 rounded-lg border border-dashed p-4"
       data-developer-section
     >
       <div className="flex items-center gap-2">
