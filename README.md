@@ -20,6 +20,9 @@ pnpm dev
 Open http://localhost:3000 (site) and http://localhost:3000/admin (admin). The development
 admin's credentials are written to `.data/dev-admin-credentials.txt` on the first run.
 
+If `pnpm dev` keeps reloading the page right after a production build (`pnpm build`,
+`pnpm e2e:prod`), stop it, delete `.next/dev` and start it again (stale dev cache).
+
 ## Features
 
 - Plain-language admin for clients: collapsed sections with summaries, Settings in tabs
