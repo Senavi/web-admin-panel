@@ -16,11 +16,12 @@ async function openManagers(page: Page) {
   await expect(usersTable(page)).toBeVisible();
 }
 
-async function rowAction(page: Page, email: string, action: string) {
+/** Opens the person's Edit dialog and clicks one of its actions (or just opens it). */
+async function rowAction(page: Page, email: string, action?: string) {
   await rowFor(page, email)
-    .getByRole('button', { name: `Actions for ${email}` })
+    .getByRole('button', { name: `Edit ${email}` })
     .click();
-  await page.getByRole('menuitem', { name: action }).click();
+  if (action) await page.getByRole('dialog').getByRole('button', { name: action }).click();
 }
 
 test.describe.serial('managers', () => {
@@ -30,11 +31,11 @@ test.describe.serial('managers', () => {
   test('admin adds a manager and sees the temporary password once', async ({ page }) => {
     await login(page, E2E_ADMIN);
     await openManagers(page);
-    await page.getByRole('button', { name: 'Add user' }).click();
-    const form = page.getByRole('form', { name: 'Add user' });
+    await page.getByRole('button', { name: 'Add person' }).click();
+    const form = page.getByRole('form', { name: 'Add person' });
     await form.getByLabel('Name').fill('New Manager');
     await form.getByLabel('Email').fill(email);
-    await form.getByRole('button', { name: 'Create user' }).click();
+    await form.getByRole('button', { name: 'Add', exact: true }).click();
     temporaryPassword = (await page.getByTestId('temporary-password').inputValue()).trim();
     expect(temporaryPassword.length).toBeGreaterThanOrEqual(12);
     await page.getByRole('button', { name: 'Done' }).click();
@@ -70,8 +71,8 @@ test.describe.serial('managers', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
     await expect(page.getByText('You cannot delete your own account.')).toBeVisible();
 
-    await rowAction(page, E2E_ADMIN.email, 'Edit name & role');
-    const form = page.getByRole('form', { name: 'Edit user' });
+    await rowAction(page, E2E_ADMIN.email);
+    const form = page.getByRole('form', { name: 'Edit person' });
     await form.getByLabel('Role').click();
     await page.getByRole('option', { name: 'Manager' }).click();
     await form.getByRole('button', { name: 'Save' }).click();

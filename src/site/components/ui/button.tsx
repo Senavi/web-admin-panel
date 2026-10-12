@@ -7,6 +7,25 @@ import { buttonClasses, type ButtonVariant } from './button-styles';
 
 export type { ButtonVariant } from './button-styles';
 
+/** Native button (form submits, actions) with the shared button styles. */
+export function Button({
+  type = 'button',
+  variant = 'primary',
+  className,
+  children,
+}: {
+  type?: 'button' | 'submit' | 'reset';
+  variant?: ButtonVariant;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button type={type} className={buttonClasses(variant, className)}>
+      {children}
+    </button>
+  );
+}
+
 /** Link styled as a button. Internal links get the locale prefix; external links open safely. */
 export async function ButtonLink({
   href,

@@ -1,7 +1,7 @@
 import type { SitePageContent } from '@/core/content/loader';
 
 import { FeatureIcon } from '../components/feature-icon';
-import { Container, Section } from '../components/ui/layout';
+import { Container, Section, SectionIntro } from '../components/ui/layout';
 import { Heading, Text } from '../components/ui/typography';
 
 type Props = { content: SitePageContent<'home'>['features'] };
@@ -10,7 +10,7 @@ export function FeaturesSection({ content }: Props) {
   return (
     <Section tone="surface" labelledBy="features-title">
       <Container className="flex flex-col gap-stack">
-        <div className="flex max-w-prose flex-col gap-3">
+        <SectionIntro>
           <Heading level={2} id="features-title">
             {content.heading}
           </Heading>
@@ -19,7 +19,7 @@ export function FeaturesSection({ content }: Props) {
               {content.intro}
             </Text>
           ) : null}
-        </div>
+        </SectionIntro>
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {content.items.map((item) => (
             <li

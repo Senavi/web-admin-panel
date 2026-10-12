@@ -71,7 +71,7 @@ export function SubmissionActions({
           disabled={busy}
           onClick={async () => {
             const yes = await confirm({
-              title: 'Delete this submission?',
+              title: 'Delete this request?',
               description: 'It is removed permanently (for example after a GDPR request).',
               confirmLabel: 'Delete',
               destructive: true,

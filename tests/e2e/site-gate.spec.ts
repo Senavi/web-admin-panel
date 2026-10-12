@@ -37,7 +37,7 @@ test.describe.serial('site gate', () => {
 
     await page.goto('/about');
     await expect(page.locator('h1')).toHaveText('About us');
-    await expect(page.getByText('Maintenance mode is on')).toBeVisible();
+    await expect(page.getByText('The site is paused')).toBeVisible();
 
     await updateSiteStatus(page, { maintenance: false });
     await waitForPublicSite(baseURL);

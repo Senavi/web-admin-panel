@@ -47,7 +47,7 @@ export function ImageControl({ name, field, label, contentPath }: FieldControlPr
         }}
       />
       <label htmlFor={altId} className="text-xs text-muted-foreground">
-        Alt text (this language): describe the image for screen readers
+        Image description (this language): what the picture shows, for people who can’t see it
       </label>
       <Input id={altId} readOnly={readOnly} {...register(`${name}.alt`)} />
     </FieldShell>

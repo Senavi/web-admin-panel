@@ -68,9 +68,9 @@ const valid = (name: string): ContactInput => ({
 /** Submissions in the admin inbox whose data contains `search` (all statuses). */
 async function inboxCount(page: Page, search: string): Promise<number> {
   await page.goto(`/admin/pages/forms/contact?status=all&q=${encodeURIComponent(search)}`);
-  const rows = page.getByRole('table', { name: 'Submissions' }).getByRole('row');
+  const rows = page.getByRole('table', { name: 'Requests' }).getByRole('row');
   await expect(rows.first()).toBeVisible();
-  if (await page.getByText('No submissions here.').isVisible()) return 0;
+  if (await page.getByText('No requests here.').isVisible()) return 0;
   return (await rows.count()) - 1;
 }
 
@@ -153,6 +153,15 @@ test.describe.serial('forms', () => {
     await submit(page);
     await expect(page.getByRole('heading', { name: 'Дякуємо!' })).toBeVisible();
     await context.close();
+  });
+
+  test('oversized submissions are refused with 413 before parsing', async ({ page, baseURL }) => {
+    const origin = new URL(baseURL ?? 'http://localhost').origin;
+    const response = await page.request.post('/api/forms/submit', {
+      headers: { origin, 'content-type': 'application/x-www-form-urlencoded' },
+      data: `message=${'x'.repeat(70 * 1024)}`,
+    });
+    expect(response.status()).toBe(413);
   });
 
   test('honeypot and too-fast submissions are dropped silently', async ({ browser, page }) => {
@@ -283,7 +292,7 @@ test.describe.serial('forms', () => {
     await adminPage.goto(
       `/admin/pages/forms/contact?status=all&q=${encodeURIComponent(`NoJS ${stamp}`)}`,
     );
-    await adminPage.getByRole('table', { name: 'Submissions' }).getByRole('link').first().click();
+    await adminPage.getByRole('table', { name: 'Requests' }).getByRole('link').first().click();
     await expect(adminPage.getByRole('button', { name: 'Delete' })).toBeVisible();
     await adminPage.getByRole('button', { name: 'Delete' }).click();
     const [deleteRequest] = await Promise.all([
@@ -292,14 +301,14 @@ test.describe.serial('forms', () => {
       ),
       adminPage.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click(),
     ]);
-    await expect(adminPage.getByText('Submission deleted.')).toBeVisible();
+    await expect(adminPage.getByText('Request deleted.')).toBeVisible();
     await admin.close();
 
     const manager = await browser.newContext();
     const page = await manager.newPage();
     await login(page, E2E_MANAGER);
     await page.goto('/admin/pages/forms/contact?status=all');
-    await page.getByRole('table', { name: 'Submissions' }).getByRole('link').first().click();
+    await page.getByRole('table', { name: 'Requests' }).getByRole('link').first().click();
     await expect(page.getByRole('button', { name: /Mark as/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 

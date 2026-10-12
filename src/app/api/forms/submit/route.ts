@@ -1,9 +1,15 @@
 import { renderFallbackPage } from '@/core/forms/fallback-page';
 import { FormHiddenField } from '@/core/forms/fields';
-import { FORM_SUBMIT_PATH, type FormSubmitResponse, JSON_ACCEPT } from '@/core/forms/paths';
+import {
+  FORM_MAX_BODY_BYTES,
+  FORM_SUBMIT_PATH,
+  type FormSubmitResponse,
+  JSON_ACCEPT,
+} from '@/core/forms/paths';
 import { processSubmission, withFreshToken } from '@/core/forms/process';
 import { getSiteFormConfig } from '@/core/forms/site';
 import { FormSubmitStatus } from '@/core/forms/state';
+import { PAYLOAD_TOO_LARGE, parseFormData, readLimitedBody } from '@/core/http/body-limit';
 import { NO_STORE } from '@/core/http/headers';
 import { safeRedirectPath } from '@/core/project/paths';
 import { assertSameOrigin } from '@/core/security/origin';
@@ -11,12 +17,25 @@ import { assertSameOrigin } from '@/core/security/origin';
 /**
  * Every site form submission. Script submissions (`Accept: application/json`,
  * from `useSiteForm`) get the state as JSON; plain form posts (no JavaScript)
- * get a redirect (thank-you page) or a minimal HTML page.
+ * get a redirect (thank-you page) or a minimal HTML page. Bodies over
+ * FORM_MAX_BODY_BYTES are refused with 413 before parsing.
  */
 export async function POST(request: Request): Promise<Response> {
   const forbidden = assertSameOrigin(request);
   if (forbidden) return forbidden;
-  const data = await request.formData();
+  const body = await readLimitedBody(request, FORM_MAX_BODY_BYTES);
+  if (!body) {
+    return new Response('Payload too large', {
+      status: PAYLOAD_TOO_LARGE,
+      headers: { 'Cache-Control': NO_STORE },
+    });
+  }
+  let data: FormData;
+  try {
+    data = await parseFormData(request, body);
+  } catch {
+    return new Response('Bad request', { status: 400, headers: { 'Cache-Control': NO_STORE } });
+  }
   const outcome = await processSubmission(data, request.headers);
   if (request.headers.get('accept')?.includes(JSON_ACCEPT)) {
     const body: FormSubmitResponse = {

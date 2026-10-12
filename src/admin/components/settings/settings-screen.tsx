@@ -105,13 +105,16 @@ export function SettingsScreen(props: SettingsScreenProps) {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       }}
     >
-      <TabsList className="h-auto flex-wrap">
-        {tabs.map((value) => (
-          <TabsTrigger key={value} value={value}>
-            {TAB_LABELS[value]}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      {/* On phones the tab bar scrolls sideways instead of wrapping. */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <TabsList className="w-max">
+          {tabs.map((value) => (
+            <TabsTrigger key={value} value={value}>
+              {TAB_LABELS[value]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
       <div className="max-w-3xl pt-4">
         <TabsContent value={SettingsTab.General}>
           <GeneralTab {...props} />

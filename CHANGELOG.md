@@ -6,6 +6,63 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-12
+
+A simpler admin for clients: plain words, fewer things on screen, technical settings
+behind a per-user developer mode.
+
+### Added
+
+- **Developer mode** per user (avatar menu and Account page): shows technical settings in
+  a dashed "Developer settings" block and the local-database banner (development only).
+- One accordion rule: first section open, others closed with a summary, Expand all /
+  Collapse all, sections with errors open on save (editor, Account, Overview).
+- **Settings tabs** (`?tab=`): General, Brand, Google & sharing, Requests, Site access;
+  one save per tab and a sticky "You have unsaved changes" bar.
+- Editor tab **Google & sharing** with a Google preview; noindex, canonical and share texts
+  in a closed "Advanced" block.
+- Overview: Visitors, Page views, New requests (link to the inbox); "More statistics"
+  closed; one status line. Main navigation shows "N new" requests on Pages.
+- Security: status card, signed-in devices, recent activity as sentences and a full
+  **Activity** page (`/admin/security/activity`).
+- **Connect Supabase** as a 5-step dialog with progress: "Where:" help per key, one-click
+  "Prepare database", Vercel/Netlify instructions and **Copy all** (7 variables with fresh
+  `AUTH_SECRET` / `CRON_SECRET`). The anon key is optional.
+- Managers: role cards and an Edit dialog with 2FA, dates and every action.
+- Site primitives `SectionIntro`, `SplitContainer`, `MediaFrame` and `Button`.
+
+### Changed
+
+- Client words in the UI (code names unchanged): Pause the site, Private site, Show the
+  site in Google, Browser tab icon, Picture when shared in messengers, Image description,
+  Same in all languages, Requests, Download as Excel, Activity, Signed-in devices. Pages
+  sidebar groups: Pages, Blog & lists, Every page, Forms.
+- Settings save through one action, `saveSettingsAction({ groups, localized })` (patch per
+  group and locale, one transaction); the per-group settings actions were removed
+  (internal API).
+- Every screen uses the shared page header; form columns are at most ~760px wide.
+- Organization data in JSON-LD defaults to the site name and logo.
+- The Security page no longer shows the environment table.
+
+### Fixed
+
+- `/api/forms/submit` answers 413 for bodies over 64 KB before parsing, and 400 for
+  malformed bodies.
+- The editor title no longer truncates to a few letters next to the toolbar.
+- Unit test setup timeouts under parallel load.
+
+### Removed
+
+- `@tanstack/react-table` (the Managers table is a plain table).
+
+### Upgrading from 1.2.0
+
+1. Merge the template update (core, scripts, tests, configs). Project files keep working;
+   if your project copied the demo's hero/page-intro/CTA markup you can switch to the new
+   site primitives (optional).
+2. Run `pnpm db:migrate` (additive: `users.developer_mode`, default off).
+3. Update e2e tests of your own that click old labels (see "Changed").
+
 ## [1.2.0] - 2026-10-09
 
 ### Added

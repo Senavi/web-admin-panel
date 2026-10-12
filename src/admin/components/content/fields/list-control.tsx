@@ -49,7 +49,7 @@ export function ListControl({ name, field, label }: FieldControlProps<ListField>
           {fields.length}
           {field.max !== undefined ? ` / ${field.max}` : ''}
         </Badge>
-        {!field.localized ? <Badge variant="secondary">Shared across languages</Badge> : null}
+        {!field.localized ? <Badge variant="secondary">Same in all languages</Badge> : null}
       </div>
       {field.help ? <p className="text-sm text-muted-foreground">{field.help}</p> : null}
       <ol className="flex flex-col gap-2">

@@ -47,7 +47,7 @@ Enforced by ESLint (`eslint.config.mjs`):
 - Better Auth (`src/core/auth/server/config.ts`) with the Drizzle adapter, `twoFactor`
   plugin, DB-backed rate limiting and `nextCookies`. Sessions are DB-backed httpOnly
   cookies (`site.session_token`, `__Secure-` prefixed in production, SameSite=Lax);
-  lifetime comes from Settings → Security policy.
+  lifetime comes from Settings → Site access (developer mode).
 - Server actions in `src/core/auth/actions.ts` are the only way to sign in, verify 2FA,
   change passwords or manage sessions. The HTTP handler exposes an allowlist (D-014).
 - Guards (`src/core/auth/server/session.ts`): `requireUser`, `requirePermission` for pages,
@@ -80,7 +80,7 @@ Enforced by ESLint (`eslint.config.mjs`):
    `Retry-After` (staff bypass). Private mode → redirect to `/access?next=…` (staff bypass).
    Maintenance beats private mode. Indexing off or private mode → `X-Robots-Tag: noindex, nofollow`.
 6. **Locale routing** (see i18n below). Staff get a `site_notice` cookie that the site's tiny
-   `StaffNotice` component reads to show "Maintenance mode is on" on the static pages.
+   `StaffNotice` component reads to show "The site is paused" on the static pages.
 
 `/access` uses the same login form and actions as the admin (any active admin/manager).
 

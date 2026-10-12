@@ -84,7 +84,7 @@ The admin editor for the page is generated automatically.
 `src/content/collections/<id>.ts` with a registered list page, register it in
 `collections: […]`, add the list route (`createCollectionListRoute`) and the item route
 `…/<list path>/[slug]/page.tsx` (`createCollectionItemRoute`), then `pnpm content:sync` and
-`pnpm content:check`. Items are created in **Pages → Collections**.
+`pnpm content:check`. Items are created in **Pages → Blog & lists**.
 
 **Globals** (header/footer copy, contacts, social links): `defineGlobal` in
 `src/content/globals/<id>.ts`, register it in `globals: […]`, read it in layout components
@@ -93,7 +93,7 @@ with `getGlobalContent('<id>', locale)`. No route needed.
 **Forms**: `defineForm` in `src/content/forms/<id>.ts`, register it in `forms: […]`, render it
 with a project client component built on `useSiteForm` (copy
 `src/site/components/contact-form.tsx` and restyle it) plus `<FormSecurityFields>`, and set
-delivery in **Settings → Forms** (secrets in env, docs/DEPLOYMENT.md § Forms).
+delivery in **Settings → Requests** (secrets in env, docs/DEPLOYMENT.md § Forms).
 
 ### 6. Languages
 
@@ -127,7 +127,7 @@ data to Supabase with **Security → Connect Supabase**.
 | UI strings                                           | `src/site/messages/*.json`                                           |
 | Blog-like content with item URLs                     | `defineCollection` + `createCollectionListRoute` / `ItemRoute`       |
 | Content shared by many pages                         | `defineGlobal` + `getGlobalContent`                                  |
-| Contact and lead forms                               | `defineForm` + `useSiteForm` + Settings → Forms                      |
+| Contact and lead forms                               | `defineForm` + `useSiteForm` + Settings → Requests                   |
 | Spam challenge for forms (Cloudflare Turnstile)      | `projectConfig.forms.turnstile` + `TURNSTILE_SECRET_KEY`             |
 
 ### Content Security Policy for third parties

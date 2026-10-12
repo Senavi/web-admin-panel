@@ -342,6 +342,8 @@ bump `session_version` so signed gate cookies with an old role stop working.
 
 shadcn's DataTable pattern targets `@tanstack/react-table` v8. v9 (current) has a new
 API, so we pin v8. **Revisit** when shadcn's pattern moves to v9.
+**Superseded in 1.3 (D-077):** the Managers table became a plain table and the dependency
+was removed.
 
 ### D-052 Connect Supabase runs in development only
 
@@ -351,6 +353,8 @@ key), applies migrations via the direct URL, copies users/settings/content/revis
 policies, creates a public-read bucket, and writes `.env.local`. In production the Security
 page shows a read-only environment checklist, because hosting platforms own env vars and
 secrets are never stored in the database.
+**Updated in 1.3 (D-076):** the environment table is gone; the wizard is a 5-step dialog in
+developer mode and the anon key is optional.
 
 ### D-053 Invite emails as an extension point
 
@@ -518,3 +522,64 @@ delivered independently and recorded per destination on the submission (shown in
 inbox). Failures are retried by the maintenance job (5 attempts within 7 days); retention
 (Settings → Forms, default 12 months) deletes old submissions. Secrets only in env; the
 email body is plain text; nothing from a submission is logged.
+
+## v1.3: simpler admin
+
+### D-072 Developer mode is a per-user display preference
+
+`users.developer_mode` (boolean, default off, additive migration 0004) is switched in the
+avatar menu or on the Account page by an audited server action. When off, technical
+settings are **not rendered** (one shared `DeveloperSection`: dashed border, "Developer
+settings"); the local-database banner shows only in development with it on. It is not
+access control: every action still checks its permission on the server, so an admin
+without developer mode can call the same actions, and a manager with it on gains nothing.
+
+### D-073 One accordion rule for the whole admin
+
+In a list of sections only the first starts open; a standalone collapsible starts
+closed. Closed headers show a short summary (first values, "N items"). Lists offer
+"Expand all / Collapse all"; a section with a validation error opens on save. One
+component (`admin/components/layout/accordion.tsx`) implements it for the editor,
+Account, Overview ("More statistics") and the editor's "Advanced" block.
+
+### D-074 Settings are tabs with one save per tab
+
+General, Brand, Google & sharing, Requests and Site access (`?tab=`). Each tab is one form
+and one save through `saveSettingsAction({ groups, localized })`: partial values are merged
+into the stored group, the whole group is validated, everything is written in one
+transaction and an audit entry is written per changed group/locale with the changed keys
+only. Field errors come back keyed like the form (`groups.<group>.<field>`). A sticky bar
+shows "You have unsaved changes". "Add the site name to page titles" maps to the title
+template (`%s — {siteName}` or `%s`); the template itself is a developer setting.
+
+### D-075 Client words in the UI, code names unchanged
+
+The UI says Pause the site, Private site, Show the site in Google, Browser tab icon,
+Picture when shared in messengers, Image description, Same in all languages, Requests,
+Download as Excel, Activity, Signed-in devices. Code, settings keys, permissions and audit
+action ids keep their names (maintenance, privateMode, indexing, submissions, audit), so
+no data migration is needed. Client-facing descriptions avoid HTTP codes and header names.
+
+### D-076 Security shows a status, not an environment dump
+
+The Security page shows one status ("Everything works" or problems in plain words:
+database, file storage, email), signed-in devices and recent activity as sentences with
+a link to the full Activity log (`/admin/security/activity`, filters). The environment
+table was removed: required production variables already fail startup (env schema).
+Database, storage and email details and Connect Supabase are developer-mode only;
+Connect Supabase remains development-only (server-enforced). Its hosting step generates
+`AUTH_SECRET` and `CRON_SECRET` in the browser (Web Crypto, 32 bytes) when "Copy all" is
+clicked; they are copied to the clipboard and never sent to the server. Hosting
+instructions live in one data file (`admin/components/security/hosting-guides.ts`).
+
+### D-077 Managers: role cards and one Edit dialog
+
+Two role cards explain what Admin and Manager can do. The table shows name + email, role,
+last sign-in and Edit; 2FA status, the added date and every action (reset password, sign
+out everywhere, disable, delete) are in the Edit dialog. The guards (D-050) are unchanged.
+
+### D-078 Form submissions are size-limited before parsing
+
+`/api/forms/submit` refuses bodies over 64 KB with 413: first by `Content-Length`, then by
+counting streamed bytes, so an oversized body is never buffered or parsed in full.
+Malformed bodies get 400 instead of a server error.

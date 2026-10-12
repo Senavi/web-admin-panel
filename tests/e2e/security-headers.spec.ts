@@ -53,6 +53,6 @@ test('pages run without CSP violations (site, blog, forms, editor, dashboard)', 
   await expect(page.locator('form[aria-label="General"][data-hydrated]')).toBeVisible();
   await page.goto('/admin/pages/collections/blog');
   await page.goto('/admin/pages/forms/contact');
-  await expect(page.getByRole('table', { name: 'Submissions' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Requests' })).toBeVisible();
   expect(violations).toEqual([]);
 });

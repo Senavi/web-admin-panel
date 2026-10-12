@@ -16,7 +16,7 @@ export async function generateMetadata({
   params,
 }: PageProps<'/admin/pages/site-wide/[globalId]'>): Promise<Metadata> {
   const { globalId } = await params;
-  return { title: contentRegistry.globalById(globalId)?.label ?? 'Site-wide' };
+  return { title: contentRegistry.globalById(globalId)?.label ?? 'Every page' };
 }
 
 /** Site-wide content (header, footer, contacts…): the generated editor without SEO. */

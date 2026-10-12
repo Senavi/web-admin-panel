@@ -70,6 +70,6 @@ export async function deleteSubmissionAction(input: unknown): Promise<ActionResu
       target: `form:${form.id}`,
       summary: { submissionId: id },
     });
-    return ok(null, 'Submission deleted.');
+    return ok(null, 'Request deleted.');
   });
 }

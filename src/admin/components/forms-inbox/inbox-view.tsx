@@ -85,11 +85,11 @@ export function InboxView({
   return (
     <div className="flex flex-col gap-4">
       {open ? (
-        <Card aria-label="Submission">
+        <Card aria-label="Request">
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <CardTitle>
-                <h2>Submission from {formatDateTime(open.createdAt)}</h2>
+                <h2>Request from {formatDateTime(open.createdAt)}</h2>
               </CardTitle>
               <p className="text-xs text-muted-foreground">
                 {STATUS_LABEL[open.status]} · {open.locale.toUpperCase()} · {open.pagePath ?? '—'}
@@ -122,7 +122,7 @@ export function InboxView({
           method="get"
           action={basePath}
           className="flex flex-wrap items-center gap-2"
-          aria-label="Filter submissions"
+          aria-label="Filter requests"
         >
           <select
             name="status"
@@ -140,8 +140,8 @@ export function InboxView({
             type="search"
             name="q"
             defaultValue={search}
-            placeholder="Search submissions"
-            aria-label="Search submissions"
+            placeholder="Search requests"
+            aria-label="Search requests"
             className="max-w-64"
           />
           <Button type="submit" variant="outline" size="sm">
@@ -150,11 +150,11 @@ export function InboxView({
         </form>
         <Button variant="outline" size="sm" nativeButton={false} render={<a href={exportHref} />}>
           <DownloadIcon />
-          Export CSV
+          Download as Excel
         </Button>
       </div>
 
-      <Table aria-label="Submissions">
+      <Table aria-label="Requests">
         <TableHeader>
           <TableRow>
             <TableHead>Received</TableHead>
@@ -167,7 +167,7 @@ export function InboxView({
           {inbox.rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={4} className="text-sm py-8 text-center text-muted-foreground">
-                No submissions here.
+                No requests here.
               </TableCell>
             </TableRow>
           ) : (
@@ -203,7 +203,7 @@ export function InboxView({
       {inbox.pageCount > 1 ? (
         <nav aria-label="Pagination" className="flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">
-            Page {inbox.page} of {inbox.pageCount} · {inbox.total} submissions
+            Page {inbox.page} of {inbox.pageCount} · {inbox.total} requests
           </span>
           <span className="flex gap-2">
             {inbox.page > 1 ? (

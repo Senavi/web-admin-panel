@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
 import { SimpleSelect } from '@/admin/components/forms/simple-select';
 import { TextField } from '@/admin/components/forms/text-field';
@@ -28,16 +28,24 @@ export interface EditableUser {
 
 const roleOptions = ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
 
-/** Add a user (→ temporary password) or edit name/role. */
+/**
+ * Add a person (→ temporary password) or edit name/role. When editing,
+ * `details` (2FA, dates) and `actions` (reset password, sign out, disable,
+ * delete) are shown below the form.
+ */
 export function UserFormDialog({
   open,
   user,
+  details,
+  actions,
   onClose,
   onCreated,
   onSaved,
 }: {
   open: boolean;
   user: EditableUser | null;
+  details?: ReactNode;
+  actions?: ReactNode;
   onClose: () => void;
   onCreated: (email: string, temporaryPassword: string) => void;
   onSaved: () => void;
@@ -46,6 +54,7 @@ export function UserFormDialog({
   const create = useAction(createUserAction, { toastOnSuccess: true });
   const update = useAction(updateUserAction);
   const action = user ? update : create;
+  const title = user ? 'Edit person' : 'Add person';
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -63,19 +72,14 @@ export function UserFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent>
-        <form
-          method="post"
-          onSubmit={submit}
-          noValidate
-          aria-label={user ? 'Edit user' : 'Add user'}
-        >
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <form method="post" onSubmit={submit} noValidate aria-label={title}>
           <DialogHeader>
-            <DialogTitle>{user ? 'Edit user' : 'Add user'}</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
               {user
                 ? user.email
-                : 'A temporary password is generated. The user must change it at first sign-in.'}
+                : 'A temporary password is created. They change it at first sign-in.'}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup className="py-4">
@@ -106,10 +110,16 @@ export function UserFormDialog({
             </Button>
             <Button type="submit" disabled={action.pending}>
               {action.pending ? <Spinner /> : null}
-              {user ? 'Save' : 'Create user'}
+              {user ? 'Save' : 'Add'}
             </Button>
           </DialogFooter>
         </form>
+        {user && (details || actions) ? (
+          <div className="flex flex-col gap-4 border-t pt-4">
+            {details}
+            {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

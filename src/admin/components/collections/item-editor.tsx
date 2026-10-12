@@ -78,7 +78,8 @@ export function ItemEditor(props: ItemEditorProps) {
   const onDelete = async () => {
     const yes = await confirm({
       title: `Delete this ${collection.itemLabel.toLowerCase()}?`,
-      description: 'All languages, SEO settings and history are deleted. Its URL stops working.',
+      description:
+        'All languages, Google settings and history are deleted. Its address stops working.',
       confirmLabel: 'Delete',
       destructive: true,
     });

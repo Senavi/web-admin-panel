@@ -167,7 +167,7 @@ export function DocumentEditor({
           data-hydrated={hydrated || undefined}
         >
           <div className="sticky top-14 z-[5] -mx-4 flex flex-wrap items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-48 flex-1 basis-48">
               <h1 className="text-xl font-semibold truncate">{data.document.label}</h1>
               {subtitle || data.document.path ? (
                 <p className="text-xs truncate font-mono text-muted-foreground">
@@ -249,7 +249,11 @@ export function DocumentEditor({
           {panel}
 
           {data.document.hasSeo ? (
-            <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
+            <Tabs
+              value={tab}
+              onValueChange={(value) => setTab(String(value))}
+              className="max-w-3xl"
+            >
               <TabsList>
                 <TabsTrigger value="content">Content</TabsTrigger>
                 <TabsTrigger value="seo">Google &amp; sharing</TabsTrigger>
@@ -262,7 +266,9 @@ export function DocumentEditor({
               </TabsContent>
             </Tabs>
           ) : (
-            <SectionFields sections={data.document.sections} />
+            <div className="max-w-3xl">
+              <SectionFields sections={data.document.sections} />
+            </div>
           )}
         </form>
       </FormProvider>

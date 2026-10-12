@@ -1,7 +1,6 @@
 import { asc } from 'drizzle-orm';
 import type { Metadata } from 'next';
 
-import { PageHeader } from '@/admin/components/layout/page-header';
 import { UsersTable } from '@/admin/components/managers/users-table';
 import { Permission } from '@/core/auth/permissions';
 import { isRole } from '@/core/auth/roles';
@@ -17,10 +16,6 @@ export default async function ManagersPage() {
   const rows = await (await getDb()).select().from(users).orderBy(asc(users.name));
   return (
     <>
-      <PageHeader
-        title="Managers"
-        description="Admins can do everything; managers can edit pages and see the overview."
-      />
       <UsersTable
         currentUserId={me.id}
         users={rows.flatMap((row) =>

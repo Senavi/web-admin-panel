@@ -7,16 +7,16 @@ import type { SiteSettings } from '@/core/settings/schema';
 
 /** Header reminders when the site is not publicly available or not indexable. */
 export function StatusChips({ status }: { status: SiteSettings['status'] }) {
-  const href = `${adminHref(AdminRoute.Settings)}#site-status`;
+  const href = `${adminHref(AdminRoute.Settings)}?tab=access`;
   const chips = [
     status.maintenance.enabled && {
       key: 'maintenance',
-      label: 'Maintenance mode',
+      label: 'Site paused',
       icon: ConstructionIcon,
     },
-    status.privateMode && { key: 'private', label: 'Private mode', icon: LockIcon },
+    status.privateMode && { key: 'private', label: 'Private site', icon: LockIcon },
     !status.indexing &&
-      !status.privateMode && { key: 'noindex', label: 'Indexing off', icon: EyeOffIcon },
+      !status.privateMode && { key: 'noindex', label: 'Hidden from Google', icon: EyeOffIcon },
   ].filter((chip) => chip !== false);
 
   if (chips.length === 0) return null;

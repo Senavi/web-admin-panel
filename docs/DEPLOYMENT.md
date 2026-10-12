@@ -7,15 +7,19 @@ runs in production.
 
 1. Create a project at https://supabase.com/dashboard.
 2. Note from the dashboard:
-   - **Project URL** and **anon** / **service_role** keys (Project Settings → API Keys),
+   - **Project URL** and the **service_role** key (Project Settings → API Keys; the anon key
+     is optional),
    - **Transaction pooler** connection string (Connect, port 6543) → `DATABASE_URL`,
    - **Direct** (or session pooler, port 5432) connection string → `DIRECT_URL`.
 3. Either:
-   - **From development (recommended):** open the admin → **Security → Connect Supabase**.
-     The wizard tests the connection, runs migrations, copies your local users/settings/
-     content/media, enables Row Level Security on every table (no policies: the app connects
-     server-side, the Data API exposes nothing), creates the public-read `media` bucket and
-     writes `.env.local`.
+   - **From development (recommended):** turn on developer mode (avatar menu), open
+     **Security → Connect Supabase** and follow the 5 steps. The dialog checks the keys, then
+     "Prepare database" runs migrations, copies your local users/settings/content/media,
+     enables Row Level Security on every table (no policies: the app connects server-side,
+     the Data API exposes nothing), creates the public-read `media` bucket and writes
+     `.env.local`. The hosting step shows Vercel/Netlify instructions and **Copy all**
+     copies the 7 production variables as `.env` text with freshly generated
+     `AUTH_SECRET` and `CRON_SECRET`.
    - **Manually:** `DIRECT_URL=… pnpm db:migrate`, then `DATABASE_URL=… pnpm db:seed`
      (settings + demo content), create a public bucket `media`, and enable RLS on all tables:
      `alter table "<table>" enable row level security;`
@@ -35,7 +39,7 @@ runs in production.
 | `CRON_SECRET`               | optional    | enables `/api/cron/maintenance`         |
 | `PREVIEW_DATABASE_ISOLATED` | optional    | `true` lets preview deploys migrate     |
 
-Forms (only what you use; destinations are configured in **Settings → Forms**):
+Forms (only what you use; destinations are configured in **Settings → Requests**):
 
 | Variable                                               | Notes                                                                   |
 | ------------------------------------------------------ | ----------------------------------------------------------------------- |
@@ -44,7 +48,7 @@ Forms (only what you use; destinations are configured in **Settings → Forms**)
 | `RESEND_API_KEY`                                       | with `MAIL_PROVIDER=resend`                                             |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | with `MAIL_PROVIDER=smtp` (465 = TLS, otherwise STARTTLS)               |
 | `FORMS_WEBHOOK_SECRET`                                 | signs webhooks: `X-Signature: sha256=<hex HMAC-SHA256 of the raw body>` |
-| `TELEGRAM_BOT_TOKEN`                                   | bot that posts to the chat id set in Settings → Forms                   |
+| `TELEGRAM_BOT_TOKEN`                                   | bot that posts to the chat id set in Settings → Requests                |
 | `TURNSTILE_SECRET_KEY`                                 | with `projectConfig.forms.turnstile.siteKey` (optional spam challenge)  |
 
 The admin's **Security** page shows which variables are set (values masked).
@@ -91,7 +95,7 @@ The build log always prints the decision and its reason.
 ## Forms
 
 1. Set the env variables above for the destinations you need and redeploy.
-2. **Settings → Forms**: per form enable Email (recipients), Webhook (https URL) and/or
+2. **Settings → Requests**: per form enable Email (recipients), Webhook (https URL) and/or
    Telegram (chat id), and set how long submissions are kept (default 12 months).
 3. Verify webhooks on the receiving side: compute `HMAC-SHA256(FORMS_WEBHOOK_SECRET, body)`
    over the raw request body and compare it (constant time) with `X-Signature` after
@@ -123,7 +127,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://www.example.com/api/cron/ma
 - `pnpm typecheck && pnpm lint && pnpm test && pnpm content:check && pnpm tokens:check`
 - `pnpm e2e:prod`: the full e2e suite against a production build
 - `pnpm check:bundles` after `pnpm build`
-- Settings → Site status: indexing on, maintenance/private off; Settings → SEO defaults.
+- Settings → Site access: not paused, not private; Settings → Google & sharing: "Show the site in Google" on.
 
 ## Local production build
 

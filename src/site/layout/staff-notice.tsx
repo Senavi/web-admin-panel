@@ -5,8 +5,8 @@ import { useSyncExternalStore } from 'react';
 import { SITE_NOTICE_COOKIE, SiteNotice } from '@/core/site-gate/notice';
 
 const MESSAGES: Record<SiteNotice, string> = {
-  [SiteNotice.Maintenance]: 'Maintenance mode is on. Visitors see the maintenance page.',
-  [SiteNotice.Private]: 'Private mode is on. Only signed-in users can see the site.',
+  [SiteNotice.Maintenance]: 'The site is paused. Visitors see the “We’ll be back soon” page.',
+  [SiteNotice.Private]: 'The site is private. Only signed-in people can see it.',
 };
 
 function readNotice(): SiteNotice | null {

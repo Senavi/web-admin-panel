@@ -4,6 +4,9 @@ import type { FormSubmitState } from './state';
 export const FORM_SUBMIT_PATH = '/api/forms/submit';
 export const FORM_TOKEN_PATH = '/api/forms/token';
 
+/** Largest accepted submission body; bigger requests get 413 before parsing. */
+export const FORM_MAX_BODY_BYTES = 64 * 1024;
+
 /** Accept header of script submissions: the endpoint answers with JSON instead of HTML. */
 export const JSON_ACCEPT = 'application/json';
 

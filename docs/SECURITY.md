@@ -68,11 +68,11 @@ summarized in CLAUDE.md.
   the server; plain-text emails; header values stripped of CR/LF; fallback pages escape all
   output.
 - **PII:** submissions store the form values, locale, page path, a keyed IP hash and the
-  browser family only. They are deleted after the retention period (Settings → Forms) and
+  browser family only. They are deleted after the retention period (Settings → Requests) and
   can be deleted one by one by admins (GDPR requests). Exports are audited and escape
   spreadsheet formulas.
 - **Permissions:** managers read, mark and export (`forms.view`); deleting
-  (`forms.delete`) and Settings → Forms (`forms.settings`) are admin only.
+  (`forms.delete`) and Settings → Requests (`forms.settings`) are admin only.
 - **Delivery:** secrets only in env; webhooks are signed, sent to https (or localhost) URLs
   set by admins, without following redirects; Telegram errors never include the token.
 
@@ -104,10 +104,10 @@ Admin responses: `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`.
 
 - `src/core/env.ts` validates env at startup; production fails fast on missing values.
 - Server-only modules import `server-only`; no `NEXT_PUBLIC_` secrets; secrets are never
-  stored in the database; the Security page masks values.
+  stored in the database; the admin never shows their values (Connect Supabase masks them).
 - Supabase: RLS enabled on every table with no policies; service role key server-only;
   storage bucket public-read, server-write.
-- Audit log of admin actions and sign-in attempts (IP stored only as a keyed hash).
+- Activity log (audit log) of admin actions and sign-in attempts (IP stored only as a keyed hash).
 
 ## Privacy (analytics)
 
@@ -127,7 +127,7 @@ low severity).
 - Two admins disabling each other at the same moment is not serialized (race on the
   last-admin check).
 - Webhook URLs are set by admins and may point to internal hosts (localhost is allowed for
-  local tools); treat Settings → Forms as admin-only configuration.
+  local tools); treat Settings → Requests as admin-only configuration.
 - Collection slug changes and new items reach the proxy within its state TTL (3 s).
 - Next.js logs an "Unexpected cache miss" warning while a staff preview renders (Draft
   Mode bypasses caches); harmless.

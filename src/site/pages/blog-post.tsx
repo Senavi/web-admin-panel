@@ -5,8 +5,8 @@ import { getTranslations } from 'next-intl/server';
 import type { CollectionItemViewProps } from '@/core/collections/item-route';
 import { PREVIEW_EXIT_PATH } from '@/core/collections/preview-paths';
 
-import { ButtonLink } from '../components/ui/button';
-import { Container, Section } from '../components/ui/layout';
+import { Button, ButtonLink } from '../components/ui/button';
+import { Container, MediaFrame, Section } from '../components/ui/layout';
 import { RichText } from '../components/ui/rich-text';
 import { SiteImage } from '../components/ui/site-image';
 import { Heading, Text } from '../components/ui/typography';
@@ -23,9 +23,9 @@ export async function BlogPostView({ item, locale, preview }: CollectionItemView
             <Text variant="body-sm">{t('preview')}</Text>
             <form method="post" action={PREVIEW_EXIT_PATH}>
               <input type="hidden" name="returnTo" value={item.href} />
-              <button type="submit" className="text-label underline">
+              <Button type="submit" variant="secondary">
                 {t('exitPreview')}
-              </button>
+              </Button>
             </form>
           </Container>
         </div>
@@ -54,14 +54,14 @@ export async function BlogPostView({ item, locale, preview }: CollectionItemView
       </Section>
       {content.cover ? (
         <Container width="wide">
-          <div className="overflow-hidden rounded-xl">
+          <MediaFrame>
             <SiteImage
               image={content.cover}
               sizes="(min-width: 80rem) 80rem, 100vw"
               priority
               className="aspect-hero object-cover"
             />
-          </div>
+          </MediaFrame>
         </Container>
       ) : null}
       <Section>

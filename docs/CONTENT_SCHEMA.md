@@ -133,7 +133,7 @@ tags, so pages stay statically rendered and update within seconds.
 ## Collections
 
 Repeatable items with their own URL: posts, projects, vacancies. Developers define the
-fields; editors create, publish, unpublish and delete items in **Pages → Collections**.
+fields; editors create, publish, unpublish and delete items in **Pages → Blog & lists**.
 
 ```ts
 // src/content/collections/blog.ts
@@ -223,7 +223,7 @@ Cache tags: `collection:{id}`, `collection:{id}:list`, `collection:{id}:{slug}`.
 ## Globals
 
 Content shared by many pages (header/footer texts, contacts, social links, legal line):
-sections and seed like a page, but no route and no SEO. Edited in **Pages → Site-wide**.
+sections and seed like a page, but no route and no SEO. Edited in **Pages → Every page**.
 
 ```ts
 // src/content/globals/site.ts

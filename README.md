@@ -22,11 +22,15 @@ admin's credentials are written to `.data/dev-admin-credentials.txt` on the firs
 
 ## Features
 
-- Schema-driven page editor (10 field types, rich text, images with per-locale alt text,
-  lists, SEO tab, revisions, conflict detection) generated from `src/content`.
-- Roles (admin, manager), TOTP 2FA, login throttling, audit log, session management.
-- Settings: languages, SEO defaults, branding (logos, favicons), maintenance mode (503),
-  private mode, indexing, analytics, security policy.
+- Plain-language admin for clients: collapsed sections with summaries, Settings in tabs
+  (General, Brand, Google & sharing, Requests, Site access) and a per-user **developer
+  mode** that reveals the technical settings.
+- Schema-driven page editor (10 field types, rich text, images with per-locale
+  descriptions, lists, Google & sharing tab with a preview, revisions, conflict detection)
+  generated from `src/content`.
+- Roles (admin, manager), TOTP 2FA, login throttling, activity log, signed-in devices.
+- Settings: languages, Google defaults, brand (logos, browser tab icon), pause the site
+  (503), private site, show in Google, analytics, security policy.
 - SEO: metadata, hreflang, sitemap, robots, JSON-LD, generated OG images, localized 404.
 - Cookieless analytics with an Overview dashboard.
 - Design tokens as the single source of the site's look (`pnpm tokens:check`).

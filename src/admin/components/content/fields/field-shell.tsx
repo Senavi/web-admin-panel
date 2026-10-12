@@ -34,7 +34,7 @@ export function errorsAt(
 }
 
 /**
- * Label, help text, "Shared across languages" / "Not translated yet" badges and
+ * Label, help text, "Same in all languages" / "Not translated yet" badges and
  * errors around one generated control.
  */
 export function FieldShell({
@@ -80,7 +80,7 @@ export function FieldShell({
           <Tooltip>
             <TooltipTrigger render={<Badge variant="secondary" className="gap-1" />}>
               <GlobeIcon aria-hidden />
-              Shared across languages
+              Same in all languages
             </TooltipTrigger>
             <TooltipContent>Changing it updates every language.</TooltipContent>
           </Tooltip>

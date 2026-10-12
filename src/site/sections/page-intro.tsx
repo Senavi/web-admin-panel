@@ -1,6 +1,6 @@
 import type { ResolvedImage } from '@/core/content/define';
 
-import { Container, Section } from '../components/ui/layout';
+import { MediaFrame, Section, SplitContainer } from '../components/ui/layout';
 import { SiteImage } from '../components/ui/site-image';
 import { Heading, Text } from '../components/ui/typography';
 
@@ -16,7 +16,7 @@ export function PageIntro({
 }) {
   return (
     <Section labelledBy="page-title" spacing="tight" className="border-thin border-b border-border">
-      <Container className={image ? 'grid items-center gap-stack lg:grid-cols-2' : undefined}>
+      <SplitContainer split={Boolean(image)}>
         <div className="flex max-w-prose flex-col gap-4">
           <Heading level={1} id="page-title">
             {title}
@@ -28,16 +28,16 @@ export function PageIntro({
           ) : null}
         </div>
         {image ? (
-          <div className="overflow-hidden rounded-xl shadow-md">
+          <MediaFrame shadow="md">
             <SiteImage
               image={image}
               sizes="(min-width: 64rem) 50vw, 100vw"
               priority
               className="aspect-media object-cover"
             />
-          </div>
+          </MediaFrame>
         ) : null}
-      </Container>
+      </SplitContainer>
     </Section>
   );
 }

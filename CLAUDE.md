@@ -45,7 +45,7 @@ layer** (public site, content schemas, theme, `project.config.ts`). Full spec:
   `getGlobalContent('<id>', locale)` (no route).
 - Form: `src/content/forms/<id>.ts` with `defineForm`, register in `forms`, render with a
   client component on `useSiteForm` + `<FormSecurityFields>` (see
-  `src/site/components/contact-form.tsx`); delivery in Settings → Forms.
+  `src/site/components/contact-form.tsx`); delivery in Settings → Requests.
 
 Details: docs/CONTENT_SCHEMA.md. Add a field type: docs/CONTENT_SCHEMA.md § Adding a field
 type.

@@ -71,7 +71,7 @@ export function SettingsTabForm<V extends SettingsTabValues>({
         onSubmit={(event) => void submit(event)}
         aria-label={label}
         data-hydrated={hydrated || undefined}
-        className="flex flex-col gap-6"
+        className="flex max-w-3xl flex-col gap-6"
       >
         <FieldGroup>{children}</FieldGroup>
         {isDirty ? (
