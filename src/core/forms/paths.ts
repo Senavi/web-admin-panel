@@ -15,4 +15,6 @@ export interface FormSubmitResponse {
   readonly state: FormSubmitState;
   /** Thank-you page to open after a success. */
   readonly redirectTo?: string;
+  /** Plain-language reason when the form can't be used (preview mode). */
+  readonly message?: string;
 }

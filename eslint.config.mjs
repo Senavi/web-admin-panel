@@ -28,6 +28,7 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([
     '.next/**',
+    '.next-preview/**',
     'out/**',
     'build/**',
     'coverage/**',

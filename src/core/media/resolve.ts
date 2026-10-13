@@ -9,6 +9,8 @@ import type { ImageValue } from '@/core/content/fields';
 import { getDb } from '@/core/db/client';
 import { media } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
+import { isPreviewMode } from '@/core/preview/mode';
+import { loadSeedMedia } from '@/core/preview/seed-data';
 import { getStorage } from '@/core/storage';
 
 export interface MediaInfo {
@@ -49,6 +51,7 @@ export async function getMediaInfo(mediaId: string): Promise<MediaInfo | null> {
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.media(mediaId));
+  if (isPreviewMode()) return (await loadSeedMedia([mediaId])).get(mediaId) ?? null;
   return (await loadMedia(await getDb(), [mediaId])).get(mediaId) ?? null;
 }
 

@@ -100,9 +100,18 @@ Projects add third-party sources to the **site** CSP only, via `projectConfig.cs
 
 Admin responses: `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`.
 
+## Preview mode
+
+Without `DATABASE_URL` nothing is stored or authenticated: no admin login, sign-in or
+draft-preview routes (404), forms refuse with 503, analytics are off, and the site is
+never indexable. The internal proxy ↔ site-state key uses a fixed public value in this
+mode only; with a database it is always a real secret (D-079).
+
 ## Secrets & data
 
 - `src/core/env.ts` validates env at startup; production fails fast on missing values.
+- `AUTH_SECRET` defaults to HKDF-SHA256 of `SUPABASE_SERVICE_ROLE_KEY` (D-080); set it
+  explicitly to rotate the two independently. Development uses only the generated dev secret.
 - Server-only modules import `server-only`; no `NEXT_PUBLIC_` secrets; secrets are never
   stored in the database; the admin never shows their values (Connect Supabase masks them).
 - Supabase: RLS enabled on every table with no policies; service role key server-only;

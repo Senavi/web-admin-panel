@@ -11,11 +11,13 @@ import { SessionsTable } from '@/admin/components/security/sessions-table';
 import { StatusCard } from '@/admin/components/security/status-card';
 import { Button } from '@/admin/ui/button';
 import { Permission } from '@/core/auth/permissions';
+import { authSecretSource } from '@/core/auth/secret';
 import { requirePermission } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
 import { sessions, users } from '@/core/db/schema';
 import { DbMode } from '@/core/db/types';
-import { env, isProduction } from '@/core/env';
+import { isProduction } from '@/core/env';
+import { resolveSiteUrl } from '@/core/site-url';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 import { recentActivity } from '@/core/security/activity';
 import { checkSiteHealth } from '@/core/security/status';
@@ -24,6 +26,14 @@ export const metadata: Metadata = { title: 'Security' };
 export const instant = false;
 
 const RECENT_ACTIVITY = 8;
+
+/** Where the signing secret comes from; a derived secret is fine, not a problem. */
+const AUTH_SECRET_SOURCE_LABELS: Record<ReturnType<typeof authSecretSource>, string> = {
+  env: 'AUTH_SECRET',
+  derived: 'Derived from SUPABASE_SERVICE_ROLE_KEY (rotating that key signs everyone out)',
+  development: 'Development secret (.data/dev-auth-secret)',
+  preview: 'Preview mode',
+};
 
 function Line({ label, value, sub }: { label: string; value: string; sub?: string | null }) {
   return (
@@ -37,7 +47,7 @@ function Line({ label, value, sub }: { label: string; value: string; sub?: strin
 
 /** Address prefilled in the Connect Supabase hosting step (a localhost URL is not useful there). */
 function productionSiteUrl(): string {
-  const url = env().NEXT_PUBLIC_SITE_URL;
+  const url = resolveSiteUrl();
   return url && !/localhost|127\.0\.0\.1/.test(url) ? url : 'https://example.com';
 }
 
@@ -102,6 +112,7 @@ export default async function SecurityPage() {
             sub={storage.location}
           />
           <Line label="Email" value={health.mail.line} />
+          <Line label="Sign-in secret" value={AUTH_SECRET_SOURCE_LABELS[authSecretSource()]} />
         </div>
         {!production && local ? (
           <div className="flex flex-wrap items-center gap-3">

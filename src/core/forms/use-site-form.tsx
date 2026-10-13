@@ -16,6 +16,8 @@ import type { SiteFormConfig, SiteFormField } from './config';
 import { type FormFieldDefinition, FormFieldType } from './define';
 import { FormHiddenField } from './fields';
 import { FORM_SUBMIT_PATH, FORM_TOKEN_PATH, type FormSubmitResponse, JSON_ACCEPT } from './paths';
+import { FORM_NOT_CONNECTED_MESSAGE } from '@/core/preview/mode';
+
 import { type FormSubmitState, FormSubmitStatus, INITIAL_FORM_STATE } from './state';
 import {
   DEFAULT_ERROR_MESSAGES,
@@ -41,7 +43,7 @@ import {
  */
 
 export type FormMessages = Partial<
-  Record<FormErrorCode | 'rateLimited' | 'error' | 'confirm', string>
+  Record<FormErrorCode | 'rateLimited' | 'error' | 'confirm' | 'notConnected', string>
 >;
 
 export interface SiteFormFieldProps {
@@ -278,6 +280,8 @@ function noticeFor(status: FormSubmitState['status'], messages: FormMessages): F
       };
     case FormSubmitStatus.Error:
       return { kind: 'error', text: messages.error ?? 'Something went wrong. Please try again.' };
+    case FormSubmitStatus.NotConnected:
+      return { kind: 'error', text: messages.notConnected ?? FORM_NOT_CONNECTED_MESSAGE };
     case FormSubmitStatus.Confirm:
       return {
         kind: 'info',

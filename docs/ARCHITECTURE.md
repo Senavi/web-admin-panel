@@ -29,6 +29,15 @@ Enforced by ESLint (`eslint.config.mjs`):
 `src/core/env-schema.ts` defines the Zod schema. `src/core/env.ts` exposes `env()` and
 `src/instrumentation.ts` validates it at server startup.
 
+## Preview mode
+
+Production without `DATABASE_URL` (`isPreviewMode()`, D-079): the loaders
+(`settings/loader`, `content/loader`, `collections/loader`, `seo/loader`,
+`site-gate/state-server`, `media/resolve`) return defaults and seeds from
+`core/preview/seed-data.ts` instead of querying; seed images are served by
+`/api/seed-assets/<file>`. The proxy rewrites `/admin/*` to the setup guide and 404s
+database-backed API routes. Builds without env produce this mode (`pnpm e2e:preview`).
+
 ## Database
 
 - `src/core/db/schema/*`: Drizzle tables. Migrations live in `src/core/db/migrations`

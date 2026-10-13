@@ -23,6 +23,13 @@ admin's credentials are written to `.data/dev-admin-credentials.txt` on the firs
 If `pnpm dev` keeps reloading the page right after a production build (`pnpm build`,
 `pnpm e2e:prod`), stop it, delete `.next/dev` and start it again (stale dev cache).
 
+## Deploy
+
+Import the repository into Netlify or Vercel and deploy: it works with **zero variables**
+(preview mode: demo content, hidden from search engines, `/admin` shows a setup guide).
+Then add `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` and redeploy. See
+docs/DEPLOYMENT.md § Deploy in 5 minutes.
+
 ## Features
 
 - Plain-language admin for clients: collapsed sections with summaries, Settings in tabs

@@ -9,12 +9,14 @@ import { projectConfig } from '@project/config';
 
 import * as schema from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
-import { env, isProduction } from '@/core/env';
+import { isProduction } from '@/core/env';
 import { readSiteSettings } from '@/core/settings/repository';
 
 import { AUTH_COOKIE_PREFIX } from '../cookies';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../password-policy';
 import { Role, UserStatus } from '../roles';
+import { resolveSiteUrl } from '@/core/site-url';
+
 import { getAuthSecret } from '../secret';
 import { findUserById } from './users';
 
@@ -28,7 +30,7 @@ const DAY_SECONDS = 60 * 60 * 24;
  * (see `src/app/api/auth/[...all]/route.ts`).
  */
 export function createAuth(db: Database) {
-  const siteUrl = env().NEXT_PUBLIC_SITE_URL;
+  const siteUrl = resolveSiteUrl() ?? undefined;
 
   return betterAuth({
     appName: projectConfig.name,

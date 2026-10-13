@@ -3,6 +3,28 @@
 Production runs on **Vercel or Netlify** with **Supabase** (Postgres + Storage). PGlite never
 runs in production.
 
+## Deploy in 5 minutes
+
+1. **GitHub:** push the project to a repository.
+2. **Netlify** (or Vercel): _Add new site → Import an existing project_ and pick the
+   repository. Don't add any variables; click **Deploy**.
+3. **Preview mode:** the first deploy works without a database. The site shows the demo
+   content, is hidden from search engines (`noindex`, robots disallow, empty sitemap),
+   forms answer "This form isn't connected yet", and `/admin` shows a setup guide.
+4. **Add 3 variables** (Site configuration → Environment variables, Production context):
+   `DATABASE_URL` (Supabase → Connect → Transaction pooler, port 6543, with your database
+   password), `SUPABASE_URL` (Project Settings → Data API) and `SUPABASE_SERVICE_ROLE_KEY`
+   (Project Settings → API Keys → service_role). `DIRECT_URL` (port 5432) is recommended.
+5. **Redeploy** (Deploys → Trigger deploy). The build runs `pnpm db:migrate:deploy`:
+   migrations, then `pnpm db:prepare` (Row Level Security on every table, the `media`
+   bucket, default settings and the demo content). Then create your admin
+   ([§ 5](#5-first-admin-in-production)) and sign in at `/admin`.
+
+The site address comes from the platform (`URL` / `DEPLOY_PRIME_URL` on Netlify,
+`VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` on Vercel); set `NEXT_PUBLIC_SITE_URL` only
+for a domain the platform doesn't know. The sign-in secret is derived from the service role
+key unless you set `AUTH_SECRET` (see the table below).
+
 ## 1. Supabase project
 
 1. Create a project at https://supabase.com/dashboard.
@@ -26,18 +48,20 @@ runs in production.
 
 ## 2. Environment variables
 
-| Variable                    | Required    | Notes                                   |
-| --------------------------- | ----------- | --------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`      | yes         | e.g. `https://www.example.com`          |
-| `DATABASE_URL`              | yes         | Supabase transaction pooler (6543)      |
-| `DIRECT_URL`                | recommended | Direct connection (5432) for migrations |
-| `AUTH_SECRET`               | yes         | `openssl rand -base64 48`               |
-| `SUPABASE_URL`              | yes         | storage                                 |
-| `SUPABASE_SERVICE_ROLE_KEY` | yes         | server only, never `NEXT_PUBLIC_`       |
-| `SUPABASE_ANON_KEY`         | optional    | connection check only                   |
-| `SUPABASE_STORAGE_BUCKET`   | optional    | default `media`                         |
-| `CRON_SECRET`               | optional    | enables `/api/cron/maintenance`         |
-| `PREVIEW_DATABASE_ISOLATED` | optional    | `true` lets preview deploys migrate     |
+Without `DATABASE_URL` production runs in **preview mode** (above) and needs nothing else.
+
+| Variable                    | Required    | Notes                                                                                                                                                      |
+| --------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | yes         | Supabase transaction pooler (6543)                                                                                                                         |
+| `SUPABASE_URL`              | yes         | storage                                                                                                                                                    |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes         | server only, never `NEXT_PUBLIC_`                                                                                                                          |
+| `DIRECT_URL`                | recommended | Direct connection (5432) for migrations                                                                                                                    |
+| `NEXT_PUBLIC_SITE_URL`      | optional    | defaults to the platform address; set it for your own domain if the platform doesn't know it                                                               |
+| `AUTH_SECRET`               | optional    | default: derived (HKDF-SHA256) from `SUPABASE_SERVICE_ROLE_KEY`; rotating that key then signs everyone out. Set it (`openssl rand -base64 48`) to decouple |
+| `SUPABASE_ANON_KEY`         | optional    | connection check only                                                                                                                                      |
+| `SUPABASE_STORAGE_BUCKET`   | optional    | default `media`                                                                                                                                            |
+| `CRON_SECRET`               | optional    | enables `/api/cron/maintenance`                                                                                                                            |
+| `PREVIEW_DATABASE_ISOLATED` | optional    | `true` lets preview deploys migrate                                                                                                                        |
 
 Forms (only what you use; destinations are configured in **Settings → Requests**):
 
@@ -51,7 +75,7 @@ Forms (only what you use; destinations are configured in **Settings → Requests
 | `TELEGRAM_BOT_TOKEN`                                   | bot that posts to the chat id set in Settings → Requests                |
 | `TURNSTILE_SECRET_KEY`                                 | with `projectConfig.forms.turnstile.siteKey` (optional spam challenge)  |
 
-The admin's **Security** page shows which variables are set (values masked).
+In developer mode the admin's **Security** page shows where the sign-in secret comes from.
 
 ## 3. Vercel
 

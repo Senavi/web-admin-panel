@@ -64,13 +64,13 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 | Command                                                                  | Purpose                                                                                               |
 | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `pnpm dev`                                                               | Zero-config dev server (local PGlite DB, seeded demo, dev admin in `.data/dev-admin-credentials.txt`) |
-| `pnpm build` / `pnpm start`                                              | Production build (needs `DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`)                        |
+| `pnpm build` / `pnpm start`                                              | Production build (no env → preview mode; with Supabase: 3 variables, docs/DEPLOYMENT.md)              |
 | `pnpm typecheck` · `lint` · `format` · `test` · `e2e`                    | Quality gates                                                                                         |
 | `pnpm content:sync` · `content:check`                                    | Seed missing content / verify routes ↔ registry                                                       |
 | `pnpm tokens:generate` · `tokens:check`                                  | Regenerate token TS / enforce the token rule                                                          |
 | `pnpm db:generate` · `db:migrate` · `db:seed` · `db:studio` · `db:serve` | Database                                                                                              |
 | `pnpm admin:create`                                                      | Create an admin/manager (no public sign-up)                                                           |
-| `pnpm e2e:prod` · `check:bundles`                                        | E2E against a production build / verify no admin code in site bundles (after `pnpm build`)            |
+| `pnpm e2e:prod` · `e2e:preview` · `check:bundles`                        | E2E against a production build / without any env (preview mode) / no admin code in site bundles       |
 
 ## Definition of done
 
@@ -81,6 +81,9 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 4. Docs updated when behavior or conventions change; decisions go in `docs/DECISIONS.md`.
 
 Non-content public routes must be listed in `projectConfig.siteRoutes` (otherwise 404).
+
+Preview mode (production without `DATABASE_URL`) must keep working: site reads go through
+the core loaders (they fall back to seeds), never `getDb()` directly from site code.
 
 ## Security rules: never relax
 

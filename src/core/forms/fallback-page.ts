@@ -3,6 +3,8 @@ import 'server-only';
 import type { SiteFormConfig } from './config';
 import { FormFieldType } from './define';
 import { FormHiddenField } from './fields';
+import { FORM_NOT_CONNECTED_MESSAGE } from '@/core/preview/mode';
+
 import { type FormSubmitState, FormSubmitStatus } from './state';
 import { DEFAULT_ERROR_MESSAGES } from './validation';
 
@@ -88,6 +90,12 @@ export function renderFallbackPage(input: {
         `<div role="alert"><ul>${items}</ul></div>${back}`,
       );
     }
+    case FormSubmitStatus.NotConnected:
+      return page(
+        config.locale,
+        config.submitLabel,
+        `<p role="alert">${escapeHtml(FORM_NOT_CONNECTED_MESSAGE)}</p>${back}`,
+      );
     case FormSubmitStatus.RateLimited:
     case FormSubmitStatus.Error:
     case FormSubmitStatus.Idle:

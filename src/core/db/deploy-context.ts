@@ -7,6 +7,13 @@ export type MigrationDecision =
   | { readonly migrate: false; readonly reason: string };
 
 export function migrationDecision(env: Record<string, string | undefined>): MigrationDecision {
+  if (!env.DATABASE_URL?.trim()) {
+    return {
+      migrate: false,
+      reason:
+        'no DATABASE_URL: the site deploys in preview mode (seed content, no admin). Add DATABASE_URL, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and redeploy to connect a database.',
+    };
+  }
   const vercel = env.VERCEL_ENV;
   const netlify = env.NETLIFY === 'true' ? env.CONTEXT : undefined;
   const platform = vercel ? `Vercel (${vercel})` : netlify ? `Netlify (${netlify})` : null;

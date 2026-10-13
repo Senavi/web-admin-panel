@@ -11,6 +11,7 @@ import { getSiteFormConfig } from '@/core/forms/site';
 import { FormSubmitStatus } from '@/core/forms/state';
 import { PAYLOAD_TOO_LARGE, parseFormData, readLimitedBody } from '@/core/http/body-limit';
 import { NO_STORE } from '@/core/http/headers';
+import { FORM_NOT_CONNECTED_MESSAGE, isPreviewMode } from '@/core/preview/mode';
 import { safeRedirectPath } from '@/core/project/paths';
 import { assertSameOrigin } from '@/core/security/origin';
 
@@ -20,9 +21,13 @@ import { assertSameOrigin } from '@/core/security/origin';
  * get a redirect (thank-you page) or a minimal HTML page. Bodies over
  * FORM_MAX_BODY_BYTES are refused with 413 before parsing.
  */
+const SERVICE_UNAVAILABLE = 503;
+
 export async function POST(request: Request): Promise<Response> {
   const forbidden = assertSameOrigin(request);
   if (forbidden) return forbidden;
+  // Preview mode (no database): nothing can be stored or delivered yet.
+  if (isPreviewMode()) return notConnectedResponse(request);
   const body = await readLimitedBody(request, FORM_MAX_BODY_BYTES);
   if (!body) {
     return new Response('Payload too large', {
@@ -64,5 +69,21 @@ export async function POST(request: Request): Promise<Response> {
   return new Response(html, {
     status: outcome.state.status === FormSubmitStatus.RateLimited ? 429 : 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': NO_STORE },
+  });
+}
+
+/** 503 "This form isn't connected yet": JSON for script submissions, a short page otherwise. */
+function notConnectedResponse(request: Request): Response {
+  const headers = { 'Cache-Control': NO_STORE, 'Retry-After': '3600' };
+  if (request.headers.get('accept')?.includes(JSON_ACCEPT)) {
+    const body: FormSubmitResponse = {
+      state: { status: FormSubmitStatus.NotConnected },
+      message: FORM_NOT_CONNECTED_MESSAGE,
+    };
+    return Response.json(body, { status: SERVICE_UNAVAILABLE, headers });
+  }
+  return new Response(FORM_NOT_CONNECTED_MESSAGE, {
+    status: SERVICE_UNAVAILABLE,
+    headers: { ...headers, 'Content-Type': 'text/plain; charset=utf-8' },
   });
 }

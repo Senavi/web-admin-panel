@@ -13,6 +13,8 @@ import { UserStatus } from '@/core/auth/roles';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
 import { users } from '@/core/db/schema';
+import { isPreviewMode } from '@/core/preview/mode';
+import { previewSiteState } from '@/core/preview/seed-data';
 import { readSiteSettings } from '@/core/settings/repository';
 
 import type { SiteState } from './state';
@@ -27,6 +29,7 @@ export async function loadSiteState(): Promise<SiteState> {
     CacheTag.Staff,
     ...contentRegistry.collections.map((collection) => CacheTag.collectionList(collection.id)),
   );
+  if (isPreviewMode()) return previewSiteState();
   const db = await getDb();
   const [settings, staff] = await Promise.all([
     readSiteSettings(db),

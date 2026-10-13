@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { getDb } from '@/core/db/client';
 import { migratePostgres, openPostgres } from '@/core/db/drivers/postgres';
 import { media } from '@/core/db/schema';
+import type { Database } from '@/core/db/types';
 import { FAVICON_FILES, faviconKey } from '@/core/media/favicon';
 import { createLocalStorage } from '@/core/storage/local';
 import { createSupabaseStorage } from '@/core/storage/supabase';
@@ -152,6 +153,15 @@ export async function migrateDataToSupabase(
 }
 
 async function ensureBucket(input: SupabaseConnection): Promise<void> {
+  await ensureStorageBucket(input);
+}
+
+/** Creates the public-read media bucket if missing (writes need the service role key). */
+export async function ensureStorageBucket(input: {
+  readonly supabaseUrl: string;
+  readonly serviceRoleKey: string;
+  readonly bucket: string;
+}): Promise<void> {
   const client = createClient(input.supabaseUrl, input.serviceRoleKey, {
     auth: { persistSession: false },
   });
@@ -169,6 +179,22 @@ async function ensureBucket(input: SupabaseConnection): Promise<void> {
 }
 
 /**
+ * Row Level Security on every app table with NO policies: the app connects
+ * server-side as the owner, so the public Data API exposes nothing. Idempotent.
+ */
+export async function enableRowLevelSecurity(db: Database): Promise<string[]> {
+  const tables = appTableNames();
+  for (const table of tables) {
+    await db.execute(
+      sql.raw(
+        `alter table if exists "public"."${table.replace(/"/g, '')}" enable row level security`,
+      ),
+    );
+  }
+  return tables;
+}
+
+/**
  * Step 5: Row Level Security on every app table with NO policies (the app
  * connects server-side; the public Data API exposes nothing) and a public-read
  * bucket (writes need the service role key).
@@ -176,14 +202,7 @@ async function ensureBucket(input: SupabaseConnection): Promise<void> {
 export async function secureSupabase(input: SupabaseConnection): Promise<{ tables: string[] }> {
   const remote = openPostgres(input.directUrl, { max: 1 });
   try {
-    const tables = appTableNames();
-    for (const table of tables) {
-      await remote.db.execute(
-        sql.raw(
-          `alter table if exists "public"."${table.replace(/"/g, '')}" enable row level security`,
-        ),
-      );
-    }
+    const tables = await enableRowLevelSecurity(remote.db);
     await ensureBucket(input);
     return { tables };
   } finally {

@@ -21,6 +21,8 @@ export const AdminRoute = {
   Security: '/security',
   Activity: '/security/activity',
   NotAllowed: '/not-allowed',
+  /** Preview mode (no database): the only admin page, a setup guide. */
+  Setup: '/setup',
 } as const;
 export type AdminRoute = (typeof AdminRoute)[keyof typeof AdminRoute];
 

@@ -583,3 +583,45 @@ out everywhere, disable, delete) are in the Edit dialog. The guards (D-050) are 
 `/api/forms/submit` refuses bodies over 64 KB with 413: first by `Content-Length`, then by
 counting streamed bytes, so an oversized body is never buffered or parsed in full.
 Malformed bodies get 400 instead of a server error.
+
+## v1.4: deploy without setup
+
+### D-079 Preview mode: production without DATABASE_URL
+
+A fresh import on Netlify/Vercel deploys with zero variables. `isPreviewMode()` =
+production and no `DATABASE_URL` (`src/core/preview/mode.ts`, pure, used by the env
+schema, the proxy and scripts). The site renders from code only: default settings with
+every supported language on, page/global/collection seeds through the normal fallback
+chain, and seed images served from the build (`/api/seed-assets/<file>`, optimized by
+`next/image`; media ids are deterministic UUIDs of the file name so they pass the same
+validation as uploads). It is never indexable (robots disallow, `X-Robots-Tag: noindex`,
+empty sitemap), the proxy serves pages instead of failing closed (there is no private
+content), forms answer 503 "This form isn't connected yet", analytics and cron are
+no-ops, every `/admin/*` URL shows one public setup guide (rewrite to `/admin/setup`,
+nonce CSP kept) and database-backed API routes answer 404. `AUTH_SECRET` is not needed:
+a fixed public key signs the proxy's internal requests, because nothing secret exists
+(no accounts, sessions, forms or drafts). Adding `DATABASE_URL` and redeploying turns it
+off. A server logs "Preview mode: no DATABASE_URL" at startup; `db:migrate:deploy` skips
+with a clear line.
+
+### D-080 Three variables with Supabase
+
+`DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are enough.
+`NEXT_PUBLIC_SITE_URL` falls back at runtime to the platform address (Netlify `URL`, or
+`DEPLOY_PRIME_URL` outside production; Vercel `VERCEL_PROJECT_PRODUCTION_URL`, or
+`VERCEL_URL` for previews) and is required only when none is known. `AUTH_SECRET` falls
+back to HKDF-SHA256(`SUPABASE_SERVICE_ROLE_KEY`, info `site-starter/auth-secret/v1`, 48
+bytes): one less secret to manage, at the cost that rotating the service key signs
+everyone out. An explicit `AUTH_SECRET` still wins, and development only ever uses the
+generated dev secret. The Connect dialog copies the 3 variables + `DIRECT_URL`, plus the
+optional ones the person ticks.
+
+### D-081 Deploys prepare the database
+
+`pnpm db:migrate:deploy` runs migrations and then `pnpm db:prepare`: Row Level Security
+on every app table (no policies; the app connects as the owner) and the public-read
+`media` bucket when Supabase is configured, then default settings and missing demo
+content (`runSeed`, idempotent: missing rows and fields only, deleted seed items are not
+recreated). So a fresh Supabase project is safe and complete after one redeploy, and new
+tables from later migrations get RLS automatically. The first admin is still created with
+`pnpm admin:create` (no public sign-up).

@@ -14,6 +14,8 @@ export const FormSubmitStatus = {
    * The re-rendered form carries a fresh token; the visitor submits again.
    */
   Confirm: 'confirm',
+  /** Preview mode (no database): the form can't store or deliver anything yet. */
+  NotConnected: 'not-connected',
 } as const;
 export type FormSubmitStatus = (typeof FormSubmitStatus)[keyof typeof FormSubmitStatus];
 

@@ -5,6 +5,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { registry } from '@/content';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
+import { isPreviewMode } from '@/core/preview/mode';
+import { loadSeedMedia, previewAssetIds } from '@/core/preview/seed-data';
 import { loadMedia, seedAssetIds, toResolvedImage } from '@/core/media/resolve';
 import { getSiteSettings } from '@/core/settings/loader';
 
@@ -92,14 +94,27 @@ export async function loadDocumentContent(
   key: string,
   locale: string,
 ): Promise<ContentRecord> {
-  const db = await getDb();
   const { defaultLocale } = (await getSiteSettings()).general;
+  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
+  if (isPreviewMode()) {
+    // No database: the fallback chain ends at the seeds; images come from the build.
+    const assetIds = previewAssetIds(seedAssets(schema));
+    const content = resolveWithFallback(schema, {
+      primary: { shared: undefined, localized: undefined },
+      seeds: [
+        seedToStored(schema, seed?.[locale], assetIds),
+        seedToStored(schema, seed?.[defaultLocale], assetIds),
+      ],
+    });
+    const mediaById = await loadSeedMedia(collectMediaIds(schema, content));
+    return resolveImages(schema, content, (image: ImageValue) => toResolvedImage(image, mediaById));
+  }
+  const db = await getDb();
 
   const [rows, assetIds] = await Promise.all([
     readPageRows(db, key, [locale, defaultLocale]),
     seedAssetIds(db, seedAssets(schema)),
   ]);
-  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
   const content = resolveWithFallback(schema, {
     primary: storedRowsFor(rows, locale),
     defaultLocale: locale === defaultLocale ? undefined : storedRowsFor(rows, defaultLocale),

@@ -17,13 +17,15 @@ export interface EnvVariable {
 export const ENV_CATALOG: readonly EnvVariable[] = [
   {
     name: 'NEXT_PUBLIC_SITE_URL',
-    description: 'Public origin (canonical URLs, sitemap, OG).',
-    requirement: 'production',
+    description:
+      'Public origin (canonical URLs, sitemap, OG). Optional on Netlify/Vercel: their site address is used.',
+    requirement: 'optional',
     secret: false,
   },
   {
     name: 'DATABASE_URL',
-    description: 'Pooled Postgres URL (Supabase transaction pooler, port 6543).',
+    description:
+      'Pooled Postgres URL (Supabase transaction pooler, port 6543). Without it production runs in preview mode.',
     requirement: 'production',
     secret: true,
   },
@@ -35,8 +37,9 @@ export const ENV_CATALOG: readonly EnvVariable[] = [
   },
   {
     name: 'AUTH_SECRET',
-    description: 'Signs sessions and the site-gate cookie (min 32 chars).',
-    requirement: 'production',
+    description:
+      'Signs sessions and the site-gate cookie (min 32 chars). Optional with SUPABASE_SERVICE_ROLE_KEY (derived from it).',
+    requirement: 'optional',
     secret: true,
   },
   {

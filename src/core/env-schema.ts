@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { isPreviewMode } from './preview/mode';
+import { resolveSiteUrl } from './site-url';
+
 /**
  * Environment variable schema. Kept free of `server-only` so scripts and unit
  * tests can import it; runtime code reads env through `@/core/env`.
@@ -32,15 +35,24 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
-    /** Public origin of the site, e.g. https://example.com. Required in production. */
+    /**
+     * Public origin of the site, e.g. https://example.com. Optional: falls back to the
+     * hosting platform's address (Netlify `URL`, Vercel `VERCEL_PROJECT_PRODUCTION_URL`…).
+     */
     NEXT_PUBLIC_SITE_URL: optionalUrl,
 
-    /** Pooled Postgres URL (Supabase transaction pooler). Unset → local PGlite in development. */
+    /**
+     * Pooled Postgres URL (Supabase transaction pooler). Unset → local PGlite in
+     * development, preview mode (seed content, no admin) in production.
+     */
     DATABASE_URL: optionalUrl,
     /** Direct Postgres URL used for migrations. Falls back to DATABASE_URL. */
     DIRECT_URL: optionalUrl,
 
-    /** Secret used to sign sessions and the site-gate cookie. Min 32 chars. */
+    /**
+     * Secret used to sign sessions and the site-gate cookie. Min 32 chars. Optional in
+     * production when SUPABASE_SERVICE_ROLE_KEY is set (a key is derived from it).
+     */
     AUTH_SECRET: optionalString.pipe(z.string().min(32).optional()),
 
     STORAGE_DRIVER: z.enum([StorageDriver.Local, StorageDriver.Supabase]).optional(),
@@ -82,6 +94,15 @@ export const envSchema = z
     /** Development/test only: alternative local data directory (default `.data`). */
     SITE_DATA_DIR: optionalString,
 
+    /** Set by Netlify / Vercel; used as fallbacks for NEXT_PUBLIC_SITE_URL (src/core/site-url.ts). */
+    NETLIFY: optionalString,
+    CONTEXT: optionalString,
+    URL: optionalString,
+    DEPLOY_PRIME_URL: optionalString,
+    VERCEL_ENV: optionalString,
+    VERCEL_URL: optionalString,
+    VERCEL_PROJECT_PRODUCTION_URL: optionalString,
+
     /** Development only: creates this admin on first run. Ignored in production. */
     SEED_ADMIN_EMAIL: optionalString.pipe(z.email().optional()),
     SEED_ADMIN_PASSWORD: optionalString,
@@ -89,26 +110,33 @@ export const envSchema = z
   .superRefine((env, ctx) => {
     const isProduction = env.NODE_ENV === 'production';
 
-    if (isProduction && !env.DATABASE_URL) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['DATABASE_URL'],
-        message:
-          'DATABASE_URL is required in production. The embedded PGlite database only runs in development.',
-      });
-    }
-    if (isProduction && !env.AUTH_SECRET) {
+    // Without DATABASE_URL production runs in preview mode: nothing else is required.
+    if (isPreviewMode({ NODE_ENV: env.NODE_ENV, DATABASE_URL: env.DATABASE_URL })) return;
+
+    if (isProduction && !env.AUTH_SECRET && !env.SUPABASE_SERVICE_ROLE_KEY) {
       ctx.addIssue({
         code: 'custom',
         path: ['AUTH_SECRET'],
-        message: 'AUTH_SECRET (min 32 chars) is required in production.',
+        message:
+          'AUTH_SECRET (min 32 chars) is required in production unless SUPABASE_SERVICE_ROLE_KEY is set (the secret is then derived from it).',
       });
     }
-    if (isProduction && !env.NEXT_PUBLIC_SITE_URL) {
+    const siteUrlSources = {
+      NEXT_PUBLIC_SITE_URL: env.NEXT_PUBLIC_SITE_URL,
+      NETLIFY: env.NETLIFY,
+      CONTEXT: env.CONTEXT,
+      URL: env.URL,
+      DEPLOY_PRIME_URL: env.DEPLOY_PRIME_URL,
+      VERCEL_ENV: env.VERCEL_ENV,
+      VERCEL_URL: env.VERCEL_URL,
+      VERCEL_PROJECT_PRODUCTION_URL: env.VERCEL_PROJECT_PRODUCTION_URL,
+    };
+    if (isProduction && !resolveSiteUrl(siteUrlSources)) {
       ctx.addIssue({
         code: 'custom',
         path: ['NEXT_PUBLIC_SITE_URL'],
-        message: 'NEXT_PUBLIC_SITE_URL is required in production (used for canonical URLs).',
+        message:
+          'NEXT_PUBLIC_SITE_URL is required in production when the hosting platform does not provide the site address (Netlify URL / Vercel VERCEL_PROJECT_PRODUCTION_URL).',
       });
     }
 

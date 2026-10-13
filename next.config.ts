@@ -29,7 +29,8 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     // Local storage driver serves uploads from this route; Supabase hosts are added from env.
-    localPatterns: [{ pathname: '/api/media/**' }],
+    // Preview mode (no database) serves the seed images from /api/seed-assets.
+    localPatterns: [{ pathname: '/api/media/**' }, { pathname: '/api/seed-assets/**' }],
     remotePatterns: supabaseImagePatterns(),
   },
   async headers() {
@@ -43,6 +44,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Separate output folder (e.g. the preview-mode e2e build) without touching `.next`.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+  // Preview mode reads seed images at runtime (dimensions, /api/seed-assets).
+  outputFileTracingIncludes: { '/**': ['./src/content/seed/assets/**'] },
   // PGlite ships WASM + data files that must be loaded from node_modules at runtime.
   serverExternalPackages: ['@electric-sql/pglite'],
   turbopack: {

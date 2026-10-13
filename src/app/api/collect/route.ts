@@ -4,6 +4,7 @@ import { collectPayloadSchema, recordPageView } from '@/core/analytics/collect';
 import { runMaintenance } from '@/core/maintenance';
 import { getAuthSecret } from '@/core/auth/secret';
 import { getDb } from '@/core/db/client';
+import { isPreviewMode } from '@/core/preview/mode';
 import { getClientIp } from '@/core/security/request';
 import { readSiteSettings } from '@/core/settings/repository';
 import { isStaffToken } from '@/core/site-gate/staff';
@@ -34,6 +35,8 @@ function readCookie(request: Request, name: string): string | undefined {
  * so it never leaks why a hit was ignored.
  */
 export async function POST(request: Request): Promise<Response> {
+  // Preview mode (no database): analytics are off.
+  if (isPreviewMode()) return NO_CONTENT();
   const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '';
   if (!sameSite(request, host)) return NO_CONTENT();
   const body = await request.text();

@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { runMaintenance } from '@/core/maintenance';
 import { getDb } from '@/core/db/client';
 import { env } from '@/core/env';
+import { isPreviewMode } from '@/core/preview/mode';
 
 /**
  * Scheduled maintenance (analytics rollups, form delivery retries, retention cleanup).
@@ -18,6 +19,9 @@ async function handle(request: Request): Promise<Response> {
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
     return new Response('Unauthorized', { status: 401 });
   }
+  // Preview mode (no database): nothing to maintain.
+  if (isPreviewMode())
+    return Response.json({ skipped: 'preview mode' }, { headers: { 'Cache-Control': 'no-store' } });
   const summary = await runMaintenance(await getDb(), { force: true });
   return Response.json(summary, { headers: { 'Cache-Control': 'no-store' } });
 }

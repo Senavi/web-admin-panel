@@ -6,6 +6,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
 import { pageContent, pageSeo } from '@/core/db/schema';
+import { isPreviewMode } from '@/core/preview/mode';
 
 import { type PageSeo, parsePageSeo } from './page-seo';
 
@@ -14,6 +15,7 @@ export async function getPageSeo(pageId: string, locale: string): Promise<PageSe
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.content(pageId), CacheTag.contentLocale(pageId, locale));
+  if (isPreviewMode()) return parsePageSeo(undefined);
   const [row] = await (
     await getDb()
   )
@@ -28,6 +30,7 @@ export async function getPageLastModified(): Promise<Record<string, string>> {
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.Sitemap, CacheTag.Settings);
+  if (isPreviewMode()) return {};
   const db = await getDb();
   const [content, seo] = await Promise.all([
     db
@@ -54,6 +57,7 @@ export async function getNoindexPages(): Promise<Set<string>> {
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.Sitemap);
+  if (isPreviewMode()) return new Set();
   const rows = await (
     await getDb()
   )

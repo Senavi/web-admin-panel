@@ -3,6 +3,7 @@
 
 # next.js
 /.next/
+/.next-preview/
 /out/
 next-env.d.ts
 *.tsbuildinfo

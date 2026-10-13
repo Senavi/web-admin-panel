@@ -37,6 +37,7 @@ export async function ContactFormSection({ locale, title }: { locale: string; ti
             rateLimited: t('rateLimited'),
             confirm: t('confirm'),
             error: t('error'),
+            notConnected: t('notConnected'),
           }}
           strings={{
             summaryTitle: t('summaryTitle'),

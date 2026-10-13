@@ -17,6 +17,7 @@ import {
   staticPageCsp,
 } from '@/core/security/headers';
 import { isKnownRoute } from '@/core/i18n/route-match';
+import { isPreviewMode } from '@/core/preview/mode';
 import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
 import { ACCESS_PATH, adminHref, AdminRoute, isAdminPath } from '@/core/project/paths';
 import { SITE_NOTICE_COOKIE, SiteNotice } from '@/core/site-gate/notice';
@@ -37,9 +38,23 @@ const UNGATED_PREFIXES = ['/api/', ACCESS_PATH];
 /** Marks the proxy's internal subrequests (value: the HMAC site-state key). */
 const INTERNAL_HEADER = 'x-site-internal';
 const UNKNOWN_STATE_RETRY_AFTER_SECONDS = 30;
+/** API routes that work without a database (preview mode); the rest answer 404. */
+const PREVIEW_API_PREFIXES = [
+  '/api/site-state',
+  '/api/seed-assets/',
+  '/api/forms/submit',
+  '/api/forms/token',
+  '/api/collect',
+  '/api/cron/',
+];
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
+
+  if (isPreviewMode()) {
+    const preview = previewModeResponse(request, pathname);
+    if (preview) return preview;
+  }
 
   if (isAdminPath(pathname)) {
     // Optimistic check only; pages still verify the session on the server.
@@ -63,14 +78,47 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   return routeSite(request);
 }
 
+/**
+ * Preview mode (production without a database): every admin URL shows the
+ * setup guide (no login, no data), database-backed API routes answer 404 and
+ * the visitor sign-in page goes home. Null: continue with normal routing.
+ */
+function previewModeResponse(request: NextRequest, pathname: string): NextResponse | null {
+  if (isAdminPath(pathname)) {
+    const setup = adminHref(AdminRoute.Setup);
+    return withAdminHeaders(
+      adminNext(request, pathname, pathname === setup ? undefined : new URL(setup, request.url)),
+    );
+  }
+  if (pathname.startsWith('/api/')) {
+    if (PREVIEW_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
+    return NextResponse.json(
+      { error: 'This site isn’t connected to a database yet.' },
+      { status: 404, headers: { [HeaderName.CacheControl]: NO_STORE } },
+    );
+  }
+  if (pathname === ACCESS_PATH || pathname.startsWith(`${ACCESS_PATH}/`)) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+  return null;
+}
+
 async function routeSite(request: NextRequest): Promise<NextResponse> {
   const { pathname, search, origin } = request.nextUrl;
   // The proxy's own subrequest for the static 404 page.
   if (request.headers.get(INTERNAL_HEADER) === (await siteStateKey()))
     return next(request, pathname);
   const state = await getSiteState(origin);
-  // Unknown site state (cold instance, state endpoint unreachable): fail closed.
-  if (!state) return unavailableResponse();
+  if (!state) {
+    // Preview mode has no private content: serve the page (never indexable).
+    if (isPreviewMode()) {
+      const response = next(request, pathname);
+      response.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
+      return response;
+    }
+    // Unknown site state (cold instance, state endpoint unreachable): fail closed.
+    return unavailableResponse();
+  }
   const staff = await isStaffToken(
     getAuthSecret(),
     request.cookies.get(GATE_COOKIE_NAME)?.value,
@@ -205,7 +253,8 @@ function withSiteHeaders(
   request: NextRequest,
   staff: boolean,
 ): NextResponse {
-  if (isNoindex(state)) response.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
+  if (isNoindex(state) || isPreviewMode())
+    response.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
   const notice = staff
     ? state.maintenance
       ? SiteNotice.Maintenance
@@ -269,14 +318,17 @@ function next(request: NextRequest, pathname: string): NextResponse {
 }
 
 /** Admin pages render per request: a fresh nonce CSP (Next.js applies the nonce to its scripts). */
-function adminNext(request: NextRequest, pathname: string): NextResponse {
+/** Admin request with a fresh CSP nonce; `rewriteTo` serves another admin page at this URL. */
+function adminNext(request: NextRequest, pathname: string, rewriteTo?: URL): NextResponse {
   const nonce = createNonce();
   const csp = adminCsp(nonce);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(HeaderName.Pathname, pathname);
   requestHeaders.set(NONCE_HEADER, nonce);
   requestHeaders.set(CSP_HEADER, csp);
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = rewriteTo
+    ? NextResponse.rewrite(rewriteTo, { request: { headers: requestHeaders } })
+    : NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(CSP_HEADER, csp);
   return response;
 }

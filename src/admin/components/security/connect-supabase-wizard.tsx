@@ -8,7 +8,7 @@ import {
   Loader2Icon,
   XCircleIcon,
 } from 'lucide-react';
-import { Fragment, type ReactElement, type ReactNode, useState } from 'react';
+import { type ReactElement, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
 import { cn } from '@/admin/lib/utils';
@@ -39,14 +39,19 @@ import {
 } from '@/core/database/actions';
 import type { CheckResult } from '@/core/database/supabase-connect';
 
+import { GuideSteps as Steps } from './guide-text';
 import {
   CREATE_PROJECT_STEPS,
   HOSTING_GUIDES,
   HostingPlatform,
+  hostingSteps,
   HostingVariable,
   KEY_FIELDS,
   type KeyField,
+  OPTIONAL_HOSTING_VARIABLES,
   PREPARE_TASKS,
+  RECOMMENDED_HOSTING_VARIABLES,
+  REQUIRED_HOSTING_VARIABLES,
   SECRET_HOSTING_VARIABLES,
   SUPABASE_DASHBOARD_URL,
 } from './hosting-guides';
@@ -63,35 +68,6 @@ const SECRET_BYTES = 32;
 
 type Keys = Record<KeyField['name'], string>;
 type TaskState = 'idle' | 'running' | 'done' | 'failed';
-
-/** Text with `**bold**` parts (hosting-guides.ts). */
-function Rich({ text }: { text: string }) {
-  return (
-    <>
-      {text
-        .split('**')
-        .map((part, index) =>
-          index % 2 === 1 ? (
-            <strong key={index}>{part}</strong>
-          ) : (
-            <Fragment key={index}>{part}</Fragment>
-          ),
-        )}
-    </>
-  );
-}
-
-function Steps({ items }: { items: readonly string[] }) {
-  return (
-    <ol className="text-sm flex list-decimal flex-col gap-2 ps-5">
-      {items.map((item) => (
-        <li key={item}>
-          <Rich text={item} />
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 /** A random secret (base64url), generated in the browser for the hosting variables. */
 function randomSecret(): string {
@@ -161,6 +137,7 @@ export function ConnectSupabaseWizard({
   const [taskError, setTaskError] = useState<string | null>(null);
   const [host, setHost] = useState<HostingPlatform>(HostingPlatform.Vercel);
   const [address, setAddress] = useState(siteUrl);
+  const [extras, setExtras] = useState<ReadonlySet<HostingVariable>>(new Set());
   const [secrets, setSecrets] = useState<{ auth: string; cron: string } | null>(null);
 
   const connected = checks !== null && checks.every((check) => check.ok);
@@ -213,16 +190,34 @@ export function ConnectSupabaseWizard({
     }
   };
 
-  const variables = (generated: { auth: string; cron: string } | null) =>
-    [
-      [HostingVariable.SiteUrl, address.trim()],
-      [HostingVariable.DatabaseUrl, keys.databaseUrl.trim()],
-      [HostingVariable.DirectUrl, keys.directUrl.trim()],
-      [HostingVariable.SupabaseUrl, keys.supabaseUrl.trim()],
-      [HostingVariable.ServiceRoleKey, keys.serviceRoleKey.trim()],
-      [HostingVariable.AuthSecret, generated?.auth ?? ''],
-      [HostingVariable.CronSecret, generated?.cron ?? ''],
-    ] as const;
+  /** The 3 required variables, DIRECT_URL (recommended) and the optional ones chosen. */
+  const variables = (
+    generated: { auth: string; cron: string } | null,
+  ): Array<readonly [HostingVariable, string]> => {
+    const values: Record<HostingVariable, string> = {
+      [HostingVariable.DatabaseUrl]: keys.databaseUrl.trim(),
+      [HostingVariable.SupabaseUrl]: keys.supabaseUrl.trim(),
+      [HostingVariable.ServiceRoleKey]: keys.serviceRoleKey.trim(),
+      [HostingVariable.DirectUrl]: keys.directUrl.trim(),
+      [HostingVariable.SiteUrl]: address.trim(),
+      [HostingVariable.AuthSecret]: generated?.auth ?? '',
+      [HostingVariable.CronSecret]: generated?.cron ?? '',
+    };
+    const names: HostingVariable[] = [
+      ...REQUIRED_HOSTING_VARIABLES,
+      ...RECOMMENDED_HOSTING_VARIABLES,
+      ...OPTIONAL_HOSTING_VARIABLES.map((option) => option.name).filter((name) => extras.has(name)),
+    ];
+    return names.map((name) => [name, values[name]] as const);
+  };
+
+  const toggleExtra = (name: HostingVariable, on: boolean) =>
+    setExtras((current) => {
+      const next = new Set(current);
+      if (on) next.add(name);
+      else next.delete(name);
+      return next;
+    });
 
   const copyAll = async () => {
     const generated = secrets ?? { auth: randomSecret(), cron: randomSecret() };
@@ -435,20 +430,39 @@ export function ConnectSupabaseWizard({
                 </TabsList>
                 {HOSTING_GUIDES.map((guide) => (
                   <TabsContent key={guide.id} value={guide.id} className="pt-3">
-                    <Steps items={guide.steps} />
+                    <Steps items={hostingSteps(guide, 'copy')} />
                   </TabsContent>
                 ))}
               </Tabs>
-              <Field>
-                <FieldLabel htmlFor="sb-site-url">Site address</FieldLabel>
-                <Input
-                  id="sb-site-url"
-                  type="url"
-                  value={address}
-                  onChange={(event) => setAddress(event.target.value)}
-                />
-                <FieldDescription>Change it if the domain is different.</FieldDescription>
-              </Field>
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-sm font-medium mb-2">Optional extras</legend>
+                {OPTIONAL_HOSTING_VARIABLES.map((option) => (
+                  <div key={option.name} className="flex items-start gap-2">
+                    <Checkbox
+                      id={`sb-extra-${option.name}`}
+                      checked={extras.has(option.name)}
+                      onCheckedChange={(checked) => toggleExtra(option.name, checked === true)}
+                    />
+                    <div className="flex flex-col gap-0.5">
+                      <Label htmlFor={`sb-extra-${option.name}`} className="text-sm font-normal">
+                        {option.label} ({option.name})
+                      </Label>
+                      <span className="text-xs text-muted-foreground">{option.help}</span>
+                    </div>
+                  </div>
+                ))}
+              </fieldset>
+              {extras.has(HostingVariable.SiteUrl) ? (
+                <Field>
+                  <FieldLabel htmlFor="sb-site-url">Site address</FieldLabel>
+                  <Input
+                    id="sb-site-url"
+                    type="url"
+                    value={address}
+                    onChange={(event) => setAddress(event.target.value)}
+                  />
+                </Field>
+              ) : null}
               <div className="rounded-md border">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
                   <div className="flex flex-col">
@@ -470,7 +484,10 @@ export function ConnectSupabaseWizard({
                       <dt>{name}</dt>
                       <dd className="break-all text-muted-foreground">
                         {!value
-                          ? 'generated when you copy'
+                          ? name === HostingVariable.AuthSecret ||
+                            name === HostingVariable.CronSecret
+                            ? 'generated when you copy'
+                            : 'not set'
                           : SECRET_HOSTING_VARIABLES.has(name)
                             ? mask(value)
                             : value}
@@ -480,8 +497,8 @@ export function ConnectSupabaseWizard({
                 </dl>
               </div>
               <p className="text-sm text-muted-foreground">
-                The site address and the two secrets were filled in for you. Keep the copied text
-                private: it gives full access to the database.
+                Three variables are enough; DIRECT_URL is recommended for migrations. Keep the
+                copied text private: it gives full access to the database.
               </p>
             </>
           ) : null}

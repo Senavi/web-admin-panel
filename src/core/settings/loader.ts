@@ -4,6 +4,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
+import { isPreviewMode } from '@/core/preview/mode';
+import { previewLocalizedSettings, previewSiteSettings } from '@/core/preview/seed-data';
 
 import { readLocalizedSettings, readSiteSettings } from './repository';
 import type { LocalizedSettings, SiteSettings } from './schema';
@@ -13,6 +15,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.Settings);
+  if (isPreviewMode()) return previewSiteSettings();
   return readSiteSettings(await getDb());
 }
 
@@ -20,5 +23,6 @@ export async function getLocalizedSettings(locale: string): Promise<LocalizedSet
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.Settings);
+  if (isPreviewMode()) return previewLocalizedSettings();
   return readLocalizedSettings(await getDb(), locale);
 }

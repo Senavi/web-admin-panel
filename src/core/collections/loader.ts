@@ -11,6 +11,7 @@ import {
   collectionItemPath,
   CollectionItemStatus,
   ITEM_SECTION,
+  itemSeedSchema,
   MissingTranslation,
 } from '@/core/content/collection';
 import type { ResolvedSection } from '@/core/content/define';
@@ -22,6 +23,8 @@ import {
   type ContentRecord,
   resolveImages,
   resolveWithFallback,
+  seedAssets,
+  seedToStored,
 } from '@/core/content/values';
 import { getDb } from '@/core/db/client';
 import {
@@ -33,7 +36,15 @@ import {
 } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import { localizedPath } from '@/core/i18n/routing';
-import { loadMedia, toResolvedImage } from '@/core/media/resolve';
+import { loadMedia, type MediaInfo, toResolvedImage } from '@/core/media/resolve';
+import { isPreviewMode } from '@/core/preview/mode';
+import {
+  loadSeedMedia,
+  previewAssetIds,
+  previewSiteState,
+  publishedSeeds,
+  seedItemLocales,
+} from '@/core/preview/seed-data';
 import { type PageSeo, parsePageSeo } from '@/core/seo/page-seo';
 import { getSiteSettings } from '@/core/settings/loader';
 
@@ -165,24 +176,94 @@ async function buildItems(
     db,
     contents.flatMap((content) => collectMediaIds(schema, content)),
   );
-  return rows.map((row, index) => {
-    const resolved = resolveImages(schema, contents[index] ?? {}, (image: ImageValue) =>
-      toResolvedImage(image, mediaById),
-    );
-    const content = resolved[ITEM_SECTION] ?? {};
-    const title = content[collection.titleField];
-    return {
-      id: row.id,
-      slug: row.slug,
-      href: localizedPath(collectionItemPath(collection, row.slug), locale, defaultLocale),
-      locale,
-      title: typeof title === 'string' ? title : '',
-      publishedAt: row.publishedAt?.toISOString() ?? null,
-      updatedAt: row.updatedAt.toISOString(),
-      status: row.status,
-      content,
-    };
+  return rows.map((row, index) =>
+    toItem(collection, row, contents[index] ?? {}, mediaById, locale, defaultLocale),
+  );
+}
+
+function toItem(
+  collection: AnyCollection,
+  row: ItemRow,
+  stored: ContentRecord,
+  mediaById: ReadonlyMap<string, MediaInfo>,
+  locale: string,
+  defaultLocale: string,
+): GenericItem {
+  const resolved = resolveImages(collection.schema, stored, (image: ImageValue) =>
+    toResolvedImage(image, mediaById),
+  );
+  const content = resolved[ITEM_SECTION] ?? {};
+  const title = content[collection.titleField];
+  return {
+    id: row.id,
+    slug: row.slug,
+    href: localizedPath(collectionItemPath(collection, row.slug), locale, defaultLocale),
+    locale,
+    title: typeof title === 'string' ? title : '',
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    updatedAt: row.updatedAt.toISOString(),
+    status: row.status,
+    content,
+  };
+}
+
+/** Seed items without a publish date sort last; their "updated" date is fixed for stable output. */
+const PREVIEW_UPDATED_AT = new Date('2000-01-01T00:00:00.000Z');
+
+/**
+ * Preview mode (no database): published seed items visible in `locale`, built
+ * with the same fallback chain (locale → default locale → field defaults).
+ */
+async function previewItems(
+  collection: AnyCollection,
+  locale: string,
+  defaultLocale: string,
+): Promise<GenericItem[]> {
+  const seeds = publishedSeeds(collection).filter(
+    (seed) =>
+      seedItemLocales(
+        collection.missingTranslation,
+        Object.keys(seed.content),
+        [locale],
+        defaultLocale,
+      ).length > 0,
+  );
+  const contents = seeds.map((seed) => {
+    const seedSchema = itemSeedSchema(collection, seed);
+    const assetIds = previewAssetIds(seedAssets(seedSchema));
+    const byLocale = seedSchema.seed as Partial<Record<string, ContentRecord>>;
+    return resolveWithFallback(collection.schema, {
+      primary: { shared: undefined, localized: undefined },
+      seeds: [
+        seedToStored(seedSchema, byLocale[locale], assetIds),
+        seedToStored(seedSchema, byLocale[defaultLocale], assetIds),
+      ],
+    });
   });
+  const mediaById = await loadSeedMedia(
+    contents.flatMap((content) => collectMediaIds(collection.schema, content)),
+  );
+  return seeds.map((seed, index) => {
+    const publishedAt = seed.publishedAt ? new Date(seed.publishedAt) : null;
+    const row: ItemRow = {
+      id: `seed:${collection.id}:${seed.slug}`,
+      slug: seed.slug,
+      status: CollectionItemStatus.Published,
+      publishedAt,
+      updatedAt: publishedAt ?? PREVIEW_UPDATED_AT,
+    };
+    return toItem(collection, row, contents[index] ?? {}, mediaById, locale, defaultLocale);
+  });
+}
+
+function byPublishedAt(direction: 'asc' | 'desc') {
+  const sign = direction === 'asc' ? 1 : -1;
+  return (a: GenericItem, b: GenericItem): number => {
+    if (a.publishedAt === b.publishedAt) return 0;
+    if (!a.publishedAt) return 1;
+    if (!b.publishedAt) return -1;
+    return a.publishedAt.localeCompare(b.publishedAt) * sign;
+  };
 }
 
 function compareBy(field: string, direction: 'asc' | 'desc') {
@@ -208,14 +289,24 @@ async function loadList(
     CacheTag.Settings,
   );
   const collection = collectionOrThrow(collectionId);
-  const db = await getDb();
   const { defaultLocale } = (await getSiteSettings()).general;
+  const { pageSize, sort } = collection;
+  if (isPreviewMode()) {
+    const items = (await previewItems(collection, locale, defaultLocale)).sort(
+      sort.by === 'publishedAt'
+        ? byPublishedAt(sort.direction)
+        : compareBy(sort.by, sort.direction),
+    );
+    const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+    const offset = (page - 1) * pageSize;
+    return { items: items.slice(offset, offset + pageSize), page, pageCount, total: items.length };
+  }
+  const db = await getDb();
   const where = visibleIn(db, collection, locale, defaultLocale);
   const [{ total } = { total: 0 }] = await db
     .select({ total: count() })
     .from(collectionItems)
     .where(where);
-  const { pageSize, sort } = collection;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   if (page > pageCount) return { items: [], page, pageCount, total };
   const offset = (page - 1) * pageSize;
@@ -277,8 +368,12 @@ async function loadItem(
     CacheTag.Settings,
   );
   const collection = collectionOrThrow(collectionId);
-  const db = await getDb();
   const { defaultLocale } = (await getSiteSettings()).general;
+  if (isPreviewMode()) {
+    const items = await previewItems(collection, locale, defaultLocale);
+    return items.find((item) => item.slug === slug) ?? null;
+  }
+  const db = await getDb();
   const [row] = await db
     .select(ITEM_COLUMNS)
     .from(collectionItems)
@@ -316,6 +411,7 @@ export async function findSlugRedirect(collectionId: string, slug: string): Prom
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.collectionItem(collectionId, slug), CacheTag.collection(collectionId));
+  if (isPreviewMode()) return null;
   const db = await getDb();
   const [row] = await db
     .select({ slug: collectionItems.slug, status: collectionItems.status })
@@ -342,8 +438,21 @@ export async function getPublishedSlugs(collectionId: string, locale: string): P
     CacheTag.Settings,
   );
   const collection = collectionOrThrow(collectionId);
-  const db = await getDb();
   const { defaultLocale } = (await getSiteSettings()).general;
+  if (isPreviewMode()) {
+    return publishedSeeds(collection)
+      .filter(
+        (seed) =>
+          seedItemLocales(
+            collection.missingTranslation,
+            Object.keys(seed.content),
+            [locale],
+            defaultLocale,
+          ).length > 0,
+      )
+      .map((seed) => seed.slug);
+  }
+  const db = await getDb();
   const rows = await db
     .select({ slug: collectionItems.slug })
     .from(collectionItems)
@@ -449,6 +558,8 @@ export async function getCollectionSitemapItems(
     CacheTag.Settings,
     ...contentRegistry.collections.map((collection) => CacheTag.collectionList(collection.id)),
   );
+  // Preview mode is never indexable: no sitemap entries.
+  if (isPreviewMode()) return [];
   const items = await loadPublishedItems(await getDb(), enabledLocales, defaultLocale);
   return items.flatMap((item) => {
     const locales = item.locales.filter((locale) => !item.noindex.has(locale));
@@ -476,6 +587,7 @@ export async function getCollectionGateState(
     ...contentRegistry.collections.map((collection) => CacheTag.collectionList(collection.id)),
   );
   if (contentRegistry.collections.length === 0) return [];
+  if (isPreviewMode()) return [...previewSiteState().collections];
   const db = await getDb();
   const [items, redirects] = await Promise.all([
     loadPublishedItems(db, enabledLocales, defaultLocale),
@@ -515,6 +627,7 @@ export async function getItemSeo(
   'use cache';
   cacheLife('max');
   cacheTag(CacheTag.collectionItem(collectionId, slug), CacheTag.collection(collectionId));
+  if (isPreviewMode()) return parsePageSeo(undefined);
   const seo = await collectionItemStore.readSeo(await getDb(), itemId, locale);
   return parsePageSeo(seo?.data);
 }

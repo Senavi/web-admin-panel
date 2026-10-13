@@ -6,6 +6,40 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-13
+
+Deploy without setup, and fewer required variables.
+
+### Added
+
+- **Preview mode**: production without `DATABASE_URL` deploys and runs from the seed
+  content (pages, globals, collection items, images from the build). Never indexable;
+  forms say "This form isn't connected yet" (API: 503); analytics and cron off; `/admin`
+  shows a step-by-step setup guide (Supabase + Netlify/Vercel). Logged at startup.
+- `pnpm db:prepare` (run by `pnpm db:migrate:deploy` after migrations): Row Level
+  Security, the media bucket, default settings and missing demo content.
+- `pnpm e2e:preview`: E2E against a production build without any variables; CI job
+  "Build without env".
+- docs/DEPLOYMENT.md § Deploy in 5 minutes.
+
+### Changed
+
+- With Supabase only `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are
+  required. `NEXT_PUBLIC_SITE_URL` falls back to the Netlify/Vercel address; `AUTH_SECRET`
+  is derived from `SUPABASE_SERVICE_ROLE_KEY` when unset (rotating the key then signs
+  everyone out; an explicit `AUTH_SECRET` still wins).
+- `pnpm db:migrate:deploy` skips with a clear message without `DATABASE_URL`.
+- Connect Supabase, step 4: the 3 required variables + `DIRECT_URL`; site address,
+  `AUTH_SECRET` and `CRON_SECRET` are optional extras.
+- `next.config.ts` honours `NEXT_DIST_DIR` (separate build folders).
+
+### Upgrading from 1.3.0
+
+Nothing to do: no migration, and existing variables keep working. You may remove
+`NEXT_PUBLIC_SITE_URL` (on Netlify/Vercel with the platform address) and `AUTH_SECRET`
+(it is then derived from `SUPABASE_SERVICE_ROLE_KEY`; removing it signs everyone out
+once).
+
 ## [1.3.0] - 2026-10-12
 
 A simpler admin for clients: plain words, fewer things on screen, technical settings
