@@ -2,6 +2,7 @@ import 'server-only';
 
 import { env, isProduction } from '@/core/env';
 
+import { describeConnection, IPV6_ONLY_MESSAGE } from './connection-info';
 import { describeDatabase } from './info';
 import { runSeed } from './seed';
 import type { Database, DbInfo } from './types';
@@ -18,6 +19,12 @@ async function connect(): Promise<Database> {
   const { DATABASE_URL } = env();
 
   if (DATABASE_URL) {
+    // Netlify and Vercel connect over IPv4 only: an IPv6-only Supabase address can't work there.
+    if (
+      (process.env.NETLIFY || process.env.VERCEL) &&
+      describeConnection(DATABASE_URL)?.ipv4 === false
+    )
+      console.error(`[database] ${IPV6_ONLY_MESSAGE}`);
     const { openPostgres } = await import('./drivers/postgres');
     return openPostgres(DATABASE_URL).db;
   }

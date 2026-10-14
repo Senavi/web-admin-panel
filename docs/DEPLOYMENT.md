@@ -12,10 +12,12 @@ runs in production.
    content, is hidden from search engines (`noindex`, robots disallow, empty sitemap),
    forms answer "This form isn't connected yet", and the admin (`projectConfig.adminPath`)
    shows a setup guide.
-4. **Add 3 variables** (Site configuration → Environment variables, Production context):
-   `DATABASE_URL` (Supabase → Connect → Transaction pooler, port 6543, with your database
-   password), `SUPABASE_URL` (Project Settings → Data API) and `SUPABASE_SERVICE_ROLE_KEY`
-   (Project Settings → API Keys → service_role). `DIRECT_URL` (port 5432) is recommended.
+4. **Add 2 variables** (Site configuration → Environment variables, Production context):
+   `DATABASE_URL` (Supabase → Connect → **Shared pooler → Transaction pooler**, the address
+   with `pooler.supabase.com:6543`, with your database password) and
+   `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys → service_role). The project
+   URL and the migration connection are derived from `DATABASE_URL`
+   ([connection types](#which-connection-string)).
 5. **Redeploy** (Deploys → Trigger deploy). The build runs `pnpm db:migrate:deploy`:
    migrations, then `pnpm db:prepare` (Row Level Security on every table, the `media`
    bucket, default settings and the demo content). Then create your admin
@@ -35,39 +37,57 @@ key unless you set `AUTH_SECRET` (see the table below).
    pages for visitors are cached and served from the CDN anyway. A far-away database adds
    its round trip to every admin request.
 2. Note from the dashboard:
-   - **Project URL** and the **service_role** key (Project Settings → API Keys; the anon key
-     is optional),
-   - **Transaction pooler** connection string (Connect, port 6543) → `DATABASE_URL`,
-   - **Direct** (or session pooler, port 5432) connection string → `DIRECT_URL`.
+   - the **service_role** key (Project Settings → API Keys; the anon key is optional),
+   - the **Shared pooler → Transaction pooler** connection string (Connect) → `DATABASE_URL`.
 3. Either:
    - **From development (recommended):** turn on developer mode (avatar menu), open
      **Security → Connect Supabase** and follow the 5 steps. The dialog checks the keys, then
      "Prepare database" runs migrations, copies your local users/settings/content/media,
      enables Row Level Security on every table (no policies: the app connects server-side,
      the Data API exposes nothing), creates the public-read `media` bucket and writes
-     `.env.local`. The hosting step shows Vercel/Netlify instructions and **Copy all**
-     copies the 7 production variables as `.env` text with freshly generated
-     `AUTH_SECRET` and `CRON_SECRET`.
-   - **Manually:** `DIRECT_URL=… pnpm db:migrate`, then `DATABASE_URL=… pnpm db:seed`
-     (settings + demo content), create a public bucket `media`, and enable RLS on all tables:
-     `alter table "<table>" enable row level security;`
+     `.env.local`. It shows the detected connection type with an **IPv4 ✓ / IPv6 only ⚠**
+     badge. The hosting step shows Vercel/Netlify instructions and **Copy all** copies
+     `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and the optional extras you tick.
+   - **Manually:** `DATABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… pnpm db:migrate && pnpm
+db:prepare` (migrations, RLS on every table, the `media` bucket, settings and demo
+     content).
+
+### Which connection string
+
+Supabase shows four (Connect → "Connect to your database"). Netlify and Vercel connect over
+**IPv4 only**; any of the four is accepted in `DATABASE_URL`, but only the shared pooler is
+reachable from there on the free plan.
+
+| Type                                 | Host:port                                   | IPv4 (free plan)       | Use                           |
+| ------------------------------------ | ------------------------------------------- | ---------------------- | ----------------------------- |
+| Shared pooler, **transaction**       | `aws-<n>-<region>.pooler.supabase.com:6543` | yes                    | **recommended**               |
+| Shared pooler, session               | `aws-<n>-<region>.pooler.supabase.com:5432` | yes                    | works (1 connection/instance) |
+| Direct                               | `db.<ref>.supabase.co:5432`                 | no (IPv6; paid add-on) | local tools, IPv4 add-on      |
+| Dedicated pooler (paid, transaction) | `db.<ref>.supabase.co:6543`                 | no (IPv6; paid add-on) | with the IPv4 add-on          |
+
+What the app does with it (D-086): the runtime uses it as is (session mode with one
+connection per instance and a short idle timeout); migrations use `DIRECT_URL` if set,
+otherwise the same address in session mode (port 5432) for the transaction pooler, otherwise
+`DATABASE_URL`; `SUPABASE_URL` is derived from the `postgres.<ref>` user or the `db.<ref>`
+host. If an IPv6-only address can't be reached, the build log, the Security status and the
+Connect guide say so in plain words and point to the shared pooler address.
 
 ## 2. Environment variables
 
 Without `DATABASE_URL` production runs in **preview mode** (above) and needs nothing else.
 
-| Variable                    | Required    | Notes                                                                                                                                                      |
-| --------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | yes         | Supabase transaction pooler (6543)                                                                                                                         |
-| `SUPABASE_URL`              | yes         | storage                                                                                                                                                    |
-| `SUPABASE_SERVICE_ROLE_KEY` | yes         | server only, never `NEXT_PUBLIC_`                                                                                                                          |
-| `DIRECT_URL`                | recommended | Direct connection (5432) for migrations                                                                                                                    |
-| `NEXT_PUBLIC_SITE_URL`      | optional    | defaults to the platform address; set it for your own domain if the platform doesn't know it                                                               |
-| `AUTH_SECRET`               | optional    | default: derived (HKDF-SHA256) from `SUPABASE_SERVICE_ROLE_KEY`; rotating that key then signs everyone out. Set it (`openssl rand -base64 48`) to decouple |
-| `SUPABASE_ANON_KEY`         | optional    | connection check only                                                                                                                                      |
-| `SUPABASE_STORAGE_BUCKET`   | optional    | default `media`                                                                                                                                            |
-| `CRON_SECRET`               | optional    | enables `/api/cron/maintenance`                                                                                                                            |
-| `PREVIEW_DATABASE_ISOLATED` | optional    | `true` lets preview deploys migrate                                                                                                                        |
+| Variable                    | Required | Notes                                                                                                                                                      |
+| --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | yes      | any Supabase connection string; use the shared transaction pooler (6543) on Netlify/Vercel                                                                 |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes      | server only, never `NEXT_PUBLIC_`                                                                                                                          |
+| `SUPABASE_URL`              | optional | derived from `DATABASE_URL`; set it only to override                                                                                                       |
+| `DIRECT_URL`                | optional | migration connection; derived from `DATABASE_URL` (session mode, 5432)                                                                                     |
+| `NEXT_PUBLIC_SITE_URL`      | optional | defaults to the platform address; set it for your own domain if the platform doesn't know it                                                               |
+| `AUTH_SECRET`               | optional | default: derived (HKDF-SHA256) from `SUPABASE_SERVICE_ROLE_KEY`; rotating that key then signs everyone out. Set it (`openssl rand -base64 48`) to decouple |
+| `SUPABASE_ANON_KEY`         | optional | connection check only                                                                                                                                      |
+| `SUPABASE_STORAGE_BUCKET`   | optional | default `media`                                                                                                                                            |
+| `CRON_SECRET`               | optional | enables `/api/cron/maintenance`                                                                                                                            |
+| `PREVIEW_DATABASE_ISOLATED` | optional | `true` lets preview deploys migrate                                                                                                                        |
 
 Forms (only what you use; destinations are configured in **Settings → Requests**):
 

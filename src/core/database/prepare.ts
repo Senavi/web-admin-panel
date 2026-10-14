@@ -8,7 +8,7 @@ import { enableRowLevelSecurity, ensureStorageBucket } from './supabase-connect'
 
 /**
  * Deploy step after migrations (`pnpm db:migrate:deploy`), so a fresh Supabase
- * project works with only DATABASE_URL, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+ * project works with only DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY (SUPABASE_URL is derived):
  * Row Level Security on every table, the media bucket, then default settings and
  * the demo content (missing data only; edited content is never overwritten).
  * Idempotent; returns what it did for the build log.

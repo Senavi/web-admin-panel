@@ -13,11 +13,15 @@
 // Project CSP sources are passed in (`projectConfig.csp`): next.config loads this
 // module outside the bundler, where the `@project/config` alias does not resolve.
 import type { SiteCspSources } from '@/core/project/define';
+import { resolveSupabaseUrl } from '../db/connection-info';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
 function storageOrigin(): string | null {
-  const url = process.env.SUPABASE_URL;
+  const url = resolveSupabaseUrl({
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
+  });
   if (!url) return null;
   try {
     return new URL(url).origin;

@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 import { cn } from '@/admin/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/admin/ui/alert';
+import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Checkbox } from '@/admin/ui/checkbox';
 import {
@@ -30,6 +31,7 @@ import { Input } from '@/admin/ui/input';
 import { Label } from '@/admin/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import type { ActionResult } from '@/core/actions/result';
+import { ConnectionKind, describeConnection, IPV6_ONLY_MESSAGE } from '@/core/db/connection-info';
 import {
   migrateSupabaseAction,
   migrateSupabaseDataAction,
@@ -50,7 +52,6 @@ import {
   type KeyField,
   OPTIONAL_HOSTING_VARIABLES,
   PREPARE_TASKS,
-  RECOMMENDED_HOSTING_VARIABLES,
   REQUIRED_HOSTING_VARIABLES,
   SECRET_HOSTING_VARIABLES,
   SUPABASE_DASHBOARD_URL,
@@ -107,6 +108,38 @@ function TaskIcon({ state, index }: { state: TaskState; index: number }) {
   );
 }
 
+const CONNECTION_LABELS: Record<ConnectionKind, string> = {
+  [ConnectionKind.SharedTransaction]: 'Shared pooler, transaction mode',
+  [ConnectionKind.SharedSession]: 'Shared pooler, session mode',
+  [ConnectionKind.Direct]: 'Direct connection',
+  [ConnectionKind.Dedicated]: 'Dedicated pooler',
+  [ConnectionKind.OtherPostgres]: 'Not a Supabase address',
+};
+
+/** Detected connection type with an IPv4 / IPv6 badge (Netlify and Vercel need IPv4). */
+function ConnectionTypeBadge({ url }: { url: string }) {
+  const info = describeConnection(url);
+  if (!url.trim() || !info) return null;
+  const supabase = info.kind !== ConnectionKind.OtherPostgres;
+  return (
+    <div role="status" aria-label="Connection type" className="flex flex-col gap-1.5">
+      <div className="text-sm flex flex-wrap items-center gap-2">
+        <span>{CONNECTION_LABELS[info.kind]}</span>
+        {supabase ? (
+          info.ipv4 ? (
+            <Badge variant="secondary">IPv4 ✓</Badge>
+          ) : (
+            <Badge variant="destructive">IPv6 only ⚠</Badge>
+          )
+        ) : null}
+      </div>
+      {supabase && !info.ipv4 ? (
+        <p className="text-xs text-destructive">{IPV6_ONLY_MESSAGE}</p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Connect Supabase (development only): create a project, paste the keys, let
  * the app prepare the database and write `.env.local`, then copy the variables
@@ -121,13 +154,7 @@ export function ConnectSupabaseWizard({
   siteUrl: string;
 }) {
   const [step, setStep] = useState(1);
-  const [keys, setKeys] = useState<Keys>({
-    supabaseUrl: '',
-    serviceRoleKey: '',
-    databaseUrl: '',
-    directUrl: '',
-    anonKey: '',
-  });
+  const [keys, setKeys] = useState<Keys>({ databaseUrl: '', serviceRoleKey: '', anonKey: '' });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [checking, setChecking] = useState(false);
   const [checks, setChecks] = useState<readonly CheckResult[] | null>(null);
@@ -190,22 +217,19 @@ export function ConnectSupabaseWizard({
     }
   };
 
-  /** The 3 required variables, DIRECT_URL (recommended) and the optional ones chosen. */
+  /** The 2 required variables and the optional ones chosen. */
   const variables = (
     generated: { auth: string; cron: string } | null,
   ): Array<readonly [HostingVariable, string]> => {
     const values: Record<HostingVariable, string> = {
       [HostingVariable.DatabaseUrl]: keys.databaseUrl.trim(),
-      [HostingVariable.SupabaseUrl]: keys.supabaseUrl.trim(),
       [HostingVariable.ServiceRoleKey]: keys.serviceRoleKey.trim(),
-      [HostingVariable.DirectUrl]: keys.directUrl.trim(),
       [HostingVariable.SiteUrl]: address.trim(),
       [HostingVariable.AuthSecret]: generated?.auth ?? '',
       [HostingVariable.CronSecret]: generated?.cron ?? '',
     };
     const names: HostingVariable[] = [
       ...REQUIRED_HOSTING_VARIABLES,
-      ...RECOMMENDED_HOSTING_VARIABLES,
       ...OPTIONAL_HOSTING_VARIABLES.map((option) => option.name).filter((name) => extras.has(name)),
     ];
     return names.map((name) => [name, values[name]] as const);
@@ -339,6 +363,9 @@ export function ConnectSupabaseWizard({
                         onChange={(event) => setKey(field.name, event.target.value)}
                       />
                       <FieldDescription>Where: {field.where}</FieldDescription>
+                      {field.name === 'databaseUrl' ? (
+                        <ConnectionTypeBadge url={keys.databaseUrl} />
+                      ) : null}
                       {error ? <FieldError>{error}</FieldError> : null}
                     </Field>
                   );
@@ -497,8 +524,9 @@ export function ConnectSupabaseWizard({
                 </dl>
               </div>
               <p className="text-sm text-muted-foreground">
-                Three variables are enough; DIRECT_URL is recommended for migrations. Keep the
-                copied text private: it gives full access to the database.
+                Two variables are enough: the project address and the migration connection are
+                derived from the connection string. Keep the copied text private: it gives full
+                access to the database.
               </p>
             </>
           ) : null}

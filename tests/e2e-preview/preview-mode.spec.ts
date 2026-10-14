@@ -36,7 +36,10 @@ test.describe('preview mode (no DATABASE_URL)', () => {
         page.getByRole('heading', { name: 'This site isn’t connected to a database yet' }),
       ).toBeVisible();
     }
-    await expect(page.getByText('SUPABASE_SERVICE_ROLE_KEY')).toBeVisible();
+    // Two values: the project URL and the migration connection are derived.
+    const list = page.getByLabel('Values to copy');
+    await expect(list.locator('code')).toHaveText(['DATABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    await expect(list).toContainText('pooler.supabase.com:6543');
     await expect(page.getByRole('textbox')).toHaveCount(0);
     // Database-backed APIs are off.
     expect((await request.get('/api/auth/get-session')).status()).toBe(404);

@@ -26,7 +26,11 @@ export async function checkSiteHealth(): Promise<SiteHealth> {
   const usesEmail = contentRegistry.forms.length > 0;
 
   const problems: string[] = [];
-  if (!database.ok) problems.push('The database doesn’t answer. Changes can’t be saved right now.');
+  if (!database.ok) {
+    problems.push(
+      database.hint ?? 'The database doesn’t answer. Changes can’t be saved right now.',
+    );
+  }
   if (!storage.ok)
     problems.push('File storage doesn’t answer. Images can’t be uploaded right now.');
   if (usesEmail && !mail.configured)

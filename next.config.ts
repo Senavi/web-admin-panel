@@ -2,13 +2,18 @@ import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 import { projectConfig } from './project.config';
+import { resolveSupabaseUrl } from './src/core/db/connection-info';
 import { baseSecurityHeaders, CSP_HEADER, staticPageCsp } from './src/core/security/headers';
 
 // Site UI strings: project-owned request config (src/site/i18n/request.ts).
 const withNextIntl = createNextIntlPlugin('./src/site/i18n/request.ts');
 
 function supabaseImagePatterns(): NonNullable<NonNullable<NextConfig['images']>['remotePatterns']> {
-  const url = process.env.SUPABASE_URL;
+  // SUPABASE_URL, or derived from a Supabase DATABASE_URL.
+  const url = resolveSupabaseUrl({
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
+  });
   if (!url) return [];
   const { protocol, hostname } = new URL(url);
   return [

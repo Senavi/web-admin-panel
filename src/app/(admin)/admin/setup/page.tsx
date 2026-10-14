@@ -10,7 +10,6 @@ import {
   HOSTING_VARIABLE_HELP,
   hostingSteps,
   KEY_FIELDS,
-  RECOMMENDED_HOSTING_VARIABLES,
   REQUIRED_HOSTING_VARIABLES,
   SUPABASE_DASHBOARD_URL,
 } from '@/admin/components/security/hosting-guides';
@@ -21,13 +20,11 @@ import { isPreviewMode } from '@/core/preview/mode';
 export const metadata: Metadata = { title: 'Connect a database' };
 export const instant = false;
 
-/** Where each hosting variable comes from in Supabase (from the Connect dialog's key fields). */
-const WHERE: Record<string, string> = {
+/** Where each required variable comes from in Supabase (from the Connect dialog's key fields). */
+const WHERE: Record<(typeof REQUIRED_HOSTING_VARIABLES)[number], string> = {
   DATABASE_URL: KEY_FIELDS.find((field) => field.name === 'databaseUrl')?.where ?? '',
-  SUPABASE_URL: KEY_FIELDS.find((field) => field.name === 'supabaseUrl')?.where ?? '',
   SUPABASE_SERVICE_ROLE_KEY:
     KEY_FIELDS.find((field) => field.name === 'serviceRoleKey')?.where ?? '',
-  DIRECT_URL: KEY_FIELDS.find((field) => field.name === 'directUrl')?.where ?? '',
 };
 
 function Step({
@@ -62,12 +59,12 @@ function Step({
  */
 export default function SetupPage() {
   if (!isPreviewMode()) notFound();
-  const variables = [...REQUIRED_HOSTING_VARIABLES, ...RECOMMENDED_HOSTING_VARIABLES];
+  const variables = REQUIRED_HOSTING_VARIABLES;
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6">
       <PageHeader
         title="This site isn’t connected to a database yet"
-        description="It shows its demo content and can’t be edited. Connect a free Supabase database and add three values on your hosting: about 5 minutes, once per site."
+        description="It shows its demo content and can’t be edited. Connect a free Supabase database and add two values on your hosting: about 5 minutes, once per site."
       />
       <Step number={1} title="Create a Supabase project">
         <GuideSteps items={CREATE_PROJECT_STEPS} />
@@ -84,8 +81,8 @@ export default function SetupPage() {
       </Step>
       <Step
         number={2}
-        title="Copy three values"
-        description="In your Supabase project. Keep them private: they give full access to the database."
+        title="Copy two values"
+        description="In your Supabase project. Keep them private: they give full access to the database. Use the Shared pooler address (pooler.supabase.com:6543): Netlify and Vercel connect over IPv4 only."
       >
         <dl aria-label="Values to copy" className="flex flex-col divide-y rounded-md border">
           {variables.map((name) => (

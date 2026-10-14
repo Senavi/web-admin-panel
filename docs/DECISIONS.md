@@ -673,3 +673,30 @@ pre-compiles the main routes after start, and `navigation-speed.spec.ts` fails a
 build whose warm client navigations (4 site, 4 admin pages) take 500 ms or more. Seed images
 are capped at 2400 px on import, and the Supabase region should match the hosting's
 functions region (every query crosses that distance).
+
+## v1.5.1: one DATABASE_URL
+
+### D-086 One connection string for any Supabase connection type
+
+Netlify and Vercel connect over IPv4 only, but Supabase's `db.<ref>.supabase.co` addresses
+(direct, and the paid dedicated pooler) are IPv6 unless the paid IPv4 add-on is on; people
+paste them and deploys fail. `src/core/db/connection-info.ts` (pure, also used in the
+browser) detects the type from host, port and user: shared pooler transaction (6543) /
+session (5432), direct, dedicated, other Postgres. From it:
+
+- the runtime keeps `prepare: false`; on the shared session pooler each instance holds at
+  most one connection with a 5 s idle timeout, so serverless instances don't exhaust the
+  project's session pool;
+- migrations and scripts use `DIRECT_URL` if set, else the shared transaction pooler's
+  address in session mode (same host and user, port 5432), else `DATABASE_URL`;
+- `SUPABASE_URL` is derived (`postgres.<ref>` user or `db.<ref>` host); an explicit value
+  wins. Required with Supabase: `DATABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`;
+- a network error (ENETUNREACH, EHOSTUNREACH, ENOTFOUND, ETIMEDOUT, connect timeout…) on a
+  direct/dedicated address becomes one plain message pointing to the shared pooler, in the
+  build log (`runScript`), the Security status card, the Connect guide's check, and as a
+  startup warning on Netlify/Vercel. Connection strings in messages are masked.
+
+The Connect guide has one "Connection string" field with the detected type and an
+IPv4 ✓ / IPv6 only ⚠ badge, and writes/copies only `DATABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` (plus optional extras); stale `DIRECT_URL`, `SUPABASE_URL`,
+`STORAGE_DRIVER` and bucket lines it wrote before are removed from `.env.local`.

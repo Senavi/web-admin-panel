@@ -2,6 +2,7 @@ import 'server-only';
 
 import { sql } from 'drizzle-orm';
 
+import { connectionErrorHint } from '@/core/db/connection-info';
 import { getDb, getDbInfo } from '@/core/db/client';
 import type { DbInfo } from '@/core/db/types';
 import { getStorage } from '@/core/storage';
@@ -10,6 +11,8 @@ export interface DatabaseHealth extends DbInfo {
   readonly ok: boolean;
   readonly latencyMs: number | null;
   readonly error: string | null;
+  /** Plain-language fix (e.g. an IPv6-only Supabase address on an IPv4-only host). */
+  readonly hint: string | null;
 }
 
 export async function checkDatabase(): Promise<DatabaseHealth> {
@@ -17,13 +20,22 @@ export async function checkDatabase(): Promise<DatabaseHealth> {
   const started = performance.now();
   try {
     await (await getDb()).execute(sql`select 1`);
-    return { ...info, ok: true, latencyMs: Math.round(performance.now() - started), error: null };
+    return {
+      ...info,
+      ok: true,
+      latencyMs: Math.round(performance.now() - started),
+      error: null,
+      hint: null,
+    };
   } catch (error) {
+    const hint = connectionErrorHint(error, process.env.DATABASE_URL);
+    if (hint) console.error(`[database] ${hint}`);
     return {
       ...info,
       ok: false,
       latencyMs: null,
       error: error instanceof Error ? error.message : 'Unknown error',
+      hint,
     };
   }
 }

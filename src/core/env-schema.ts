@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { resolveSupabaseUrl } from './db/connection-info';
 import { isPreviewMode } from './preview/mode';
 import { resolveSiteUrl } from './site-url';
 
@@ -46,7 +47,7 @@ export const envSchema = z
      * development, preview mode (seed content, no admin) in production.
      */
     DATABASE_URL: optionalUrl,
-    /** Direct Postgres URL used for migrations. Falls back to DATABASE_URL. */
+    /** Migration connection; optional, derived from DATABASE_URL (`migrationUrl`). */
     DIRECT_URL: optionalUrl,
 
     /**
@@ -152,14 +153,21 @@ export const envSchema = z
 
     const driver = resolveStorageDriver(env);
     if (driver === StorageDriver.Supabase) {
-      for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const) {
-        if (!env[key]) {
-          ctx.addIssue({
-            code: 'custom',
-            path: [key],
-            message: `${key} is required when the Supabase storage driver is used.`,
-          });
-        }
+      if (!resolveSupabaseUrl(env)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SUPABASE_URL'],
+          message:
+            'SUPABASE_URL is required when the Supabase storage driver is used and DATABASE_URL is not a Supabase connection string (it is derived from those).',
+        });
+      }
+      if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SUPABASE_SERVICE_ROLE_KEY'],
+          message:
+            'SUPABASE_SERVICE_ROLE_KEY is required when the Supabase storage driver is used.',
+        });
       }
     }
     const mailRequirements: Record<string, ReadonlyArray<keyof typeof env>> = {
@@ -183,17 +191,24 @@ export const envSchema = z
           'Local file storage is not persistent on serverless platforms. Configure Supabase storage or set ALLOW_LOCAL_STORAGE_IN_PRODUCTION=true.',
       });
     }
-  });
+  })
+  // SUPABASE_URL is optional: derived from a Supabase DATABASE_URL (explicit value wins).
+  .transform((env) => ({ ...env, SUPABASE_URL: resolveSupabaseUrl(env) }));
 
 export type EnvInput = z.input<typeof envSchema>;
 export type Env = z.output<typeof envSchema>;
 
-/** Storage driver: explicit setting, otherwise Supabase when configured, otherwise local. */
-export function resolveStorageDriver(
-  env: Pick<Env, 'STORAGE_DRIVER' | 'SUPABASE_URL'>,
-): StorageDriver {
+/**
+ * Storage driver: explicit setting, otherwise Supabase when a Supabase project is
+ * known (SUPABASE_URL, or derived from a Supabase DATABASE_URL), otherwise local.
+ */
+export function resolveStorageDriver(env: {
+  readonly STORAGE_DRIVER?: StorageDriver;
+  readonly SUPABASE_URL?: string;
+  readonly DATABASE_URL?: string;
+}): StorageDriver {
   if (env.STORAGE_DRIVER) return env.STORAGE_DRIVER;
-  return env.SUPABASE_URL ? StorageDriver.Supabase : StorageDriver.Local;
+  return resolveSupabaseUrl(env) ? StorageDriver.Supabase : StorageDriver.Local;
 }
 
 export function formatEnvError(error: z.ZodError): string {

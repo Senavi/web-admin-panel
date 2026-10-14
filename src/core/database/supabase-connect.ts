@@ -16,6 +16,8 @@ import { FAVICON_FILES, faviconKey } from '@/core/media/favicon';
 import { createLocalStorage } from '@/core/storage/local';
 import { createSupabaseStorage } from '@/core/storage/supabase';
 
+import { connectionErrorHint, deriveSupabaseUrl, migrationUrl } from '@/core/db/connection-info';
+
 import { appTableNames, copyTables } from './copy';
 
 const postgresUrl = z
@@ -23,24 +25,36 @@ const postgresUrl = z
   .trim()
   .regex(/^postgres(ql)?:\/\//, 'Use a postgres:// connection string.');
 
-export const supabaseConnectionSchema = z.object({
-  supabaseUrl: z.url('Enter the project URL, e.g. https://xyz.supabase.co').trim(),
-  /** Optional: only used to double-check the project URL. */
-  anonKey: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => value || undefined)
-    .pipe(z.string().min(20, 'Paste the anon (public) key or leave it empty.').optional()),
-  serviceRoleKey: z.string().trim().min(20, 'Paste the service_role key.'),
-  databaseUrl: postgresUrl,
-  directUrl: postgresUrl,
-  bucket: z
-    .string()
-    .trim()
-    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, 'Lowercase letters, numbers and dashes.')
-    .default('media'),
-});
+/**
+ * The Connect dialog's input: one connection string (any Supabase type) and the
+ * service role key. The project URL and the migration URL are derived (D-086).
+ */
+export const supabaseConnectionSchema = z
+  .object({
+    /** Optional: only used to double-check the project URL. */
+    anonKey: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => value || undefined)
+      .pipe(z.string().min(20, 'Paste the anon (public) key or leave it empty.').optional()),
+    serviceRoleKey: z.string().trim().min(20, 'Paste the service_role key.'),
+    databaseUrl: postgresUrl.refine((url) => deriveSupabaseUrl(url) !== null, {
+      message:
+        'Paste the connection string from Supabase → Connect (it contains pooler.supabase.com or db.<project>.supabase.co).',
+    }),
+    bucket: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, 'Lowercase letters, numbers and dashes.')
+      .default('media'),
+  })
+  .transform((input) => ({
+    ...input,
+    supabaseUrl: deriveSupabaseUrl(input.databaseUrl) ?? '',
+    /** Migrations, data copy and RLS: session mode / direct (see `migrationUrl`). */
+    directUrl: migrationUrl({ DATABASE_URL: input.databaseUrl }) ?? input.databaseUrl,
+  }));
 export type SupabaseConnection = z.output<typeof supabaseConnectionSchema>;
 
 export interface CheckResult {
@@ -67,7 +81,9 @@ async function checkPostgres(name: string, url: string): Promise<CheckResult> {
     return {
       name,
       ok: false,
-      message: error instanceof Error ? error.message : 'Connection failed',
+      message:
+        connectionErrorHint(error, url) ??
+        (error instanceof Error ? error.message : 'Connection failed'),
     };
   } finally {
     await client.end({ timeout: 2 }).catch(() => undefined);
@@ -80,8 +96,10 @@ export async function testSupabaseConnection(input: SupabaseConnection): Promise
     auth: { persistSession: false },
   });
   const [pooled, direct, buckets, anon] = await Promise.all([
-    checkPostgres('Database (pooled)', input.databaseUrl),
-    checkPostgres('Database (direct)', input.directUrl),
+    checkPostgres('Database', input.databaseUrl),
+    input.directUrl === input.databaseUrl
+      ? Promise.resolve(null)
+      : checkPostgres('Database (migrations, session mode)', input.directUrl),
     storage.storage.listBuckets(),
     input.anonKey
       ? fetch(`${input.supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
@@ -91,7 +109,7 @@ export async function testSupabaseConnection(input: SupabaseConnection): Promise
   ]);
   return [
     pooled,
-    direct,
+    ...(direct ? [direct] : []),
     buckets.error
       ? { name: 'Storage (service role)', ok: false, message: buckets.error.message }
       : { name: 'Storage (service role)', ok: true, message: `${buckets.data.length} bucket(s)` },
@@ -216,19 +234,22 @@ export const ENV_LOCAL_FILE = path.join(/*turbopackIgnore: true*/ process.cwd(),
 export function writeEnvLocal(input: SupabaseConnection): string[] {
   const values: Record<string, string> = {
     DATABASE_URL: input.databaseUrl,
-    DIRECT_URL: input.directUrl,
-    SUPABASE_URL: input.supabaseUrl,
-    ...(input.anonKey ? { SUPABASE_ANON_KEY: input.anonKey } : {}),
     SUPABASE_SERVICE_ROLE_KEY: input.serviceRoleKey,
-    SUPABASE_STORAGE_BUCKET: input.bucket,
-    STORAGE_DRIVER: 'supabase',
+    ...(input.anonKey ? { SUPABASE_ANON_KEY: input.anonKey } : {}),
   };
+  // Older Connect runs wrote these; they are derived now and would only go stale.
+  const replaced = [
+    ...Object.keys(values),
+    'SUPABASE_ANON_KEY',
+    'DIRECT_URL',
+    'SUPABASE_URL',
+    'STORAGE_DRIVER',
+    'SUPABASE_STORAGE_BUCKET',
+  ];
   const existing = fs.existsSync(ENV_LOCAL_FILE)
     ? fs.readFileSync(ENV_LOCAL_FILE, 'utf8').split('\n')
     : [];
-  const kept = existing.filter(
-    (line) => !Object.keys(values).some((key) => line.startsWith(`${key}=`)),
-  );
+  const kept = existing.filter((line) => !replaced.some((key) => line.startsWith(`${key}=`)));
   const lines = [
     ...kept.filter((line, i) => line.trim() !== '' || i < kept.length - 1),
     '# Added by Connect Supabase (Security page)',

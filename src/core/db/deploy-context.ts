@@ -11,7 +11,7 @@ export function migrationDecision(env: Record<string, string | undefined>): Migr
     return {
       migrate: false,
       reason:
-        'no DATABASE_URL: the site deploys in preview mode (seed content, no admin). Add DATABASE_URL, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and redeploy to connect a database.',
+        'no DATABASE_URL: the site deploys in preview mode (seed content, no admin). Add DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY and redeploy to connect a database.',
     };
   }
   const vercel = env.VERCEL_ENV;

@@ -6,6 +6,35 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-14
+
+One `DATABASE_URL` for any Supabase connection type.
+
+### Changed
+
+- `DATABASE_URL` accepts every Supabase connection string (shared pooler transaction or
+  session, direct, dedicated). The type is detected; the session pooler uses one connection
+  per instance with a short idle timeout.
+- `DIRECT_URL` is optional: migrations use the transaction pooler's address in session mode
+  (port 5432) when it is unset.
+- `SUPABASE_URL` is optional: derived from the connection string. With Supabase only
+  `DATABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are required.
+- Connect Supabase: one "Connection string" field with the detected type and an
+  IPv4 ✓ / IPv6 only ⚠ badge; "Copy all" lists `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  and the optional extras. The admin setup guide asks for two values.
+
+### Fixed
+
+- Deploys with a `db.<ref>.supabase.co` address (IPv6 only) on Netlify/Vercel now explain
+  the problem in plain words (build log, Security status, Connect guide) and point to the
+  shared pooler address. Passwords are never printed.
+
+### Upgrading from 1.5.0
+
+Nothing to do. Existing `DIRECT_URL` and `SUPABASE_URL` keep working (explicit values win);
+you can remove them. On Netlify/Vercel make sure `DATABASE_URL` is the shared pooler address
+(`…pooler.supabase.com:6543`).
+
 ## [1.5.0] - 2026-10-14
 
 Fast navigation and a fix for custom admin paths.

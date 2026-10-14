@@ -14,7 +14,7 @@ export const CREATE_PROJECT_STEPS: readonly string[] = [
 ];
 
 export interface KeyField {
-  readonly name: 'supabaseUrl' | 'serviceRoleKey' | 'databaseUrl' | 'directUrl' | 'anonKey';
+  readonly name: 'serviceRoleKey' | 'databaseUrl' | 'anonKey';
   readonly label: string;
   readonly where: string;
   readonly placeholder: string;
@@ -24,11 +24,13 @@ export interface KeyField {
 
 export const KEY_FIELDS: readonly KeyField[] = [
   {
-    name: 'supabaseUrl',
-    label: 'Project URL',
-    where: 'Project Settings → Data API',
-    placeholder: 'https://xxxx.supabase.co',
-    secret: false,
+    name: 'databaseUrl',
+    label: 'Connection string',
+    where:
+      'Connect (top of the project) → Shared pooler → Transaction pooler (the address with pooler.supabase.com:6543). Put your database password instead of [YOUR-PASSWORD]',
+    placeholder:
+      'postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:6543/postgres',
+    secret: true,
   },
   {
     name: 'serviceRoleKey',
@@ -38,24 +40,9 @@ export const KEY_FIELDS: readonly KeyField[] = [
     secret: true,
   },
   {
-    name: 'databaseUrl',
-    label: 'Connection string',
-    where:
-      'Connect (top of the project) → Transaction pooler (port 6543). Put your database password instead of [PASSWORD]',
-    placeholder: 'postgresql://postgres.xxxx:[PASSWORD]@…:6543/postgres',
-    secret: true,
-  },
-  {
-    name: 'directUrl',
-    label: 'Direct connection string',
-    where: 'Connect → Direct connection (port 5432, same password)',
-    placeholder: 'postgresql://postgres:[PASSWORD]@db.xxxx.supabase.co:5432/postgres',
-    secret: true,
-  },
-  {
     name: 'anonKey',
     label: 'Public key (anon), optional',
-    where: 'Project Settings → API Keys → anon public. Only used to double-check the project URL',
+    where: 'Project Settings → API Keys → anon public. Only used to double-check the project',
     placeholder: 'eyJhbGciOi…',
     secret: true,
     optional: true,
@@ -117,24 +104,21 @@ export function hostingSteps(guide: HostingGuide, mode: HostingStepMode): string
 /** Variables for the hosting platform, in the order they are shown and copied. */
 export const HostingVariable = {
   DatabaseUrl: 'DATABASE_URL',
-  SupabaseUrl: 'SUPABASE_URL',
   ServiceRoleKey: 'SUPABASE_SERVICE_ROLE_KEY',
-  DirectUrl: 'DIRECT_URL',
   SiteUrl: 'NEXT_PUBLIC_SITE_URL',
   AuthSecret: 'AUTH_SECRET',
   CronSecret: 'CRON_SECRET',
 } as const;
 export type HostingVariable = (typeof HostingVariable)[keyof typeof HostingVariable];
 
-/** The only variables a Supabase deploy needs (D-080). */
+/**
+ * The only variables a Supabase deploy needs (D-086): the project URL and the
+ * migration connection are derived from DATABASE_URL.
+ */
 export const REQUIRED_HOSTING_VARIABLES = [
   HostingVariable.DatabaseUrl,
-  HostingVariable.SupabaseUrl,
   HostingVariable.ServiceRoleKey,
 ] as const;
-
-/** Recommended: migrations through the direct connection. */
-export const RECOMMENDED_HOSTING_VARIABLES = [HostingVariable.DirectUrl] as const;
 
 /** Optional extras the person can add in the Connect dialog. */
 export const OPTIONAL_HOSTING_VARIABLES: ReadonlyArray<{
@@ -161,10 +145,9 @@ export const OPTIONAL_HOSTING_VARIABLES: ReadonlyArray<{
 
 /** Plain-language description of each variable (setup page). */
 export const HOSTING_VARIABLE_HELP: Readonly<Record<HostingVariable, string>> = {
-  [HostingVariable.DatabaseUrl]: 'Connection string (Transaction pooler, port 6543)',
-  [HostingVariable.SupabaseUrl]: 'Project URL',
+  [HostingVariable.DatabaseUrl]:
+    'Connection string (Shared pooler → Transaction pooler, port 6543)',
   [HostingVariable.ServiceRoleKey]: 'Secret key (service_role)',
-  [HostingVariable.DirectUrl]: 'Direct connection string (port 5432), recommended',
   [HostingVariable.SiteUrl]: 'Your own domain, optional',
   [HostingVariable.AuthSecret]: 'Optional',
   [HostingVariable.CronSecret]: 'Optional',
@@ -173,7 +156,6 @@ export const HOSTING_VARIABLE_HELP: Readonly<Record<HostingVariable, string>> = 
 /** Variables whose values are hidden on screen (copied in full). */
 export const SECRET_HOSTING_VARIABLES: ReadonlySet<HostingVariable> = new Set([
   HostingVariable.DatabaseUrl,
-  HostingVariable.DirectUrl,
   HostingVariable.ServiceRoleKey,
   HostingVariable.AuthSecret,
   HostingVariable.CronSecret,

@@ -30,15 +30,28 @@ describe('activity sentences', () => {
 
 describe('Connect Supabase keys', () => {
   const keys = {
-    supabaseUrl: 'https://xyz.supabase.co',
     serviceRoleKey: 'service-role-key-0123456789',
-    databaseUrl: 'postgresql://postgres.xyz:pw@pooler.supabase.com:6543/postgres',
-    directUrl: 'postgresql://postgres:pw@db.xyz.supabase.co:5432/postgres',
+    databaseUrl:
+      'postgresql://postgres.xyz:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
   };
 
   it('accepts a missing or empty anon key', () => {
     expect(supabaseConnectionSchema.parse(keys).anonKey).toBeUndefined();
     expect(supabaseConnectionSchema.parse({ ...keys, anonKey: '  ' }).anonKey).toBeUndefined();
+  });
+
+  it('derives the project URL and the session-mode migration URL from one connection string', () => {
+    const parsed = supabaseConnectionSchema.parse(keys);
+    expect(parsed.supabaseUrl).toBe('https://xyz.supabase.co');
+    expect(parsed.directUrl).toBe(keys.databaseUrl.replace(':6543/', ':5432/'));
+  });
+
+  it('rejects connection strings that are not from Supabase', () => {
+    const result = supabaseConnectionSchema.safeParse({
+      ...keys,
+      databaseUrl: 'postgres://postgres:postgres@localhost:5432/app',
+    });
+    expect(result.success).toBe(false);
   });
 
   it('still validates an anon key when given', () => {

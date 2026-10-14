@@ -29,7 +29,8 @@ folders and don't affect it.
 
 Import the repository into Netlify or Vercel and deploy: it works with **zero variables**
 (preview mode: demo content, hidden from search engines, the admin shows a setup guide).
-Then add `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` and redeploy. See
+Then add `DATABASE_URL` (the Supabase shared pooler address) and `SUPABASE_SERVICE_ROLE_KEY`
+and redeploy. See
 docs/DEPLOYMENT.md § Deploy in 5 minutes.
 
 ## Test the speed

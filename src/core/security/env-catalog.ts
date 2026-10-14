@@ -31,7 +31,8 @@ export const ENV_CATALOG: readonly EnvVariable[] = [
   },
   {
     name: 'DIRECT_URL',
-    description: 'Direct Postgres URL for migrations (port 5432).',
+    description:
+      'Migration connection. Optional: derived from DATABASE_URL (shared transaction pooler → session mode, port 5432).',
     requirement: 'optional',
     secret: true,
   },
@@ -50,8 +51,8 @@ export const ENV_CATALOG: readonly EnvVariable[] = [
   },
   {
     name: 'SUPABASE_URL',
-    description: 'Supabase project URL (storage).',
-    requirement: 'production',
+    description: 'Supabase project URL (storage). Optional: derived from a Supabase DATABASE_URL.',
+    requirement: 'optional',
     secret: false,
   },
   {

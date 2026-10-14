@@ -58,6 +58,27 @@ describe('env schema', () => {
     ).not.toThrow();
   });
 
+  it('needs only DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY with a Supabase connection string', () => {
+    const env = parseEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL:
+        'postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role',
+      NETLIFY: 'true',
+      URL: 'https://site.netlify.app',
+    });
+    expect(env.SUPABASE_URL).toBe('https://abcdefghijklmnopqrst.supabase.co');
+    expect(resolveStorageDriver(env)).toBe(StorageDriver.Supabase);
+  });
+
+  it('an explicit SUPABASE_URL still wins over the derived one', () => {
+    const env = parseEnv({
+      ...PROD_BASE,
+      DATABASE_URL: 'postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres',
+    });
+    expect(env.SUPABASE_URL).toBe(PROD_BASE.SUPABASE_URL);
+  });
+
   it('with a database, requires a secret source and a site address', () => {
     const withDb = { NODE_ENV: 'production', DATABASE_URL: PROD_BASE.DATABASE_URL };
     expect(() =>
