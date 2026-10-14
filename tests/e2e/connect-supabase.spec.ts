@@ -16,7 +16,11 @@ test.describe('Connect Supabase guide', () => {
     await login(page, E2E_ADMIN);
     await setDeveloperMode(page, true);
     await page.goto(admin('/security'));
-    await page.getByRole('button', { name: 'Connect Supabase' }).click();
+    // The local-database banner links here too; open the guide from Developer settings.
+    await page
+      .getByRole('region', { name: 'Developer settings' })
+      .getByRole('button', { name: 'Connect Supabase' })
+      .click();
     const dialog = page.getByRole('dialog', { name: 'Connect Supabase' });
     await dialog.getByRole('button', { name: 'I have created the project' }).click();
 

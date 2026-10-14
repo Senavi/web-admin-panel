@@ -40,7 +40,7 @@ describe('preview mode data', () => {
   });
 
   it('serves only plain file names from the seed folder', () => {
-    expect(seedAssetFile('hero.webp')).toMatch(/seed\/assets\/hero\.webp$/);
+    expect(seedAssetFile('hero.webp')).toMatch(/seed[\\/]assets[\\/]hero\.webp$/);
     expect(seedAssetFile('../secret.txt')).toBeNull();
     expect(seedAssetFile('.env')).toBeNull();
   });
