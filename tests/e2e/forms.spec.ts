@@ -3,13 +3,15 @@ import fs from 'node:fs/promises';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import path from 'node:path';
 
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { type Browser, type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { setDeveloperMode } from './support/developer';
 import { E2E_ENV } from './support/env';
 import { openSettingsTab, saveSettingsTab } from './support/settings';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
+import { admin, ADMIN } from './support/admin';
 
 /** Same data dir as the server under test (dev e2e: .data/e2e; prod e2e: SITE_DATA_DIR). */
 const DATA_DIR = process.env.SITE_DATA_DIR ?? (process.env.E2E_BASE_URL ? '.data' : '.data/e2e');
@@ -67,7 +69,7 @@ const valid = (name: string): ContactInput => ({
 
 /** Submissions in the admin inbox whose data contains `search` (all statuses). */
 async function inboxCount(page: Page, search: string): Promise<number> {
-  await page.goto(`/admin/pages/forms/contact?status=all&q=${encodeURIComponent(search)}`);
+  await page.goto(`${ADMIN}/pages/forms/contact?status=all&q=${encodeURIComponent(search)}`);
   const rows = page.getByRole('table', { name: 'Requests' }).getByRole('row');
   await expect(rows.first()).toBeVisible();
   if (await page.getByText('No requests here.').isVisible()) return 0;
@@ -218,7 +220,7 @@ test.describe.serial('forms', () => {
       await context.close();
 
       // Unread count in the Pages sidebar.
-      await page.goto('/admin/pages/forms/contact');
+      await page.goto(admin('/pages/forms/contact'));
       await expect(
         page.getByRole('region', { name: 'Forms' }).getByLabel(/[1-9][0-9]* new/),
       ).toBeVisible();
@@ -263,7 +265,7 @@ test.describe.serial('forms', () => {
     await submit(guest);
     await expect(guest.getByRole('heading', { name: 'Thank you!' })).toBeVisible();
     await context.close();
-    await page.goto(`/admin/pages/forms/contact?status=all&q=${encodeURIComponent(name)}`);
+    await page.goto(`${ADMIN}/pages/forms/contact?status=all&q=${encodeURIComponent(name)}`);
     await expect(page.getByText('webhook: failed')).toBeVisible();
 
     const received: Received[] = [];
@@ -286,11 +288,11 @@ test.describe.serial('forms', () => {
     browser,
   }) => {
     // Capture an admin's delete request…
-    const admin = await browser.newContext();
-    const adminPage = await admin.newPage();
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
     await login(adminPage, E2E_ADMIN);
     await adminPage.goto(
-      `/admin/pages/forms/contact?status=all&q=${encodeURIComponent(`NoJS ${stamp}`)}`,
+      `${ADMIN}/pages/forms/contact?status=all&q=${encodeURIComponent(`NoJS ${stamp}`)}`,
     );
     await adminPage.getByRole('table', { name: 'Requests' }).getByRole('link').first().click();
     await expect(adminPage.getByRole('button', { name: 'Delete' })).toBeVisible();
@@ -302,12 +304,12 @@ test.describe.serial('forms', () => {
       adminPage.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click(),
     ]);
     await expect(adminPage.getByText('Request deleted.')).toBeVisible();
-    await admin.close();
+    await adminContext.close();
 
     const manager = await browser.newContext();
     const page = await manager.newPage();
     await login(page, E2E_MANAGER);
-    await page.goto('/admin/pages/forms/contact?status=all');
+    await page.goto(admin('/pages/forms/contact?status=all'));
     await page.getByRole('table', { name: 'Requests' }).getByRole('link').first().click();
     await expect(page.getByRole('button', { name: /Mark as/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
@@ -329,7 +331,7 @@ test.describe.serial('forms', () => {
     });
     expect(await replay.text()).toContain('You are not allowed to perform this action.');
 
-    await page.goto('/admin/settings?tab=requests');
+    await page.goto(admin('/settings?tab=requests'));
     await expect(page.locator('form[aria-label="Requests"]')).toHaveCount(0);
     await manager.close();
   });

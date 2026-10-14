@@ -1,7 +1,9 @@
-import { expect, type Page, test } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { E2E_MANAGER } from './support/users';
+import { admin } from './support/admin';
 
 const VISITOR = { 'user-agent': 'Mozilla/5.0 Chrome/150', 'accept-language': 'en' };
 
@@ -21,7 +23,7 @@ test('editing the phone in Site-wide updates the header and footer of every page
   const aboutBefore = /<h1[^>]*>([^<]*)/.exec(await html(page, '/about'))?.[1];
 
   await login(page, E2E_MANAGER);
-  await page.goto('/admin/pages/site-wide/site');
+  await page.goto(admin('/pages/site-wide/site'));
   await expect(page.locator('form[data-hydrated]')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Header & footer', level: 1 })).toBeVisible();
   // Site-wide content has no Google & sharing tab.
@@ -41,7 +43,7 @@ test('editing the phone in Site-wide updates the header and footer of every page
 
 test('invalid phone numbers are rejected in the editor', async ({ page }) => {
   await login(page, E2E_MANAGER);
-  await page.goto('/admin/pages/site-wide/site');
+  await page.goto(admin('/pages/site-wide/site'));
   await expect(page.locator('form[data-hydrated]')).toBeVisible();
   await page.getByRole('textbox', { name: 'Phone' }).fill('call us');
   await page.getByRole('button', { name: 'Save', exact: true }).click();

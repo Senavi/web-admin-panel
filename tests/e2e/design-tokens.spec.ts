@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/test';
 
 /**
  * Acceptance: a single token change restyles the whole site. Overriding a token

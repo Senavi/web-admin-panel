@@ -9,6 +9,7 @@ import { GuardError, runAction } from '@/core/actions/run';
 import { Permission } from '@/core/auth/permissions';
 import { assertPermission } from '@/core/auth/server/session';
 import { CacheTag } from '@/core/cache/tags';
+import { siteStateChanged } from '@/core/site-gate/state-version';
 import { type AnyCollection, CollectionItemStatus, ITEM_SECTION } from '@/core/content/collection';
 import { resolveDocument } from '@/core/content/document';
 import { DocumentKind } from '@/core/content/document-target';
@@ -38,10 +39,10 @@ function collectionOrThrow(collectionId: string): AnyCollection {
   return collection;
 }
 
-function invalidateItem(collectionId: string, slugs: readonly string[]): void {
+async function invalidateItem(collectionId: string, slugs: readonly string[]): Promise<void> {
   for (const slug of new Set(slugs)) updateTag(CacheTag.collectionItem(collectionId, slug));
-  updateTag(CacheTag.collectionList(collectionId));
   updateTag(CacheTag.Sitemap);
+  await siteStateChanged(CacheTag.collectionList(collectionId));
 }
 
 /** Creates a draft item with a placeholder slug and returns its id (the editor opens next). */
@@ -248,7 +249,7 @@ export async function saveItemAction(input: unknown): Promise<ActionResult<SaveI
         summary: { title, slug: meta.data.slug },
       });
     }
-    invalidateItem(collection.id, [before.slug, meta.data.slug]);
+    await invalidateItem(collection.id, [before.slug, meta.data.slug]);
     const message =
       meta.data.status === CollectionItemStatus.Published
         ? 'Saved. The live site updates in a few seconds.'
@@ -275,7 +276,7 @@ export async function deleteItemAction(input: unknown): Promise<ActionResult<nul
       target: `item:${collection.id}:${item.id}`,
       summary: { title: document.label, slug: item.slug, collection: collection.label },
     });
-    invalidateItem(collection.id, [item.slug]);
+    await invalidateItem(collection.id, [item.slug]);
     return ok(null, `${collection.itemLabel} deleted.`);
   });
 }

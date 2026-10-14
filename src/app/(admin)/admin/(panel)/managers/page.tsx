@@ -7,13 +7,15 @@ import { isRole } from '@/core/auth/roles';
 import { requirePermission } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
 import { users } from '@/core/db/schema';
+import { timed } from '@/core/perf/timing';
 
 export const metadata: Metadata = { title: 'Managers' };
 export const instant = false;
 
 export default async function ManagersPage() {
   const me = await requirePermission(Permission.ManagersManage);
-  const rows = await (await getDb()).select().from(users).orderBy(asc(users.name));
+  const db = await getDb();
+  const rows = await timed('db:users', () => db.select().from(users).orderBy(asc(users.name)));
   return (
     <>
       <UsersTable

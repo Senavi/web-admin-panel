@@ -33,6 +33,8 @@ export interface IngestInput {
   readonly uploadedBy: string | null;
   readonly kind?: 'image' | 'logo' | 'favicon';
   readonly seedAsset?: string;
+  /** Longest edge (default `IMAGE_LIMITS.maxDimension`); seed images use a smaller cap. */
+  readonly maxDimension?: number;
 }
 
 export type MediaRow = typeof media.$inferSelect;
@@ -79,8 +81,8 @@ export async function ingestImage(
   const { data, info } = await pipeline
     .rotate()
     .resize({
-      width: IMAGE_LIMITS.maxDimension,
-      height: IMAGE_LIMITS.maxDimension,
+      width: input.maxDimension ?? IMAGE_LIMITS.maxDimension,
+      height: input.maxDimension ?? IMAGE_LIMITS.maxDimension,
       fit: 'inside',
       withoutEnlargement: true,
     })

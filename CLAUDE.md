@@ -82,6 +82,10 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 
 Non-content public routes must be listed in `projectConfig.siteRoutes` (otherwise 404).
 
+Admin URLs: always `adminHref(AdminRoute.X)`, never a literal `/admin` (the public path is
+`projectConfig.adminPath`; e2e uses `admin()` from `tests/e2e/support/admin.ts`). Every admin
+route segment has a `loading.tsx` built from `admin/components/layout/skeletons.tsx`.
+
 Preview mode (production without `DATABASE_URL`) must keep working: site reads go through
 the core loaders (they fall back to seeds), never `getDb()` directly from site code.
 

@@ -17,18 +17,34 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3000 (site) and http://localhost:3000/admin (admin). The development
+Open http://localhost:3000 (site) and http://localhost:3000/stst-admin (admin; the path is
+`adminPath` in `project.config.ts`). The development
 admin's credentials are written to `.data/dev-admin-credentials.txt` on the first run.
 
-If `pnpm dev` keeps reloading the page right after a production build (`pnpm build`,
-`pnpm e2e:prod`), stop it, delete `.next/dev` and start it again (stale dev cache).
+If `pnpm dev` keeps reloading the page right after `pnpm build` (which shares `.next`), stop
+it, delete `.next/dev` and start it again. `pnpm preview` and `pnpm e2e:prod` use their own
+folders and don't affect it.
 
 ## Deploy
 
 Import the repository into Netlify or Vercel and deploy: it works with **zero variables**
-(preview mode: demo content, hidden from search engines, `/admin` shows a setup guide).
+(preview mode: demo content, hidden from search engines, the admin shows a setup guide).
 Then add `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` and redeploy. See
 docs/DEPLOYMENT.md § Deploy in 5 minutes.
+
+## Test the speed
+
+`pnpm dev` compiles each page on its first visit and has no prefetching, so it feels slower
+than the real site (it pre-compiles the main pages in the background after start). To judge
+speed, run the production build locally:
+
+```bash
+pnpm preview
+```
+
+It builds into `.next-preview` (separate from `pnpm dev`) and serves the local database at
+http://localhost:3300 (admin at `projectConfig.adminPath`, same dev admin). `pnpm measure:nav`
+prints click → feedback / content times for the main site and admin pages.
 
 ## Features
 

@@ -1,6 +1,8 @@
 'use server';
 
 import { updateTag } from 'next/cache';
+
+import { feedsSiteState, markSiteStateChanged } from '@/core/site-gate/state-version';
 import { z } from 'zod';
 
 import { ActionErrorCode, fail, ok, type ActionResult } from '@/core/actions/result';
@@ -47,8 +49,14 @@ async function resolveTarget(db: Database, input: unknown, locale: string) {
   return document;
 }
 
-function invalidate(document: ContentDocument, locale: string, result: SaveResult): void {
-  for (const tag of document.tagsToInvalidate(locale, result.changed)) updateTag(tag);
+async function invalidate(
+  document: ContentDocument,
+  locale: string,
+  result: SaveResult,
+): Promise<void> {
+  const tags = document.tagsToInvalidate(locale, result.changed);
+  for (const tag of tags) updateTag(tag);
+  if (tags.some(feedsSiteState)) await markSiteStateChanged();
 }
 
 /** Saves content (+ SEO when the document has it) of one document in one locale. */
@@ -85,7 +93,7 @@ export async function saveDocumentAction(
       target: document.auditTarget(data.locale),
       summary: { ...result.changed },
     });
-    invalidate(document, data.locale, result);
+    await invalidate(document, data.locale, result);
     return ok({ versions: result.versions }, 'Saved. The live site updates in a few seconds.');
   });
 }
@@ -167,7 +175,7 @@ export async function restoreRevisionAction(
       target: document.auditTarget(revision.locale),
       summary: { revisionId: rest.revisionId },
     });
-    invalidate(document, revision.locale, result);
+    await invalidate(document, revision.locale, result);
     return ok({ versions: result.versions }, 'Revision restored.');
   });
 }

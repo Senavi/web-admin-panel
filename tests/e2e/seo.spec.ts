@@ -1,4 +1,6 @@
-import { expect, request, test } from '@playwright/test';
+import { ADMIN } from './support/admin';
+import { request } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import {
@@ -54,6 +56,8 @@ test.describe.serial('SEO and i18n', () => {
     const robots = await (await visitor.get('/robots.txt')).text();
     expect(robots).toContain('Allow: /');
     expect(robots).toContain('Disallow: /admin');
+    // A custom admin path is never revealed.
+    expect(robots).not.toContain(ADMIN);
     const sitemap = await (await visitor.get('/sitemap.xml')).text();
     expect(sitemap).toMatch(/<loc>[^<]*\/uk\/about<\/loc>/);
     expect(sitemap).toMatch(/hreflang="uk"/);

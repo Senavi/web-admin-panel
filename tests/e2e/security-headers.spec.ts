@@ -1,7 +1,9 @@
-import { expect, type Page, test } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
+import { admin } from './support/admin';
 
 function collectCspViolations(page: Page): string[] {
   const violations: string[] = [];
@@ -29,7 +31,7 @@ test('site responses carry security headers and a CSP', async ({ request }) => {
 });
 
 test('admin responses use a nonce-based CSP', async ({ page }) => {
-  const response = await page.goto('/admin/login');
+  const response = await page.goto(admin('/login'));
   const csp = response?.headers()['content-security-policy'] ?? '';
   expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
 });
@@ -45,14 +47,14 @@ test('pages run without CSP violations (site, blog, forms, editor, dashboard)', 
   await page.goto('/contact');
   await expect(page.locator('form#form-contact input[name="_t"]')).toBeAttached();
   await login(page, E2E_ADMIN);
-  await page.goto('/admin?range=7d');
+  await page.goto(admin('?range=7d'));
   await expect(page.getByRole('heading', { name: 'Traffic' })).toBeVisible();
-  await page.goto('/admin/pages/about');
+  await page.goto(admin('/pages/about'));
   await expect(page.locator('form[data-hydrated]')).toBeVisible();
-  await page.goto('/admin/settings');
+  await page.goto(admin('/settings'));
   await expect(page.locator('form[aria-label="General"][data-hydrated]')).toBeVisible();
-  await page.goto('/admin/pages/collections/blog');
-  await page.goto('/admin/pages/forms/contact');
+  await page.goto(admin('/pages/collections/blog'));
+  await page.goto(admin('/pages/forms/contact'));
   await expect(page.getByRole('table', { name: 'Requests' })).toBeVisible();
   expect(violations).toEqual([]);
 });

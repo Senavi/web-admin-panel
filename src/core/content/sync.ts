@@ -240,6 +240,9 @@ async function fillRow(
   report.filled.push(...filled);
 }
 
+/** Longest edge of seed images after import. */
+export const SEED_IMAGE_MAX_DIMENSION = 2400;
+
 async function importSeedAssets(
   db: Database,
   storage: StorageAdapter,
@@ -257,6 +260,8 @@ async function importSeedAssets(
       originalName: asset,
       uploadedBy: null,
       seedAsset: asset,
+      // Big seed photos make the image optimizer's first requests slow; 2400 px is plenty.
+      maxDimension: SEED_IMAGE_MAX_DIMENSION,
     });
     ids.set(asset, row.id);
     report.assetsImported.push(asset);

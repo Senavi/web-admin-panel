@@ -9,7 +9,7 @@ export const SUPABASE_DASHBOARD_URL = 'https://supabase.com/dashboard/projects';
 export const CREATE_PROJECT_STEPS: readonly string[] = [
   'Open Supabase and sign in (a free account is enough to start).',
   'Click **New project**. Name it after the site, for example **acme-studio**.',
-  'Choose the region closest to your visitors, for example **Frankfurt**.',
+  'Choose the **same region as your hosting’s server functions** (Vercel: Project → Settings → Functions → Region; Netlify: the functions region in Site configuration). Every database query travels between them; pages for visitors are cached anyway.',
   'Make up a database password and **save it**. You will need it in the next step.',
 ];
 

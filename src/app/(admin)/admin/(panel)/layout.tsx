@@ -1,10 +1,12 @@
 import { cookies } from 'next/headers';
+import { Suspense } from 'react';
 
 import { AdminHeader } from '@/admin/components/layout/admin-header';
 import { AppSidebar } from '@/admin/components/layout/app-sidebar';
 import { DeveloperModeProvider } from '@/admin/components/layout/developer-mode';
 import { GateRefresher } from '@/admin/components/layout/gate-refresher';
 import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
+import { NavigationProgress } from '@/admin/components/layout/navigation-progress';
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from '@/admin/ui/sidebar';
 import { contentRegistry } from '@/core/content/project-registry';
 import { adminHref, AdminRoute, PagesArea } from '@/core/project/paths';
@@ -12,7 +14,8 @@ import { can, Permission } from '@/core/auth/permissions';
 import { requireUser } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
 import { countNew } from '@/core/forms/inbox';
-import { readSiteSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
+import { timed } from '@/core/perf/timing';
 
 const byId = <T extends { id: string }>(items: readonly T[], label: (item: T) => string) =>
   Object.fromEntries(items.map((item) => [item.id, label(item)]));
@@ -40,11 +43,13 @@ export default async function AdminPanelLayout({ children }: LayoutProps<'/admin
   const canReadForms = can(user.role, Permission.FormsView) && contentRegistry.forms.length > 0;
   const [cookieStore, settings, unread] = await Promise.all([
     cookies(),
-    readSiteSettings(db),
+    getRequestSettings(),
     canReadForms
-      ? countNew(
-          db,
-          contentRegistry.forms.map((form) => form.id),
+      ? timed('db:unread', () =>
+          countNew(
+            db,
+            contentRegistry.forms.map((form) => form.id),
+          ),
         )
       : Promise.resolve({} as Record<string, number>),
   ]);
@@ -69,6 +74,10 @@ export default async function AdminPanelLayout({ children }: LayoutProps<'/admin
           </div>
         </SidebarInset>
         <GateRefresher />
+        {/* useSearchParams needs a Suspense boundary. */}
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
       </SidebarProvider>
     </DeveloperModeProvider>
   );

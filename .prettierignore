@@ -1,6 +1,6 @@
 pnpm-lock.yaml
 .next
-.next-preview
+.next-*
 .data
 coverage
 playwright-report

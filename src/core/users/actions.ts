@@ -1,7 +1,6 @@
 'use server';
 
 import { and, count, eq, sql } from 'drizzle-orm';
-import { updateTag } from 'next/cache';
 
 import { projectConfig } from '@project/config';
 
@@ -20,6 +19,7 @@ import {
   setUserStatus,
 } from '@/core/auth/server/users';
 import { CacheTag } from '@/core/cache/tags';
+import { siteStateChanged } from '@/core/site-gate/state-version';
 import { getDb } from '@/core/db/client';
 import { users } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
@@ -103,7 +103,7 @@ export async function createUserAction(
       target: `user:${user.id}`,
       summary: { role: data.role },
     });
-    updateTag(CacheTag.Staff);
+    await siteStateChanged(CacheTag.Staff);
     await notifyInvite({
       email: user.email,
       name: user.name,
@@ -140,7 +140,7 @@ export async function updateUserAction(input: unknown): Promise<ActionResult> {
         role: roleChanged ? `${target.role}→${data.role}` : undefined,
       },
     });
-    if (roleChanged) updateTag(CacheTag.Staff);
+    if (roleChanged) await siteStateChanged(CacheTag.Staff);
     return ok(undefined, 'User updated.');
   });
 }
@@ -159,7 +159,7 @@ export async function setUserStatusAction(input: unknown): Promise<ActionResult>
       actor: actorRef(actor),
       target: `user:${data.id}`,
     });
-    updateTag(CacheTag.Staff);
+    await siteStateChanged(CacheTag.Staff);
     return ok(
       undefined,
       data.status === UserStatus.Disabled ? 'User disabled and signed out.' : 'User enabled.',
@@ -185,7 +185,7 @@ export async function resetUserPasswordAction(
       actor: actorRef(actor),
       target: `user:${id}`,
     });
-    updateTag(CacheTag.Staff);
+    await siteStateChanged(CacheTag.Staff);
     await notifyInvite({
       email: target.email,
       name: target.name,
@@ -209,7 +209,7 @@ export async function revokeUserSessionsAction(input: unknown): Promise<ActionRe
       actor: actorRef(actor),
       target: `user:${id}`,
     });
-    updateTag(CacheTag.Staff);
+    await siteStateChanged(CacheTag.Staff);
     return ok(undefined, 'All sessions of this user were revoked.');
   });
 }
@@ -228,7 +228,7 @@ export async function deleteUserAction(input: unknown): Promise<ActionResult> {
       target: `user:${id}`,
       summary: { email: target.email },
     });
-    updateTag(CacheTag.Staff);
+    await siteStateChanged(CacheTag.Staff);
     return ok(undefined, 'User deleted.');
   });
 }

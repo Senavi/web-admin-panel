@@ -4,14 +4,15 @@
  *
  *   pnpm e2e:preview [playwright args]
  *
- * Builds into `.next-preview` so the regular `.next` build is untouched.
+ * Builds into `.next-preview-mode` so the regular `.next` build is untouched.
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import net from 'node:net';
+
+import { waitForPort } from './lib/process';
 
 const APP_PORT = Number(process.env.E2E_PREVIEW_PORT ?? 3500);
-const DIST_DIR = '.next-preview';
+const DIST_DIR = '.next-preview-mode';
 /** Next.js loads these files during build/start; they must not configure a database here. */
 const ENV_FILES = ['.env', '.env.local', '.env.production', '.env.production.local'];
 
@@ -25,22 +26,6 @@ const cleanEnv = {
 } as unknown as NodeJS.ProcessEnv;
 
 let server: ChildProcess | undefined;
-
-async function waitForPort(port: number, timeoutMs = 60_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const open = await new Promise<boolean>((resolve) => {
-      const socket = net.connect(port, '127.0.0.1', () => {
-        socket.end();
-        resolve(true);
-      });
-      socket.on('error', () => resolve(false));
-    });
-    if (open) return;
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error(`Port ${port} did not open in time.`);
-}
 
 async function main(): Promise<number> {
   const configured = ENV_FILES.filter(

@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const NEXT_DIR = path.join(process.cwd(), '.next');
+const NEXT_DIR = path.join(process.cwd(), process.env.NEXT_DIST_DIR || '.next');
 const APP_DIR = path.join(NEXT_DIR, 'server', 'app');
 const MARKERS: Array<{ name: string; pattern: RegExp }> = [
   { name: 'Tiptap (rich text editor)', pattern: /tiptap|ProseMirror/ },

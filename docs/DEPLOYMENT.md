@@ -10,7 +10,8 @@ runs in production.
    repository. Don't add any variables; click **Deploy**.
 3. **Preview mode:** the first deploy works without a database. The site shows the demo
    content, is hidden from search engines (`noindex`, robots disallow, empty sitemap),
-   forms answer "This form isn't connected yet", and `/admin` shows a setup guide.
+   forms answer "This form isn't connected yet", and the admin (`projectConfig.adminPath`)
+   shows a setup guide.
 4. **Add 3 variables** (Site configuration → Environment variables, Production context):
    `DATABASE_URL` (Supabase → Connect → Transaction pooler, port 6543, with your database
    password), `SUPABASE_URL` (Project Settings → Data API) and `SUPABASE_SERVICE_ROLE_KEY`
@@ -18,7 +19,7 @@ runs in production.
 5. **Redeploy** (Deploys → Trigger deploy). The build runs `pnpm db:migrate:deploy`:
    migrations, then `pnpm db:prepare` (Row Level Security on every table, the `media`
    bucket, default settings and the demo content). Then create your admin
-   ([§ 5](#5-first-admin-in-production)) and sign in at `/admin`.
+   ([§ 5](#5-first-admin-in-production)) and sign in at your admin path.
 
 The site address comes from the platform (`URL` / `DEPLOY_PRIME_URL` on Netlify,
 `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` on Vercel); set `NEXT_PUBLIC_SITE_URL` only
@@ -27,7 +28,12 @@ key unless you set `AUTH_SECRET` (see the table below).
 
 ## 1. Supabase project
 
-1. Create a project at https://supabase.com/dashboard.
+1. Create a project at https://supabase.com/dashboard. Pick the **same region as your
+   hosting's server functions** (Vercel: Project → Settings → Functions → Region; Netlify:
+   the functions region in Site configuration → Functions), not the region closest to your
+   visitors: every database query travels between the function and the database, while
+   pages for visitors are cached and served from the CDN anyway. A far-away database adds
+   its round trip to every admin request.
 2. Note from the dashboard:
    - **Project URL** and the **service_role** key (Project Settings → API Keys; the anon key
      is optional),

@@ -10,6 +10,14 @@ import { Heading, Text } from '../components/ui/typography';
 
 type Members = SitePageContent<'team'>['members'];
 
+/** One column on phones, two from `sm`, `columns` from `lg` (matches the grid below). */
+const DEFAULT_TEAM_IMAGE_SIZES = '(min-width: 64rem) 33vw, (min-width: 40rem) 50vw, 100vw';
+const TEAM_IMAGE_SIZES: Record<number, string> = {
+  2: '(min-width: 40rem) 50vw, 100vw',
+  3: DEFAULT_TEAM_IMAGE_SIZES,
+  4: '(min-width: 64rem) 25vw, (min-width: 40rem) 50vw, 100vw',
+};
+
 const COLUMNS: Record<number, string> = {
   2: 'lg:grid-cols-2',
   3: 'lg:grid-cols-3',
@@ -34,7 +42,7 @@ export async function TeamGrid({ content }: { content: Members }) {
               >
                 <SiteImage
                   image={person.photo}
-                  sizes="(min-width: 64rem) 25vw, 50vw"
+                  sizes={TEAM_IMAGE_SIZES[content.columns] ?? DEFAULT_TEAM_IMAGE_SIZES}
                   className="aspect-portrait rounded-full object-cover"
                 />
               </div>

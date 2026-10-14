@@ -1,6 +1,6 @@
 {
   "name": "site-starter",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "description": "Reusable Next.js site starter with a schema-driven custom admin panel.",
@@ -36,7 +36,9 @@
     "check:bundles": "tsx scripts/check-bundles.ts",
     "db:migrate:deploy": "tsx scripts/db-migrate-deploy.ts",
     "db:prepare": "tsx --conditions=react-server scripts/db-prepare.ts",
-    "e2e:preview": "tsx scripts/e2e-preview.ts"
+    "e2e:preview": "tsx scripts/e2e-preview.ts",
+    "measure:nav": "tsx scripts/measure-nav.ts",
+    "preview": "tsx --conditions=react-server scripts/preview.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -1,4 +1,5 @@
 import { request, type FullConfig } from '@playwright/test';
+import { admin } from './support/admin';
 
 /**
  * Warms up the server (first compilation in `next dev` can take many seconds)
@@ -14,8 +15,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     '/',
     '/about',
     '/uk/about/team',
-    '/admin/login',
-    '/admin/account',
+    admin('/login'),
+    admin('/account'),
     '/access',
     '/nope',
     '/sitemap.xml',

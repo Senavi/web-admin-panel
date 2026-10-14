@@ -19,11 +19,24 @@ import {
 import { isKnownRoute } from '@/core/i18n/route-match';
 import { isPreviewMode } from '@/core/preview/mode';
 import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
-import { ACCESS_PATH, adminHref, AdminRoute, isAdminPath } from '@/core/project/paths';
+import {
+  ACCESS_PATH,
+  adminHref,
+  AdminRoute,
+  hasCustomAdminPath,
+  isAdminPath,
+  isInternalAdminPath,
+  toInternalAdminPath,
+} from '@/core/project/paths';
 import { SITE_NOTICE_COOKIE, SiteNotice } from '@/core/site-gate/notice';
 import { decideGate, isStaffToken, MAINTENANCE_RETRY_AFTER_SECONDS } from '@/core/site-gate/staff';
-import { isNoindex, SiteRoute, type SiteState } from '@/core/site-gate/state';
-import { getSiteState, siteStateKey } from '@/core/site-gate/state-client';
+import {
+  isNoindex,
+  SITE_STATE_VERSION_COOKIE,
+  SiteRoute,
+  type SiteState,
+} from '@/core/site-gate/state';
+import { getSiteState, parseStateVersion, siteStateKey } from '@/core/site-gate/state-client';
 import { GATE_COOKIE_NAME, verifyGateToken } from '@/core/site-gate/token';
 
 /**
@@ -86,9 +99,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 function previewModeResponse(request: NextRequest, pathname: string): NextResponse | null {
   if (isAdminPath(pathname)) {
     const setup = adminHref(AdminRoute.Setup);
-    return withAdminHeaders(
-      adminNext(request, pathname, pathname === setup ? undefined : new URL(setup, request.url)),
-    );
+    return withAdminHeaders(adminNext(request, pathname, setup));
   }
   if (pathname.startsWith('/api/')) {
     if (PREVIEW_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
@@ -105,10 +116,19 @@ function previewModeResponse(request: NextRequest, pathname: string): NextRespon
 
 async function routeSite(request: NextRequest): Promise<NextResponse> {
   const { pathname, search, origin } = request.nextUrl;
+  // With a custom adminPath the internal admin folder is not a public URL: site 404.
+  if (hasCustomAdminPath() && isInternalAdminPath(pathname)) {
+    const state = await siteStateFor(request);
+    if (!state && !isPreviewMode()) return unavailableResponse();
+    const locale = state?.defaultLocale ?? projectConfig.defaultLocale;
+    const notFound = await staticPageResponse(origin, `/${locale}${SiteRoute.NotFound}`, 404);
+    notFound.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
+    return notFound;
+  }
   // The proxy's own subrequest for the static 404 page.
   if (request.headers.get(INTERNAL_HEADER) === (await siteStateKey()))
     return next(request, pathname);
-  const state = await getSiteState(origin);
+  const state = await siteStateFor(request);
   if (!state) {
     // Preview mode has no private content: serve the page (never indexable).
     if (isPreviewMode()) {
@@ -202,6 +222,13 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
       break;
   }
   return withSiteHeaders(response, state, request, staff);
+}
+
+/** Cached site state; reloaded first if this browser just changed it (version cookie). */
+function siteStateFor(request: NextRequest): Promise<SiteState | null> {
+  return getSiteState(request.nextUrl.origin, {
+    changedAt: parseStateVersion(request.cookies.get(SITE_STATE_VERSION_COOKIE)?.value),
+  });
 }
 
 /** 503 when the site state can't be determined (never serve possibly-private content). */
@@ -306,7 +333,7 @@ async function isForbiddenAdminPath(request: NextRequest, pathname: string): Pro
   );
   if (!token) return false;
   // Only trust the role if the token is still current (role changes bump the session version).
-  const state = await getSiteState(request.nextUrl.origin);
+  const state = await siteStateFor(request);
   // Without state, leave the decision to the server-side page guard.
   return state !== null && state.staff[token.uid] === token.v && !can(token.role, permission);
 }
@@ -318,17 +345,25 @@ function next(request: NextRequest, pathname: string): NextResponse {
 }
 
 /** Admin pages render per request: a fresh nonce CSP (Next.js applies the nonce to its scripts). */
-/** Admin request with a fresh CSP nonce; `rewriteTo` serves another admin page at this URL. */
-function adminNext(request: NextRequest, pathname: string, rewriteTo?: URL): NextResponse {
+/**
+ * Admin request with a fresh CSP nonce. The public admin URL (`/<adminPath>/…`)
+ * is served from the internal `/admin/…` routes; `servePath` (a public admin
+ * path) shows another admin page at this URL (preview mode setup guide).
+ */
+function adminNext(request: NextRequest, pathname: string, servePath = pathname): NextResponse {
   const nonce = createNonce();
   const csp = adminCsp(nonce);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(HeaderName.Pathname, pathname);
   requestHeaders.set(NONCE_HEADER, nonce);
   requestHeaders.set(CSP_HEADER, csp);
-  const response = rewriteTo
-    ? NextResponse.rewrite(rewriteTo, { request: { headers: requestHeaders } })
-    : NextResponse.next({ request: { headers: requestHeaders } });
+  const internal = toInternalAdminPath(servePath);
+  const response =
+    internal === request.nextUrl.pathname
+      ? NextResponse.next({ request: { headers: requestHeaders } })
+      : NextResponse.rewrite(new URL(`${internal}${request.nextUrl.search}`, request.url), {
+          request: { headers: requestHeaders },
+        });
   response.headers.set(CSP_HEADER, csp);
   return response;
 }

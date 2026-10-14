@@ -6,6 +6,48 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-14
+
+Fast navigation and a fix for custom admin paths.
+
+### Fixed
+
+- **A custom `adminPath` broke the admin** (`/<path>/login` was a 404). The proxy now
+  rewrites the public admin path to the internal routes (CSP nonce, no-store and noindex
+  kept); with a custom path `/admin/*` answers the site's 404 and `robots.txt` never shows the
+  custom path. The demo uses `/stst-admin`.
+- Team photos request the right image size on phones.
+
+### Added
+
+- Loading skeletons for every admin screen and a thin progress bar for pending navigations.
+- `pnpm preview`: the production build on the local database, no env vars needed
+  (`.next-preview`, independent of `pnpm dev`). `pnpm measure:nav`: click → feedback/content
+  timings.
+- `pnpm dev` pre-compiles the main site and admin routes after start.
+- Dev-only `Server-Timing:` log lines for admin requests.
+- E2E speed budget: warm navigations on a production build must take < 500 ms (CI).
+
+### Changed
+
+- The proxy serves its cached site state immediately and refreshes it in the background
+  (`SITE_STATE_TTL_MS`, 15 s; 60 s in dev); the person who saved a change sees it at once.
+  Other visitors see settings/publishing changes within the TTL.
+- Admin settings and the session are read once per request; the Pages tree streams
+  separately; activity labels load in two queries instead of one per item.
+- Seed images are imported at most 2400 px wide.
+- Connect Supabase and docs/DEPLOYMENT.md: pick the Supabase region of your hosting's
+  functions, not the one closest to visitors.
+- `pnpm e2e:prod` builds into `.next-e2e`; `check:bundles` honours `NEXT_DIST_DIR`.
+
+### Upgrading from 1.4.0
+
+1. Merge the template update. No database migration.
+2. Set `adminPath` in `project.config.ts` to a custom path (`/<4 consonants>-admin`) and
+   bookmark the new admin URL; `/admin` then answers 404.
+3. In your own e2e tests use `admin('/…')` from `tests/e2e/support/admin.ts` and import
+   `test`/`expect` from `tests/e2e/support/test.ts`.
+
 ## [1.4.0] - 2026-10-13
 
 Deploy without setup, and fewer required variables.

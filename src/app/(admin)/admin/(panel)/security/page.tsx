@@ -21,6 +21,7 @@ import { resolveSiteUrl } from '@/core/site-url';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 import { recentActivity } from '@/core/security/activity';
 import { checkSiteHealth } from '@/core/security/status';
+import { timed } from '@/core/perf/timing';
 
 export const metadata: Metadata = { title: 'Security' };
 export const instant = false;
@@ -56,7 +57,7 @@ export default async function SecurityPage() {
   const production = isProduction();
   const db = await getDb();
   const [health, sessionRows, activity] = await Promise.all([
-    checkSiteHealth(),
+    timed('health', () => checkSiteHealth()),
     db
       .select({
         id: sessions.id,
@@ -68,7 +69,7 @@ export default async function SecurityPage() {
       .innerJoin(users, eq(users.id, sessions.userId))
       .where(gt(sessions.expiresAt, new Date()))
       .orderBy(desc(sessions.createdAt)),
-    recentActivity(db, RECENT_ACTIVITY),
+    timed('db:activity', () => recentActivity(db, RECENT_ACTIVITY)),
   ]);
   const { database, storage } = health;
   const local = database.mode === DbMode.Local;

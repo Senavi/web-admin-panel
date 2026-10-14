@@ -1,4 +1,5 @@
-import { expect, request as playwrightRequest, test } from '@playwright/test';
+import { request as playwrightRequest } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import {
@@ -8,6 +9,7 @@ import {
   openSettingsTab,
 } from './support/settings';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
+import { admin } from './support/admin';
 
 test.describe.serial('site gate', () => {
   test('maintenance mode: visitors get 503, admin works, staff see the site', async ({
@@ -29,7 +31,7 @@ test.describe.serial('site gate', () => {
     const response = await visitor.get('/about', { maxRedirects: 0 });
     expect(response.headers()['retry-after']).toBeTruthy();
     expect(await response.text()).toContain('We’ll be back soon');
-    expect((await visitor.get('/admin/login')).status()).toBe(200);
+    expect((await visitor.get(admin('/login'))).status()).toBe(200);
     // Form endpoints (under the ungated /api) are closed to visitors too.
     expect((await visitor.get('/api/forms/token?form=contact')).status()).toBe(404);
     await visitor.dispose();

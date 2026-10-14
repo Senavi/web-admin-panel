@@ -13,7 +13,7 @@ import { Role } from '@/core/auth/roles';
 import { requirePermission } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
 import { sessions } from '@/core/db/schema';
-import { readSiteSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
 
 export const metadata: Metadata = { title: 'Account' };
 export const instant = false;
@@ -24,7 +24,7 @@ export default async function AccountPage() {
   });
   const db = await getDb();
   const [{ security }, sessionRows] = await Promise.all([
-    readSiteSettings(db),
+    getRequestSettings(),
     db
       .select()
       .from(sessions)

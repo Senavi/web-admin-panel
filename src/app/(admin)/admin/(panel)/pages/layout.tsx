@@ -12,7 +12,8 @@ import { contentRegistry } from '@/core/content/project-registry';
 import type { PageTreeNode } from '@/core/content/registry';
 import { getDb } from '@/core/db/client';
 import { PagesArea, pagesAreaHref } from '@/core/project/paths';
-import { readSiteSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
+import { timed } from '@/core/perf/timing';
 
 export const instant = false;
 
@@ -25,22 +26,53 @@ function toTreeNode(node: PageTreeNode): TreeNode {
   };
 }
 
-/** Pages area: secondary sidebar with the page tree next to the editor. */
+/**
+ * Pages area: secondary sidebar with the page tree next to the editor. The
+ * tree streams in its own Suspense boundary, so a click shows the editor's
+ * loading state immediately instead of waiting for the tree's queries.
+ */
 export default async function PagesLayout({ children }: LayoutProps<'/admin/pages'>) {
   await requirePermission(Permission.PagesView);
+  return (
+    <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <aside className="lg:sticky lg:top-20 lg:self-start">
+        <Suspense fallback={<TreeSkeleton />}>
+          <PagesSidebar />
+        </Suspense>
+      </aside>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function TreeSkeleton() {
+  return (
+    <div className="flex flex-col gap-2" aria-hidden>
+      <Skeleton className="h-9 w-full" />
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <Skeleton key={index} className="h-7 w-full" />
+      ))}
+    </div>
+  );
+}
+
+/** Page tree with per-locale completeness, item counts and unread requests. */
+async function PagesSidebar() {
   const db = await getDb();
-  const { general } = await readSiteSettings(db);
-  const [statuses, itemCounts, unread] = await Promise.all([
-    loadPageStatuses(db, general.enabledLocales),
-    countItems(
-      db,
-      contentRegistry.collections.map((collection) => collection.id),
-    ),
-    countNew(
-      db,
-      contentRegistry.forms.map((form) => form.id),
-    ),
-  ]);
+  const { general } = await getRequestSettings();
+  const [statuses, itemCounts, unread] = await timed('db:tree', () =>
+    Promise.all([
+      loadPageStatuses(db, general.enabledLocales),
+      countItems(
+        db,
+        contentRegistry.collections.map((collection) => collection.id),
+      ),
+      countNew(
+        db,
+        contentRegistry.forms.map((form) => form.id),
+      ),
+    ]),
+  );
   const groups: SidebarGroup[] = [];
   if (contentRegistry.collections.length > 0) {
     groups.push({
@@ -88,19 +120,11 @@ export default async function PagesLayout({ children }: LayoutProps<'/admin/page
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="lg:sticky lg:top-20 lg:self-start">
-        {/* useSearchParams in the tree needs a Suspense boundary. */}
-        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-          <PagesTree
-            tree={registry.tree().map(toTreeNode)}
-            statuses={statuses}
-            locales={general.enabledLocales}
-            groups={groups}
-          />
-        </Suspense>
-      </aside>
-      <div className="min-w-0">{children}</div>
-    </div>
+    <PagesTree
+      tree={registry.tree().map(toTreeNode)}
+      statuses={statuses}
+      locales={general.enabledLocales}
+      groups={groups}
+    />
   );
 }

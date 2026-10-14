@@ -1,17 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
+import { admin, adminRe } from './support/admin';
 
 test.describe('admin authentication', () => {
   test('redirects anonymous users to the login page', async ({ page }) => {
-    await page.goto('/admin');
-    await expect(page).toHaveURL(/\/admin\/login/);
+    await page.goto(admin());
+    await expect(page).toHaveURL(adminRe(String.raw`\/login`));
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   });
 
   test('wrong password shows a generic error', async ({ page }) => {
-    await page.goto('/admin/login');
+    await page.goto(admin('/login'));
     await page.getByLabel('Email').fill(E2E_ADMIN.email);
     await page.getByLabel('Password').fill('definitely-not-the-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -21,7 +22,7 @@ test.describe('admin authentication', () => {
   });
 
   test('unknown email shows the same generic error', async ({ page }) => {
-    await page.goto('/admin/login');
+    await page.goto(admin('/login'));
     await page.getByLabel('Email').fill('nobody@example.test');
     await page.getByLabel('Password').fill('definitely-not-the-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -32,7 +33,7 @@ test.describe('admin authentication', () => {
 
   test('repeated failures trigger rate limiting', async ({ page }) => {
     const email = 'locked-out@example.test';
-    await page.goto('/admin/login');
+    await page.goto(admin('/login'));
     for (let attempt = 0; attempt < 6; attempt += 1) {
       await page.getByLabel('Email').fill(email);
       await page.getByLabel('Password').fill(`wrong-password-${attempt}`);
@@ -47,7 +48,7 @@ test.describe('admin authentication', () => {
   test('admin can sign in and open Account', async ({ page }) => {
     await login(page, E2E_ADMIN);
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-    await page.goto('/admin/account');
+    await page.goto(admin('/account'));
     await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible();
     // Sections start collapsed except the first; the closed header shows a summary.
     const devices = page.getByRole('button', { name: /Signed-in devices/ });
@@ -57,7 +58,7 @@ test.describe('admin authentication', () => {
   });
 
   test('admin responses are not cached or indexed', async ({ page }) => {
-    const response = await page.goto('/admin/login');
+    const response = await page.goto(admin('/login'));
     expect(response?.headers()['cache-control']).toContain('no-store');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
   });
@@ -71,10 +72,12 @@ test.describe('admin authentication', () => {
 });
 
 test('login returns to the originally requested admin page', async ({ page }) => {
-  await page.goto('/admin/account');
-  await expect(page).toHaveURL(/\/admin\/login\?next=%2Fadmin%2Faccount/);
+  await page.goto(admin('/account'));
+  await expect(page).toHaveURL(
+    adminRe(String.raw`\/login\?next=` + encodeURIComponent(admin('/account'))),
+  );
   await page.getByLabel('Email').fill(E2E_ADMIN.email);
   await page.getByLabel('Password').fill(E2E_ADMIN.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/admin\/account$/);
+  await expect(page).toHaveURL(adminRe(String.raw`\/account$`));
 });

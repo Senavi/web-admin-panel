@@ -1,8 +1,10 @@
-import { expect, type Page, test } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { testPng } from './support/images';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
+import { admin } from './support/admin';
 
 const heroTitle = (page: Page) => page.getByRole('textbox', { name: 'Title' }).first();
 
@@ -24,7 +26,7 @@ async function liveH1(page: Page, path: string): Promise<string> {
 test.describe.serial('pages editor', () => {
   test('editing text and an image in uk updates /uk without touching en', async ({ page }) => {
     await login(page, E2E_MANAGER);
-    await openEditor(page, '/admin/pages/about?locale=uk');
+    await openEditor(page, admin('/pages/about?locale=uk'));
     await expect(page.getByRole('heading', { name: 'About', level: 1 })).toBeVisible();
 
     const title = `Про нас ${Date.now()}`;
@@ -53,8 +55,8 @@ test.describe.serial('pages editor', () => {
     const second = await browser.newPage();
     await login(first, E2E_ADMIN);
     await login(second, E2E_ADMIN);
-    await openEditor(first, '/admin/pages/contact');
-    await openEditor(second, '/admin/pages/contact');
+    await openEditor(first, admin('/pages/contact'));
+    await openEditor(second, admin('/pages/contact'));
 
     await heroTitle(first).fill('Contact (first editor)');
     await saveButton(first).click();
@@ -70,7 +72,7 @@ test.describe.serial('pages editor', () => {
 
   test('a revision can be restored', async ({ page }) => {
     await login(page, E2E_ADMIN);
-    await openEditor(page, '/admin/pages/contact');
+    await openEditor(page, admin('/pages/contact'));
     await expect(heroTitle(page)).toHaveValue('Contact (first editor)');
 
     await heroTitle(page).fill('Temporary title');
@@ -89,7 +91,7 @@ test.describe.serial('pages editor', () => {
 
   test('validation errors are shown on fields and nothing is saved', async ({ page }) => {
     await login(page, E2E_ADMIN);
-    await openEditor(page, '/admin/pages/team');
+    await openEditor(page, admin('/pages/team'));
     await heroTitle(page).fill('');
     await saveButton(page).click();
     await expect(page.getByText('This field is required.').first()).toBeVisible();

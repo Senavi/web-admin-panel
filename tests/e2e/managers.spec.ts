@@ -1,8 +1,10 @@
-import { expect, type Page, test } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { setDeveloperMode } from './support/developer';
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
+import { admin, adminRe } from './support/admin';
 
 const RAW_USER_TARGET = /user:[0-9a-f]{8}-/;
 
@@ -11,7 +13,7 @@ const rowFor = (page: Page, email: string) =>
   usersTable(page).getByRole('row').filter({ hasText: email });
 
 async function openManagers(page: Page) {
-  await page.goto('/admin/managers');
+  await page.goto(admin('/managers'));
   await expect(page.getByRole('heading', { name: 'Managers', level: 1 })).toBeVisible();
   await expect(usersTable(page)).toBeVisible();
 }
@@ -45,16 +47,16 @@ test.describe.serial('managers', () => {
   test('the new user must change the temporary password at first sign-in', async ({ browser }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto('/admin/login');
+    await page.goto(admin('/login'));
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(temporaryPassword);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL(/\/admin\/change-password/);
+    await expect(page).toHaveURL(adminRe(String.raw`\/change-password`));
     await page.getByLabel('Current password').fill(temporaryPassword);
     await page.getByLabel('New password', { exact: true }).fill('Copper-Meadow-Lantern-58');
     await page.getByLabel('Repeat new password').fill('Copper-Meadow-Lantern-58');
     await page.getByRole('button', { name: 'Change password' }).click();
-    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page).toHaveURL(adminRe(String.raw`$`));
     await context.close();
   });
 
@@ -90,7 +92,7 @@ test.describe.serial('managers', () => {
 
     const context = await browser.newContext();
     const other = await context.newPage();
-    await other.goto('/admin/login');
+    await other.goto(admin('/login'));
     await other.getByLabel('Email').fill(email);
     await other.getByLabel('Password').fill('Copper-Meadow-Lantern-58');
     await other.getByRole('button', { name: 'Sign in' }).click();
@@ -110,7 +112,7 @@ test.describe.serial('managers', () => {
   }) => {
     await login(page, E2E_ADMIN);
     await setDeveloperMode(page, false);
-    await page.goto('/admin/security');
+    await page.goto(admin('/security'));
     await expect(page.getByRole('region', { name: 'Status' })).toContainText('Everything works');
     await expect(page.getByRole('table', { name: 'Signed-in devices' })).toContainText(
       E2E_ADMIN.email,
@@ -132,7 +134,7 @@ test.describe.serial('managers', () => {
     await expect(log).not.toContainText('Deleted a user');
     // Targets show names, not raw ids.
     expect(await log.textContent()).not.toMatch(RAW_USER_TARGET);
-    await page.goto('/admin');
+    await page.goto(admin());
     await expect(page.getByRole('link', { name: 'Recent activity' })).toBeVisible();
     expect(await page.locator('main').textContent()).not.toMatch(RAW_USER_TARGET);
   });

@@ -24,7 +24,9 @@ The dev admin's credentials are in `.data/dev-admin-credentials.txt` (or set
 - `name`: default site name (admins can change it in Settings).
 - `supportedLocales` / `defaultLocale`: every language the site can have. Admins enable a
   subset in Settings → General.
-- `adminPath`: admin URL (default `/admin`).
+- `adminPath`: admin URL. Use a custom path per project: `/<4 consonants of the domain>-admin`
+  (e.g. `example.com` → `/xmpl-admin`; the demo uses `/stst-admin`). The proxy rewrites it to
+  the internal `/admin` routes, and the internal path answers 404 (D-082).
 - `siteRoutes`: public routes that are **not** content pages (`/legal`, `/blog/:slug`,
   `/docs/*`). Unknown URLs get the localized 404.
 - `brand.themeColor`, `brand.backgroundColor`: defaults for browser UI and the manifest.

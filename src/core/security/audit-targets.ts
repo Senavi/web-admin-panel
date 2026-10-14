@@ -5,10 +5,11 @@ import { inArray } from 'drizzle-orm';
 import { projectConfig } from '@project/config';
 
 import { registry } from '@/content';
-import { itemText } from '@/core/collections/repository';
 import { contentRegistry } from '@/core/content/project-registry';
 import { collectionItemStore } from '@/core/content/stores/table-store';
-import { collectionItems, users } from '@/core/db/schema';
+import { ITEM_SECTION } from '@/core/content/collection';
+import { type ContentRecord, resolveWithFallback } from '@/core/content/values';
+import { collectionItems, SHARED_LOCALE, users } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 
 export interface AuditTargetRow {
@@ -32,23 +33,34 @@ function summaryTitle(summary: unknown): string | null {
   return typeof summary.title === 'string' && summary.title ? summary.title : null;
 }
 
-/** Current titles of collection items (default locale), keyed by item id. */
+/** Current titles of collection items (default locale), keyed by item id. Two queries in total. */
 async function itemTitles(db: Database, itemIds: readonly string[]): Promise<Map<string, string>> {
   if (itemIds.length === 0) return new Map();
-  const items = await db
-    .select({ id: collectionItems.id, collectionId: collectionItems.collectionId })
-    .from(collectionItems)
-    .where(inArray(collectionItems.id, [...itemIds]));
+  const { defaultLocale } = projectConfig;
+  const [items, contentRows] = await Promise.all([
+    db
+      .select({ id: collectionItems.id, collectionId: collectionItems.collectionId })
+      .from(collectionItems)
+      .where(inArray(collectionItems.id, [...itemIds])),
+    collectionItemStore.readContentRows(db, itemIds, [defaultLocale]),
+  ]);
+  const byItem = new Map<string, Map<string, ContentRecord>>();
+  for (const row of contentRows) {
+    const map = byItem.get(row.key) ?? new Map<string, ContentRecord>();
+    map.set(row.locale, row.data);
+    byItem.set(row.key, map);
+  }
   const titles = new Map<string, string>();
   for (const item of items) {
     const collection = contentRegistry.collectionById(item.collectionId);
     if (!collection) continue;
-    const rows = await collectionItemStore.readRows(db, item.id, [projectConfig.defaultLocale]);
-    const { defaultLocale } = projectConfig;
-    titles.set(
-      item.id,
-      itemText(collection, rows, collection.titleField, defaultLocale, defaultLocale),
-    );
+    const stored = byItem.get(item.id);
+    const content = resolveWithFallback(collection.schema, {
+      primary: { shared: stored?.get(SHARED_LOCALE), localized: stored?.get(defaultLocale) },
+      seeds: [],
+    });
+    const title = content[ITEM_SECTION]?.[collection.titleField];
+    titles.set(item.id, typeof title === 'string' ? title : '');
   }
   return titles;
 }

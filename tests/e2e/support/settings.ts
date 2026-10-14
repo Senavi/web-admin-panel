@@ -1,4 +1,5 @@
 import { expect, type Page, request } from '@playwright/test';
+import { ADMIN } from './admin';
 
 export interface StatusChange {
   readonly maintenance?: boolean;
@@ -33,7 +34,7 @@ const SWITCHES: Record<
 
 /** Opens a Settings tab and returns its (hydrated) form. */
 export async function openSettingsTab(page: Page, tab: string, label: string) {
-  await page.goto(`/admin/settings?tab=${tab}`);
+  await page.goto(`${ADMIN}/settings?tab=${tab}`);
   const form = page.locator(`form[aria-label="${label}"][data-hydrated]`);
   await expect(form).toBeVisible();
   return form;

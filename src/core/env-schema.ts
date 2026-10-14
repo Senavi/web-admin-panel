@@ -91,6 +91,16 @@ export const envSchema = z
     /** Cloudflare Turnstile secret (with projectConfig.forms.turnstile.siteKey). */
     TURNSTILE_SECRET_KEY: optionalString,
 
+    /** Proxy site-state refresh interval in ms (default 15000; 60000 in development). */
+    SITE_STATE_TTL_MS: optionalString.pipe(
+      z
+        .string()
+        .regex(/^[0-9]+$/)
+        .optional(),
+    ),
+    /** `true` logs `Server-Timing:` lines in production too (always on in development). */
+    SERVER_TIMING: z.enum(['true', 'false']).optional(),
+
     /** Development/test only: alternative local data directory (default `.data`). */
     SITE_DATA_DIR: optionalString,
 

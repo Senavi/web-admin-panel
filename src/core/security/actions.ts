@@ -1,7 +1,6 @@
 'use server';
 
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
-import { updateTag } from 'next/cache';
 import { z } from 'zod';
 
 import { ok, type ActionResult } from '@/core/actions/result';
@@ -9,6 +8,7 @@ import { GuardError, runAction } from '@/core/actions/run';
 import { Permission } from '@/core/auth/permissions';
 import { assertPermission } from '@/core/auth/server/session';
 import { CacheTag } from '@/core/cache/tags';
+import { siteStateChanged } from '@/core/site-gate/state-version';
 import { getDb } from '@/core/db/client';
 import { sessions, users } from '@/core/db/schema';
 
@@ -32,7 +32,7 @@ export async function revokeSessionAction(input: unknown): Promise<ActionResult>
         .update(users)
         .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
         .where(eq(users.id, session.userId));
-      updateTag(CacheTag.Staff);
+      await siteStateChanged(CacheTag.Staff);
     }
     await writeAudit(db, {
       action: AuditAction.SessionRevoke,
@@ -59,7 +59,7 @@ export async function revokeAllSessionsAction(): Promise<ActionResult> {
         .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
         .where(and(inArray(users.id, userIds)));
     }
-    updateTag(CacheTag.Staff);
+    await siteStateChanged(CacheTag.Staff);
     await writeAudit(db, {
       action: AuditAction.SessionRevoke,
       actor: { id: actor.id, email: actor.email },

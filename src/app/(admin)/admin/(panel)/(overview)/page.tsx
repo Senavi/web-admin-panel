@@ -17,7 +17,8 @@ import { countNew } from '@/core/forms/inbox';
 import { runMaintenance } from '@/core/maintenance';
 import { adminHref, AdminRoute, PagesArea, pagesAreaHref } from '@/core/project/paths';
 import type { SiteSettings } from '@/core/settings/schema';
-import { readSiteSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
+import { timed } from '@/core/perf/timing';
 
 export const metadata: Metadata = { title: 'Overview' };
 export const instant = false;
@@ -45,8 +46,8 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
   const forms = contentRegistry.forms;
   const showRequests = forms.length > 0 && can(user.role, Permission.FormsView);
   const [overview, settings, unread] = await Promise.all([
-    getOverview(db, range),
-    readSiteSettings(db),
+    timed('db:overview', () => getOverview(db, range)),
+    getRequestSettings(),
     showRequests
       ? countNew(
           db,

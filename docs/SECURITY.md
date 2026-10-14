@@ -131,12 +131,13 @@ low severity).
 ## Known limitations
 
 - Static pages need `'unsafe-inline'` for scripts (Next.js runtime). SRI is experimental.
-- A demoted/disabled user's gate cookie stays valid until the proxy's state cache refreshes
-  (a few seconds).
+- A demoted/disabled user's gate cookie stays valid until the proxy's state refreshes in the
+  background (`SITE_STATE_TTL_MS`, 15 s by default; D-084). Lower it for faster revocation.
 - Two admins disabling each other at the same moment is not serialized (race on the
   last-admin check).
 - Webhook URLs are set by admins and may point to internal hosts (localhost is allowed for
   local tools); treat Settings → Requests as admin-only configuration.
-- Collection slug changes and new items reach the proxy within its state TTL (3 s).
+- Collection slug changes and new items reach other visitors within the proxy's state TTL
+  (15 s by default); the person who published sees them at once.
 - Next.js logs an "Unexpected cache miss" warning while a staff preview renders (Draft
   Mode bypasses caches); harmless.

@@ -13,7 +13,8 @@ import { env } from '@/core/env';
 import { mailStatus } from '@/core/forms/mail-status';
 import { localeInfo } from '@/core/i18n/locales';
 import { loadMedia } from '@/core/media/resolve';
-import { readLocalizedSettings, readSiteSettings } from '@/core/settings/repository';
+import { readLocalizedSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
 import { projectConfig } from '@project/config';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -22,7 +23,7 @@ export const instant = false;
 export default async function SettingsPage() {
   await requirePermission(Permission.SettingsManage);
   const db = await getDb();
-  const settings = await readSiteSettings(db);
+  const settings = await getRequestSettings();
   const enabled = settings.general.enabledLocales;
   const localized = Object.fromEntries(
     await Promise.all(

@@ -21,8 +21,14 @@ import { openPglite } from '@/core/db/drivers/pglite';
 import { startPgliteServer } from '@/core/db/drivers/pglite-server';
 import { runSeed } from '@/core/db/seed';
 
+import { warmUpDevRoutes } from './lib/warmup';
+
 const nextBin = createRequire(import.meta.url).resolve('next/dist/bin/next');
 const args = process.argv.slice(2);
+const portArg = args.indexOf('--port') >= 0 ? args[args.indexOf('--port') + 1] : undefined;
+const PORT = Number(portArg ?? process.env.PORT ?? 3000);
+/** Set DEV_WARMUP=false to skip pre-compiling the main routes. */
+const WARM_UP = process.env.DEV_WARMUP !== 'false';
 
 function startNext(extraEnv: Record<string, string>) {
   const env = { ...process.env, ...extraEnv };
@@ -35,6 +41,7 @@ async function main(): Promise<void> {
   if (process.env.DATABASE_URL) {
     const child = startNext({});
     child.on('exit', (code) => process.exit(code ?? 0));
+    if (WARM_UP) void warmUpDevRoutes(PORT).catch(() => undefined);
     return;
   }
 
@@ -47,6 +54,7 @@ async function main(): Promise<void> {
   );
 
   const child = startNext({ [PGLITE_SERVER_URL_ENV]: server.url });
+  if (WARM_UP) void warmUpDevRoutes(PORT).catch(() => undefined);
   let shuttingDown = false;
   const shutdown = async (code: number) => {
     if (shuttingDown) return;

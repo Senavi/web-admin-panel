@@ -1,10 +1,12 @@
-import { devices, expect, type Page, test } from '@playwright/test';
+import { devices, type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
+import { admin } from './support/admin';
 
 async function kpis(page: Page): Promise<{ visitors: number; views: number }> {
-  await page.goto('/admin?range=today');
+  await page.goto(admin('?range=today'));
   const read = async (id: string) =>
     Number((await page.getByTestId(id).textContent())?.replace(/\D/g, '') ?? '0');
   return { visitors: await read('kpi-visitors'), views: await read('kpi-page-views') };

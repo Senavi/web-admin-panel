@@ -1,4 +1,5 @@
-import { devices, expect, test } from '@playwright/test';
+import { devices } from '@playwright/test';
+import { expect, test } from './support/test';
 
 // `h1: null` for pages whose content other specs edit (only structure is asserted there).
 const PAGES = [

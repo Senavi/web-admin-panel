@@ -12,8 +12,8 @@
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import net from 'node:net';
 
+import { waitForPort } from './lib/process';
 import { E2E_ENV } from '../tests/e2e/support/env';
 
 const DB_PORT = Number(process.env.E2E_DB_PORT ?? 54339);
@@ -24,6 +24,8 @@ const children: ChildProcess[] = [];
 const env: Record<string, string | undefined> = {
   ...process.env,
   SITE_DATA_DIR: DATA_DIR,
+  // Own build folder: a production build in `.next` would invalidate `pnpm dev`'s cache.
+  NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? '.next-e2e',
   DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${DB_PORT}/postgres`,
   AUTH_SECRET: process.env.AUTH_SECRET ?? 'e2e-production-secret-0123456789abcdef',
   NEXT_PUBLIC_SITE_URL: `http://localhost:${APP_PORT}`,
@@ -47,22 +49,6 @@ function start(command: string, args: string[], extra: Record<string, string> = 
   const child = spawn(command, args, { stdio: 'inherit', env: childEnv(extra) });
   children.push(child);
   return child;
-}
-
-async function waitForPort(port: number, timeoutMs = 60_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const open = await new Promise<boolean>((resolve) => {
-      const socket = net.connect(port, '127.0.0.1', () => {
-        socket.end();
-        resolve(true);
-      });
-      socket.on('error', () => resolve(false));
-    });
-    if (open) return;
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error(`Port ${port} did not open in time.`);
 }
 
 function cleanup(): void {

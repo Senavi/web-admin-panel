@@ -71,15 +71,22 @@ database-backed API routes. Builds without env produce this mode (`pnpm e2e:prev
 
 `src/proxy.ts` runs before every non-static request (Node.js runtime, **no DB driver**).
 
-1. **Admin** (`/admin/**`): no session cookie → redirect to login with `?next=` (optimistic;
-   pages verify the session). Adds `Cache-Control: no-store` + `X-Robots-Tag: noindex`.
+1. **Admin** (`/<adminPath>/**`, rewritten to the internal `/admin/**` routes; D-082): no
+   session cookie → redirect to login with `?next=` (optimistic; pages verify the session).
+   Adds `Cache-Control: no-store` + `X-Robots-Tag: noindex` and a nonce CSP. With a custom
+   `adminPath`, `/admin/**` itself answers the site 404.
 2. **Ungated core routes**: `/api/**`, `/access`. Static files, `/_next/**`, `favicon.ico`,
    `/icons/*`, `robots.txt`, `sitemap.xml` don't match the proxy at all.
 3. **Site**: the proxy loads the **site state** from `GET /api/site-state` (flags, locales and
    the active staff list). The endpoint requires an HMAC key derived from `AUTH_SECRET`, is
-   backed by a `'use cache'` function tagged `settings` + `staff` (invalidated on save), and
-   the proxy keeps it in memory for a few seconds per instance. If it can't be reached, the
-   last known state is used.
+   backed by a `'use cache'` function tagged `settings` + `staff` (invalidated on save). The
+   proxy keeps it per instance **stale-while-revalidate** (D-084): requests never wait for a
+   refresh, which runs in the background once the copy is older than `SITE_STATE_TTL_MS`
+   (15 s; 60 s in dev). **Propagation:** other visitors see a settings, staff or publishing
+   change within that TTL (+ one request); the person who made it sees it immediately (a
+   `site-state-v` cookie makes the proxy reload first). A cold instance waits for the state;
+   if it can't be reached, the last known state is used, and without one the proxy answers
+   503 (fail closed).
 4. **Staff detection** is cryptographic: the httpOnly `site_gate` cookie is an HMAC-signed
    `{uid, role, v, exp}` issued on login (and refreshed by the admin shell). It counts only if
    the signature and expiry are valid **and** `v` equals the user's current

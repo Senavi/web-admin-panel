@@ -17,7 +17,8 @@ import { untitledItemLabel } from '@/core/content/document';
 import { contentRegistry } from '@/core/content/project-registry';
 import { getDb } from '@/core/db/client';
 import { PagesArea, pagesAreaHref } from '@/core/project/paths';
-import { readSiteSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
+import { timed } from '@/core/perf/timing';
 
 export const instant = false;
 
@@ -52,13 +53,9 @@ export default async function CollectionPage({
     page: Math.max(1, Number.parseInt(typeof raw.page === 'string' ? raw.page : '1', 10) || 1),
   };
   const db = await getDb();
-  const { general } = await readSiteSettings(db);
-  const table = await loadItemTable(
-    db,
-    collection,
-    query,
-    general.enabledLocales,
-    general.defaultLocale,
+  const { general } = await getRequestSettings();
+  const table = await timed('db:items', () =>
+    loadItemTable(db, collection, query, general.enabledLocales, general.defaultLocale),
   );
   const basePath = pagesAreaHref(PagesArea.Collections, collection.id);
 

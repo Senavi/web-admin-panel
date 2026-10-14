@@ -625,3 +625,51 @@ content (`runSeed`, idempotent: missing rows and fields only, deleted seed items
 recreated). So a fresh Supabase project is safe and complete after one redeploy, and new
 tables from later migrations get RLS automatically. The first admin is still created with
 `pnpm admin:create` (no public sign-up).
+
+## v1.5: fast navigation
+
+### D-082 Custom admin path via a proxy rewrite
+
+The admin's app routes live under the internal `/admin` folder; `projectConfig.adminPath`
+(e.g. `/stst-admin`, from now on always custom per project) is the only public URL. The
+proxy rewrites `/<adminPath>/*` to `/admin/*` (same nonce CSP, `no-store`, `noindex`
+headers), every link and redirect uses `adminHref()`, and with a custom path any request to
+`/admin/*` gets the site's 404. `robots.txt` lists `/admin` (never the custom path), so the
+real address is not advertised. The demo uses a custom path so every e2e run (and CI)
+exercises it; tests build URLs with `admin()`.
+
+### D-083 Admin loading states, and React's reveal throttle
+
+Every admin route segment has a `loading.tsx` skeleton (shared pieces in
+`admin/components/layout/skeletons.tsx`; the Overview's sits in the `(overview)` route group
+so it doesn't wrap other screens; the Pages tree streams in its own Suspense boundary) and a
+thin top progress bar shows while a navigation is pending. A click now reacts in tens of
+milliseconds. Trade-off: once a fallback is shown, React reveals the content no earlier than
+~300 ms later (its Suspense fallback throttle), so on a fast local build "final content" is
+≈350 ms instead of ≈100 ms; on real hosting, where the server usually needs longer than that
+anyway, the skeleton is pure gain. Tests wait for streamed chunks to settle
+(`tests/e2e/support/test.ts`): until React moves them, a chunk's content briefly exists twice
+(once inside a hidden `<div id="S:…">`).
+
+### D-084 Proxy site state: stale-while-revalidate
+
+The proxy keeps the site state per instance and serves it immediately; when it is older than
+`SITE_STATE_TTL_MS` (15 s; 60 s in development) a background refresh starts. Only a cold
+instance waits (and still fails closed). Changes reach other visitors within the TTL (plus
+one request). The person who changed something (settings, staff, published items) gets a
+short-lived `site-state-v` cookie with the change time; the proxy reloads the state before
+answering them if its copy is older, so they see their change at once. Only recent,
+non-future values are honoured, and concurrent reloads are coalesced.
+
+### D-085 Per-request admin data and a speed budget
+
+The session lookup is deduplicated per request (React `cache`), as are the settings the
+layout, the guards and the page all read (`getRequestSettings`). Independent queries run in
+parallel; the activity labels no longer query once per item. Hot lookups already had
+indexes, so no migration. In development `timed()` logs one `Server-Timing:` line per
+request (`SERVER_TIMING=true` enables it in production). `pnpm preview` serves a production
+build on the local database (`.next-preview`, never touching `pnpm dev`'s cache), `pnpm dev`
+pre-compiles the main routes after start, and `navigation-speed.spec.ts` fails a production
+build whose warm client navigations (4 site, 4 admin pages) take 500 ms or more. Seed images
+are capped at 2400 px on import, and the Supabase region should match the hosting's
+functions region (every query crosses that distance).

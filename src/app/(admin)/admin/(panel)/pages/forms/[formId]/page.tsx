@@ -16,6 +16,7 @@ import { getDb } from '@/core/db/client';
 import { FormFieldType } from '@/core/forms/define';
 import { fieldLabels, findSubmission, InboxFilter, loadInbox } from '@/core/forms/inbox';
 import { PagesArea, pagesAreaHref } from '@/core/project/paths';
+import { timed } from '@/core/perf/timing';
 
 export const instant = false;
 
@@ -90,7 +91,7 @@ export default async function FormPage({
     Number.parseInt(typeof query.page === 'string' ? query.page : '1', 10) || 1,
   );
   const db = await getDb();
-  const inbox = await loadInbox(db, form, { filter, search, page });
+  const inbox = await timed('db:inbox', () => loadInbox(db, form, { filter, search, page }));
 
   let open: OpenSubmission | null = null;
   if (typeof query.submission === 'string' && UUID.test(query.submission)) {

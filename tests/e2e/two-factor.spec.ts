@@ -1,12 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { totp } from './support/totp';
 import { E2E_MANAGER } from './support/users';
+import { admin, adminRe } from './support/admin';
 
 test('user can enable TOTP 2FA and must use it to sign in', async ({ page, context }) => {
   await login(page, E2E_MANAGER);
-  await page.goto('/admin/account');
+  await page.goto(admin('/account'));
   await page.getByRole('button', { name: /Two-factor authentication/ }).click();
 
   await page.getByLabel('Confirm with your password to set it up').fill(E2E_MANAGER.password);
@@ -22,7 +23,7 @@ test('user can enable TOTP 2FA and must use it to sign in', async ({ page, conte
 
   // Fresh sign-in now requires the second factor.
   await context.clearCookies();
-  await page.goto('/admin/login');
+  await page.goto(admin('/login'));
   await page.getByLabel('Email').fill(E2E_MANAGER.email);
   await page.getByLabel('Password').fill(E2E_MANAGER.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
@@ -36,10 +37,10 @@ test('user can enable TOTP 2FA and must use it to sign in', async ({ page, conte
   await codeInput.fill('');
   await codeInput.fill(totp(secret));
   await page.getByRole('button', { name: 'Verify' }).click();
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(adminRe(String.raw`$`));
 
   // Turn it off again so other tests can sign in with a password only.
-  await page.goto('/admin/account');
+  await page.goto(admin('/account'));
   await page.getByRole('button', { name: /Two-factor authentication/ }).click();
   await page.getByLabel('Confirm with your password to turn it off').fill(E2E_MANAGER.password);
   await page.getByRole('button', { name: 'Turn off two-factor authentication' }).click();

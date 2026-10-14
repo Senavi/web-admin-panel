@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { admin } from '../e2e/support/admin';
 
 /** A production build with no database variables: demo site from seeds, admin setup guide. */
 test.describe('preview mode (no DATABASE_URL)', () => {
@@ -28,7 +29,7 @@ test.describe('preview mode (no DATABASE_URL)', () => {
   });
 
   test('every admin URL shows the setup guide (no login, no data)', async ({ page, request }) => {
-    for (const path of ['/admin', '/admin/settings', '/admin/login', '/admin/pages/home']) {
+    for (const path of [admin(), admin('/settings'), admin('/login'), admin('/pages/home')]) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
       await expect(

@@ -1,7 +1,9 @@
-import { expect, type Page, test } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
+import { admin, adminRe } from './support/admin';
 
 /** Visitor-like request (no cookies from the test page). */
 const VISITOR = { 'user-agent': 'Mozilla/5.0 Chrome/150', 'accept-language': 'en' };
@@ -46,9 +48,9 @@ test.describe.serial('collections', () => {
     page,
   }) => {
     await login(page, E2E_MANAGER);
-    await page.goto('/admin/pages/collections/blog');
+    await page.goto(admin('/pages/collections/blog'));
     await page.getByRole('button', { name: 'New post' }).click();
-    await expect(page).toHaveURL(/\/admin\/pages\/collections\/blog\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(adminRe(String.raw`\/pages\/collections\/blog\/[0-9a-f-]{36}$`));
     await expect(page.locator('form[data-hydrated]')).toBeVisible();
     editorUrl = page.url();
 
@@ -154,14 +156,14 @@ test.describe.serial('collections', () => {
     await openEditor(page, editorUrl);
     await page.getByRole('button', { name: 'Delete' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
-    await expect(page).toHaveURL(/\/admin\/pages\/collections\/blog$/);
+    await expect(page).toHaveURL(adminRe(String.raw`\/pages\/collections\/blog$`));
 
     await expect.poll(async () => (await visit(page, `/blog/${renamed}`)).status).toBe(404);
     // The proxy refreshes its view of published slugs and redirects within seconds.
     await expect.poll(async () => (await visit(page, `/blog/${slug}`)).status).toBe(404);
     expect(await sitemap(page)).not.toContain(renamed);
 
-    await page.goto('/admin/security/activity');
+    await page.goto(admin('/security/activity'));
     const audit = page.getByRole('table', { name: 'Activity' });
     await expect(audit).toContainText('Deleted an item');
     await expect(audit).toContainText(`Blog: ${title}`);

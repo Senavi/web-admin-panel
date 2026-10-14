@@ -11,7 +11,8 @@ export const projectConfig = defineProjectConfig({
     { code: 'uk', label: 'Українська' },
   ],
   defaultLocale: 'en',
-  adminPath: '/admin',
+  // Admin URL: a custom path per project (`/<4 consonants of the domain>-admin`).
+  adminPath: '/stst-admin',
   // Public routes outside the content registry (e.g. '/legal', '/blog/:slug'). Others → 404.
   siteRoutes: [],
   // Extra Content-Security-Policy sources for the public site (third-party scripts, embeds…).

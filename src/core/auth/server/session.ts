@@ -4,13 +4,13 @@ import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 
-import { getDb } from '@/core/db/client';
 import { adminHref, AdminRoute } from '@/core/project/paths';
-import { readSiteSettings } from '@/core/settings/repository';
+import { getRequestSettings } from '@/core/settings/request';
 
 import { can, Permission } from '../permissions';
 import { isRole, Role, UserStatus } from '../roles';
 import { getAuth } from './instance';
+import { timed } from '@/core/perf/timing';
 
 export interface CurrentUser {
   readonly id: string;
@@ -38,7 +38,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   // Read request headers first so prerendering stops here before touching the database.
   const requestHeaders = await headers();
   const auth = await getAuth();
-  const result = await auth.api.getSession({ headers: requestHeaders });
+  const result = await timed('session', () => auth.api.getSession({ headers: requestHeaders }));
   if (!result) return null;
   const { user, session } = result;
   if (user.status !== UserStatus.Active || !isRole(user.role)) return null;
@@ -81,7 +81,7 @@ export async function requireUser(options: RequireUserOptions = {}): Promise<Cur
 
 async function mustSetUpTwoFactor(user: CurrentUser): Promise<boolean> {
   if (user.role !== Role.Admin || user.twoFactorEnabled) return false;
-  const { security } = await readSiteSettings(await getDb());
+  const { security } = await getRequestSettings();
   return security.requireTwoFactorForAdmins;
 }
 

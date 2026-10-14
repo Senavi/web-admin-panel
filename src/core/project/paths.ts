@@ -46,6 +46,21 @@ export function isAdminPath(pathname: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
+/** True when `adminPath` is not the internal `/admin` folder (the usual case for projects). */
+export function hasCustomAdminPath(): boolean {
+  return projectConfig.adminPath !== ADMIN_INTERNAL_PREFIX;
+}
+
+/** Public admin URL path → the internal app route (`/<adminPath>/pages` → `/admin/pages`). */
+export function toInternalAdminPath(pathname: string): string {
+  return `${ADMIN_INTERNAL_PREFIX}${pathname.slice(projectConfig.adminPath.length)}`;
+}
+
+/** The internal admin folder, reachable only through a rewrite when `adminPath` is custom. */
+export function isInternalAdminPath(pathname: string): boolean {
+  return pathname === ADMIN_INTERNAL_PREFIX || pathname.startsWith(`${ADMIN_INTERNAL_PREFIX}/`);
+}
+
 /**
  * Validates a post-login redirect target: same-origin relative paths only.
  * Falls back when the value is missing or could leave the site (`//evil.com`).

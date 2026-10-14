@@ -11,6 +11,7 @@ import { runAction } from '@/core/actions/run';
 import { Permission } from '@/core/auth/permissions';
 import { assertPermission } from '@/core/auth/server/session';
 import { CacheTag } from '@/core/cache/tags';
+import { siteStateChanged } from '@/core/site-gate/state-version';
 import { getDb } from '@/core/db/client';
 import { settings, settingsLocalized } from '@/core/db/schema';
 import { AuditAction, writeAudit } from '@/core/security/audit';
@@ -165,8 +166,8 @@ export async function saveSettingsAction(input: unknown): Promise<ActionResult> 
       }
     }
     // Settings feed every page, the request proxy and metadata routes.
-    updateTag(CacheTag.Settings);
     updateTag(CacheTag.Sitemap);
+    await siteStateChanged(CacheTag.Settings);
     return ok(undefined, 'Settings saved.');
   });
 }

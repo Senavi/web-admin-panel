@@ -25,6 +25,9 @@ export const SiteRoute = {
 } as const;
 
 export const SITE_STATE_PATH = '/api/site-state';
+/** Time of the last site-state change made by this browser (state-version.ts). */
+export const SITE_STATE_VERSION_COOKIE = 'site-state-v';
+export const SITE_STATE_VERSION_MAX_AGE_SECONDS = 300;
 export const SITE_STATE_KEY_HEADER = 'x-site-state-key';
 
 /** Pages must not be indexed when indexing is off or the site is private. */
