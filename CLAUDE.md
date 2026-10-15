@@ -39,6 +39,16 @@ layer** (public site, content schemas, theme, `project.config.ts`). Full spec:
    export `Page`, `generateMetadata`, `generateStaticParams` (+ `instant = false`).
 4. `pnpm content:sync`, `pnpm content:check`. Data: `getCollectionList` / `getCollectionItem`.
 
+## Repeated sections: shared sections, not globals
+
+A section of page content that appears on several pages (CTA, testimonials, "why us") is a
+**shared section**: `src/content/shared/<id>.ts` with `defineSharedSection`, placed in each
+page's `sections` with `useShared(x)` in site order, registered in `sharedSections`. Globals
+are only for layout chrome (header, footer, contacts, socials, announcement bar).
+Lists: prefer plain values (`f.list({ of: f.text() })` → `string[]`) for tags and bullet
+points; the editor layout (tags/lines/rows/cards) follows the item shape
+(docs/CONTENT_SCHEMA.md § Lists).
+
 ## Add a global / a form
 
 - Global: `src/content/globals/<id>.ts` with `defineGlobal`, register in `globals`, read with
@@ -64,7 +74,7 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 | Command                                                                  | Purpose                                                                                               |
 | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `pnpm dev`                                                               | Zero-config dev server (local PGlite DB, seeded demo, dev admin in `.data/dev-admin-credentials.txt`) |
-| `pnpm build` / `pnpm start`                                              | Production build (no env → preview mode; with Supabase: 3 variables, docs/DEPLOYMENT.md)              |
+| `pnpm build` / `pnpm start`                                              | Production build (no env → preview mode; with Supabase: 2 variables, docs/DEPLOYMENT.md)              |
 | `pnpm typecheck` · `lint` · `format` · `test` · `e2e`                    | Quality gates                                                                                         |
 | `pnpm content:sync` · `content:check`                                    | Seed missing content / verify routes ↔ registry                                                       |
 | `pnpm tokens:generate` · `tokens:check`                                  | Regenerate token TS / enforce the token rule                                                          |

@@ -666,8 +666,9 @@ non-future values are honoured, and concurrent reloads are coalesced.
 The session lookup is deduplicated per request (React `cache`), as are the settings the
 layout, the guards and the page all read (`getRequestSettings`). Independent queries run in
 parallel; the activity labels no longer query once per item. Hot lookups already had
-indexes, so no migration. In development `timed()` logs one `Server-Timing:` line per
-request (`SERVER_TIMING=true` enables it in production). `pnpm preview` serves a production
+indexes, so no migration. In development `timed()` logs a `Server-Timing:` line per timed step
+(`SERVER_TIMING=true` enables it in production; since 1.6 per step, because `after()` reads
+the clock while Next prerenders). `pnpm preview` serves a production
 build on the local database (`.next-preview`, never touching `pnpm dev`'s cache), `pnpm dev`
 pre-compiles the main routes after start, and `navigation-speed.spec.ts` fails a production
 build whose warm client navigations (4 site, 4 admin pages) take 500 ms or more. Seed images
@@ -700,3 +701,42 @@ The Connect guide has one "Connection string" field with the detected type and a
 IPv4 ✓ / IPv6 only ⚠ badge, and writes/copies only `DATABASE_URL` and
 `SUPABASE_SERVICE_ROLE_KEY` (plus optional extras); stale `DIRECT_URL`, `SUPABASE_URL`,
 `STORAGE_DRIVER` and bucket lines it wrote before are removed from `.env.local`.
+
+## v1.6: shared sections, easy lists
+
+### D-087 Shared sections are stored once, shown in every page
+
+A repeated section of page content used to become a global, which removed it from the pages
+it appears on in the admin. `defineSharedSection()` + `useShared()` (in the page's `sections`,
+site order) keep it in place. Storage reuses the page/global engine: one document under the
+key `shared:<id>` in `page_content` (`_shared` + per locale), with its own versions,
+revisions (`page_revisions`) and audit entries (`shared:<id>:<locale>`). A page's own
+document stores only its own sections (`ownSchema`); the editor shows all sections in order
+(`displaySections`) and the save action writes the page and every shared section edited on
+it in **one transaction** (`saveDocumentIn`), so a conflict on the shared section rolls the
+page back too and is reported by section name; validation errors keep their
+`content.<section>.<field>` paths. The site loader merges each shared section's content under
+its id (typed like a section) and tags the page `shared:<id>`, so one save revalidates every
+page that uses it. Page revisions cover the page's own sections; a shared section's history
+is in its own editor (Pages → Every page). Globals stay for layout chrome. On the first sync a
+shared section adopts values saved under its id on a page that uses it or in a global
+section, so existing projects can move a section without retyping.
+
+### D-088 Lists choose their editor from the item shape
+
+`f.list` gets `display` (`tags`, `lines`, `rows`, `cards`), chosen automatically when omitted:
+one short text/select → tags; one text up to ~120 chars → lines; 2–3 inline fields → rows;
+images, rich text, textareas or more fields → cards. Only sections and cards collapse. Scalar
+lists (`of: f.text()`) are stored as `{ _key, value }` items, so storage, validation,
+revisions, per-item errors and reordering stay the same as object lists; the site receives
+plain arrays (`string[]`). An explicit `display` that can't show the item shape fails at
+definition time. Keyboard: tags (Enter, Delete, Alt+←/→), lines (Enter, Backspace on empty,
+Alt+↑/↓), rows and cards (move buttons); every layout also supports drag to reorder and
+paste of many values.
+
+### D-089 Session pooler is the recommended Supabase connection
+
+On Netlify the shared transaction pooler (6543) caused errors in testing; the shared session
+pooler (5432) works. The Connect guide, setup page and docs point to Connect → Session pooler
+and show "Recommended" for it; the other types are still accepted with their IPv4/IPv6
+badges, and the runtime keeps one connection per instance on the session pooler (D-086).

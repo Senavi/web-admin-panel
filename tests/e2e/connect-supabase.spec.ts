@@ -5,7 +5,8 @@ import { expect, test } from './support/test';
 import { E2E_ADMIN } from './support/users';
 
 const REF = 'abcdefghijklmnopqrst';
-const SHARED = `postgresql://postgres.${REF}:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`;
+const SESSION = `postgresql://postgres.${REF}:pw@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`;
+const TRANSACTION = `postgresql://postgres.${REF}:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`;
 const DIRECT = `postgresql://postgres:pw@db.${REF}.supabase.co:5432/postgres`;
 
 /** Connect Supabase exists only in development (`pnpm dev`, the default `pnpm e2e` server). */
@@ -28,17 +29,22 @@ test.describe('Connect Supabase guide', () => {
     await expect(dialog.getByLabel('Connection string')).toHaveCount(1);
     await expect(dialog.getByLabel('Project URL')).toHaveCount(0);
     await expect(dialog.getByLabel('Direct connection string')).toHaveCount(0);
-    await expect(dialog).toContainText('Shared pooler → Transaction pooler');
+    await expect(dialog).toContainText('Connect (top of the project) → Session pooler');
 
     const field = dialog.getByLabel('Connection string');
     const type = dialog.getByRole('status', { name: 'Connection type' });
     await field.fill(DIRECT);
     await expect(type).toContainText('Direct connection');
     await expect(type).toContainText('IPv6 only');
-    await expect(type).toContainText('pooler.supabase.com:6543');
-    await field.fill(SHARED);
+    await expect(type).toContainText('pooler.supabase.com:5432');
+    await field.fill(SESSION);
+    await expect(type).toContainText('Shared pooler, session mode');
+    await expect(type).toContainText('Recommended');
+    await expect(type).toContainText('IPv4 ✓');
+    await field.fill(TRANSACTION);
     await expect(type).toContainText('Shared pooler, transaction mode');
     await expect(type).toContainText('IPv4 ✓');
+    await expect(type).toContainText('Session pooler');
 
     await page.keyboard.press('Escape');
     await setDeveloperMode(page, false);

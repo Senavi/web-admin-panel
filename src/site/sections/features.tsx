@@ -19,6 +19,15 @@ export function FeaturesSection({ content }: Props) {
               {content.intro}
             </Text>
           ) : null}
+          {content.highlights.length > 0 ? (
+            <ul className="flex list-disc flex-col gap-1 ps-5">
+              {content.highlights.map((highlight) => (
+                <li key={highlight}>
+                  <Text variant="body">{highlight}</Text>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </SectionIntro>
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {content.items.map((item) => (

@@ -23,6 +23,8 @@ export interface SidebarGroup {
     /** Shown as a badge, e.g. item or unread count. */
     readonly count?: number;
     readonly countLabel?: string;
+    /** Small second line, e.g. "Used on 2 pages". */
+    readonly note?: string;
   }>;
 }
 
@@ -138,7 +140,12 @@ export function PagesTree({
                       active && 'bg-muted font-medium',
                     )}
                   >
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate">{item.label}</span>
+                      {item.note ? (
+                        <span className="text-xs truncate text-muted-foreground">{item.note}</span>
+                      ) : null}
+                    </span>
                     {item.count !== undefined ? (
                       <span
                         className="text-xs bg-muted rounded-full px-1.5 text-muted-foreground tabular-nums"

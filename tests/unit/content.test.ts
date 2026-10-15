@@ -22,6 +22,7 @@ import {
   splitContent,
   type ContentRecord,
 } from '@/core/content/values';
+import { ownSchema } from '@/core/content/shared-section';
 
 const testPage = definePage({
   id: 'test',
@@ -116,20 +117,25 @@ describe('content validation', () => {
     ).toBe(true);
   });
 
-  it('validates every demo page seed against its schema', () => {
-    for (const page of registry.pages) {
-      const content = resolveWithFallback(page, {
+  it('validates every demo page and shared section seed against its schema', () => {
+    const schemas = [
+      ...registry.pages.map((page) => ({ id: page.id, schema: ownSchema(page) })),
+      ...registry.sharedSections.map((shared) => ({ id: shared.id, schema: shared.schema })),
+    ];
+    for (const { id, schema } of schemas) {
+      const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
+      const content = resolveWithFallback(schema, {
         primary: { shared: undefined, localized: undefined },
         seeds: [
           seedToStored(
-            page,
-            page.seed?.en as ContentRecord,
-            new Map(seedAssets(page).map((a) => [a, crypto.randomUUID()])),
+            schema,
+            seed?.en,
+            new Map(seedAssets(schema).map((a) => [a, crypto.randomUUID()])),
           ),
         ],
       });
-      const result = pageContentSchema(page).safeParse(content);
-      expect(result.error?.issues ?? [], page.id).toEqual([]);
+      const result = pageContentSchema(schema).safeParse(content);
+      expect(result.error?.issues ?? [], id).toEqual([]);
     }
   });
 });

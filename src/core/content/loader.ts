@@ -14,6 +14,7 @@ import type { ContentSchema, ResolvedPageContent } from './define';
 import type { ImageValue } from './fields';
 import { globalKey, type ResolvedGlobalContent } from './global';
 import { contentRegistry } from './project-registry';
+import { ownSchema, sharedKey, sharedUses } from './shared-section';
 import { readPageRows, storedRowsFor } from './repository';
 import {
   collectMediaIds,
@@ -47,11 +48,28 @@ export async function getPageContent<Id extends PageId>(
 async function loadResolvedContent(pageId: string, locale: string): Promise<ContentRecord> {
   'use cache';
   cacheLife('max');
-  cacheTag(CacheTag.content(pageId), CacheTag.contentLocale(pageId, locale), CacheTag.Settings);
-
   const page = registry.byId(pageId);
   if (!page) throw new Error(`Unknown page "${pageId}".`);
-  return loadDocumentContent(page, pageId, locale);
+  const shared = sharedUses(page);
+  cacheTag(
+    CacheTag.content(pageId),
+    CacheTag.contentLocale(pageId, locale),
+    CacheTag.Settings,
+    // Saving a shared section updates every page that uses it.
+    ...shared.map((section) => CacheTag.shared(section.sharedId)),
+  );
+  const [own, ...sharedContent] = await Promise.all([
+    loadDocumentContent(ownSchema(page), pageId, locale),
+    ...shared.map((section) => loadSharedContent(section.sharedId, locale)),
+  ]);
+  return Object.assign({}, own, ...sharedContent) as ContentRecord;
+}
+
+/** One shared section's content, keyed by its id (as placed in pages). */
+async function loadSharedContent(sharedId: string, locale: string): Promise<ContentRecord> {
+  const shared = contentRegistry.sharedSectionById(sharedId);
+  if (!shared) throw new Error(`Unknown shared section "${sharedId}".`);
+  return loadDocumentContent(shared.schema, sharedKey(shared.id), locale);
 }
 
 type RegisteredGlobal = (typeof registry.globals)[number];

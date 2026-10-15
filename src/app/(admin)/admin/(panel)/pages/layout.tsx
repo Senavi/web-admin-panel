@@ -91,16 +91,25 @@ async function PagesSidebar() {
     });
   }
 
-  if (contentRegistry.globals.length > 0) {
-    groups.push({
-      id: PagesArea.SiteWide,
-      title: 'Every page',
-      items: contentRegistry.globals.map((global) => ({
-        id: global.id,
-        label: global.label,
-        href: pagesAreaHref(PagesArea.SiteWide, global.id),
-      })),
-    });
+  // Layout chrome (globals) and sections shared by several pages.
+  const everyPage = [
+    ...contentRegistry.globals.map((global) => ({
+      id: global.id,
+      label: global.label,
+      href: pagesAreaHref(PagesArea.SiteWide, global.id),
+    })),
+    ...contentRegistry.sharedSections.map((shared) => {
+      const pages = contentRegistry.pagesUsingShared(shared.id).length;
+      return {
+        id: `shared-${shared.id}`,
+        label: shared.label,
+        href: pagesAreaHref(PagesArea.Shared, shared.id),
+        note: `Used on ${pages} ${pages === 1 ? 'page' : 'pages'}`,
+      };
+    }),
+  ];
+  if (everyPage.length > 0) {
+    groups.push({ id: PagesArea.SiteWide, title: 'Every page', items: everyPage });
   }
 
   if (contentRegistry.forms.length > 0) {

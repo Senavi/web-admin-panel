@@ -31,6 +31,7 @@ export const PagesArea = {
   Collections: 'collections',
   SiteWide: 'site-wide',
   Forms: 'forms',
+  Shared: 'shared',
 } as const;
 export type PagesArea = (typeof PagesArea)[keyof typeof PagesArea];
 

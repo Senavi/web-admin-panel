@@ -9,7 +9,8 @@ import { getDb } from '@/core/db/client';
 import { localizedPath } from '@/core/i18n/routing';
 
 import { collectionItemPath, CollectionItemStatus } from './collection';
-import { type ContentSchema, seoDefaultsFor } from './define';
+import { type ContentSchema, type SectionList, seoDefaultsFor } from './define';
+import { ownSchema, sharedKey } from './shared-section';
 import { globalKey } from './global';
 import { formKey } from '@/core/forms/define';
 import { contentRegistry } from './project-registry';
@@ -36,7 +37,10 @@ export interface ContentDocument {
   /** Storage key in its store (`page_id` column for page-table documents). */
   readonly key: string;
   readonly label: string;
+  /** What this document stores (a page's own sections; shared sections are stored once). */
   readonly schema: ContentSchema;
+  /** Sections shown in the editor, in site order (a page's own and shared sections). */
+  readonly displaySections?: SectionList;
   readonly store: DocumentStore;
   readonly hasSeo: boolean;
   seoDefaults(locale: string): { title: string; description: string };
@@ -58,7 +62,8 @@ function pageDocument(id: string): ContentDocument | null {
     target: { kind: DocumentKind.Page, id },
     key: page.id,
     label: page.label,
-    schema: page,
+    schema: ownSchema(page),
+    displaySections: page.sections,
     store: pageStore,
     hasSeo: true,
     seoDefaults: (locale) => seoDefaultsFor(page, locale),
@@ -149,6 +154,24 @@ function formDocument(id: string): ContentDocument | null {
   };
 }
 
+function sharedDocument(id: string): ContentDocument | null {
+  const shared = contentRegistry.sharedSectionById(id);
+  if (!shared) return null;
+  return {
+    target: { kind: DocumentKind.Shared, id },
+    key: sharedKey(shared.id),
+    label: shared.label,
+    schema: shared.schema,
+    store: pageStore,
+    hasSeo: false,
+    seoDefaults: () => NO_SEO_DEFAULTS,
+    publicPath: () => null,
+    auditTarget: (locale) => `shared:${shared.id}:${locale}`,
+    // Every page that uses it is tagged with the shared section (content loader).
+    tagsToInvalidate: () => [CacheTag.shared(shared.id)],
+  };
+}
+
 /** Resolves a target to its document, or null when it doesn't exist (any more). */
 export async function resolveDocument(target: DocumentTarget): Promise<ContentDocument | null> {
   switch (target.kind) {
@@ -160,5 +183,7 @@ export async function resolveDocument(target: DocumentTarget): Promise<ContentDo
       return globalDocument(target.id);
     case DocumentKind.Form:
       return formDocument(target.id);
+    case DocumentKind.Shared:
+      return sharedDocument(target.id);
   }
 }

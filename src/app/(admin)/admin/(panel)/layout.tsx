@@ -26,6 +26,7 @@ const BREADCRUMB_LABELS = {
   [PagesArea.Collections]: byId(contentRegistry.collections, (collection) => collection.label),
   [PagesArea.SiteWide]: byId(contentRegistry.globals, (global) => global.label),
   [PagesArea.Forms]: byId(contentRegistry.forms, (form) => form.label),
+  [PagesArea.Shared]: byId(contentRegistry.sharedSections, (shared) => shared.label),
 };
 const BREADCRUMB_CHILD_LABELS = byId(
   contentRegistry.collections,

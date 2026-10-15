@@ -6,6 +6,47 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-15
+
+Shared sections inside pages, lists that are quick to edit, Session pooler.
+
+### Added
+
+- **Shared sections** (`defineSharedSection` + `useShared`, registered in `sharedSections`): a
+  repeated section of page content stored once and shown in place on every page that uses
+  it, in the admin and on the site. Badge "Shared" and "Also on: … Changes here update all N
+  pages." in the editor; saving a page saves an edited shared section in the same
+  transaction; conflicts name the section. Pages → Every page lists them with "Used on N
+  pages". Cache tag `shared:{id}`. Demo: the CTA band on Home and About.
+- **List layouts** (`f.list({ display })`, automatic by default): `tags` (chips), `lines`
+  (stacked inputs), `rows` (a row per item) and `cards` (collapsed cards with a preview).
+  Keyboard, paste and drag to reorder in all of them. Demo: blog post tags, Home highlights,
+  Home numbers as rows.
+- **Scalar lists**: `f.list({ of: f.text() })` → the site receives `string[]`.
+- `content:check` warns about unused shared sections.
+
+### Changed
+
+- Connect Supabase, setup page and docs recommend the **Session pooler**
+  (`…pooler.supabase.com:5432`); the transaction pooler is still accepted.
+- Only sections and card lists collapse; other lists show every item.
+- Dev `Server-Timing:` lines are logged per timed step (fixes a dev-only prerender error).
+
+### Upgrading from 1.5.x
+
+Nothing is required: existing pages, globals and lists keep working (lists get a layout
+from their item shape). Optional: to move a section that repeats on several pages (or a
+section of page content kept in a global) to a shared section:
+
+1. Create `src/content/shared/<id>.ts` with `defineSharedSection({ id, label, fields, seed })`,
+   using **the same id** as the existing section.
+2. Replace the section in each page's `sections` with `useShared(<shared>)` (in site order),
+   remove it from those pages' seeds, and add it to `sharedSections` in `src/content/index.ts`.
+3. Run `pnpm content:sync` (or restart `pnpm dev`; deploys run it in `db:prepare`): the shared
+   section adopts the values saved under that id on the first page that uses it (or in a
+   global section with that id). Old values are kept as orphans.
+4. Type views with `SharedSectionContent<typeof <shared>>`.
+
 ## [1.5.1] - 2026-10-14
 
 One `DATABASE_URL` for any Supabase connection type.

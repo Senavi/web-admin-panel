@@ -8,6 +8,7 @@ import type {
   ImageField,
   ListField,
   ListItemFields,
+  ScalarListField,
   StoredValue,
 } from './fields';
 
@@ -78,9 +79,11 @@ export interface ResolvedImage {
 
 export type ResolvedValue<F> = F extends ImageField
   ? ResolvedImage | null
-  : F extends ListField<infer I>
-    ? ReadonlyArray<{ readonly _key: string } & { readonly [K in keyof I]: ResolvedValue<I[K]> }>
-    : StoredValue<F>;
+  : F extends ScalarListField<infer S>
+    ? ReadonlyArray<ResolvedValue<S>>
+    : F extends ListField<infer I>
+      ? ReadonlyArray<{ readonly _key: string } & { readonly [K in keyof I]: ResolvedValue<I[K]> }>
+      : StoredValue<F>;
 
 export type ResolvedSection<F extends FieldMap> = { readonly [K in keyof F]: ResolvedValue<F[K]> };
 
@@ -99,14 +102,19 @@ export interface SeedImage {
 
 export type SeedValue<F> = F extends ImageField
   ? SeedImage
-  : F extends ListField<infer I extends ListItemFields>
-    ? ReadonlyArray<{ readonly [K in keyof I]?: SeedValue<I[K]> }>
-    : StoredValue<F>;
+  : F extends ScalarListField<infer S>
+    ? ReadonlyArray<SeedValue<S>>
+    : F extends ListField<infer I extends ListItemFields>
+      ? ReadonlyArray<{ readonly [K in keyof I]?: SeedValue<I[K]> }>
+      : StoredValue<F>;
 
 export type SeedSection<F extends FieldMap> = { readonly [K in keyof F]?: SeedValue<F[K]> };
 
+/** Seed of a page's own sections (shared sections are seeded in `defineSharedSection`). */
 export type PageSeed<S extends SectionList> = {
-  readonly [Sec in S[number] as Sec['id']]?: SeedSection<Sec['fields']>;
+  readonly [
+    Sec in S[number] as Sec extends { readonly sharedId: string } ? never : Sec['id']
+  ]?: SeedSection<Sec['fields']>;
 };
 
 export interface PageDefinition<Id extends string = string, S extends SectionList = SectionList> {

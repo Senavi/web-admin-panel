@@ -3,8 +3,9 @@ import {
   type AnyField,
   FieldKind,
   type ImageValue,
-  type ListItemFields,
+  type ListField,
   newListItemKey,
+  SCALAR_ITEM_KEY,
 } from './fields';
 import { parseStoredValue } from './validation';
 
@@ -156,23 +157,34 @@ function seedValueToStored(
     return image;
   }
   if (field.kind === FieldKind.List && Array.isArray(value)) {
-    return value.map((item: unknown) =>
-      listItemFromSeed(field.of, isRecord(item) ? item : {}, assetIds),
-    );
+    return value.map((item: unknown) => listItemFromSeed(field, item, assetIds));
   }
   return value;
 }
 
+/** Seed list items get stable keys; a scalar list's plain values become `{ _key, value }`. */
 function listItemFromSeed(
-  of: ListItemFields,
-  item: JsonRecord,
+  field: ListField,
+  raw: unknown,
   assetIds: ReadonlyMap<string, string>,
 ): JsonRecord {
+  const item: JsonRecord = field.scalar ? { [SCALAR_ITEM_KEY]: raw } : isRecord(raw) ? raw : {};
   const out: JsonRecord = { _key: typeof item._key === 'string' ? item._key : newListItemKey() };
-  for (const [key, field] of Object.entries(of)) {
-    out[key] = key in item ? seedValueToStored(field, item[key], assetIds) : field.defaultValue;
+  for (const [key, child] of Object.entries(field.of)) {
+    out[key] = key in item ? seedValueToStored(child, item[key], assetIds) : child.defaultValue;
   }
   return out;
+}
+
+/** Values of one list item per item field (a scalar list's seed items are plain values). */
+function listItemEntries(field: ListField, item: unknown): Array<[AnyField, unknown]> {
+  if (field.scalar) {
+    const value = isRecord(item) && SCALAR_ITEM_KEY in item ? item[SCALAR_ITEM_KEY] : item;
+    const of = field.of[SCALAR_ITEM_KEY];
+    return of ? [[of, value]] : [];
+  }
+  if (!isRecord(item)) return [];
+  return Object.entries(field.of).map(([key, child]) => [child, item[key]]);
 }
 
 /** All seed asset names referenced by a page's seeds (any locale). */
@@ -182,10 +194,8 @@ export function seedAssets(page: ContentSchema): string[] {
     if (field.kind === FieldKind.Image && isRecord(value) && typeof value.asset === 'string')
       assets.add(value.asset);
     if (field.kind === FieldKind.List && Array.isArray(value)) {
-      for (const item of value) {
-        if (!isRecord(item)) continue;
-        for (const [key, child] of Object.entries(field.of)) visit(child, item[key]);
-      }
+      for (const item of value)
+        for (const [child, childValue] of listItemEntries(field, item)) visit(child, childValue);
     }
   };
   for (const seed of Object.values(page.seed ?? {})) {
@@ -204,10 +214,8 @@ export function collectMediaIds(page: ContentSchema, content: ContentRecord): st
     if (field.kind === FieldKind.Image && isRecord(value) && typeof value.mediaId === 'string')
       ids.add(value.mediaId);
     if (field.kind === FieldKind.List && Array.isArray(value)) {
-      for (const item of value) {
-        if (!isRecord(item)) continue;
-        for (const [key, child] of Object.entries(field.of)) visit(child, item[key]);
-      }
+      for (const item of value)
+        for (const [child, childValue] of listItemEntries(field, item)) visit(child, childValue);
     }
   };
   for (const section of page.sections) {
@@ -217,7 +225,10 @@ export function collectMediaIds(page: ContentSchema, content: ContentRecord): st
   return [...ids];
 }
 
-/** Replaces image values with resolved media (or null) for the public site. */
+/**
+ * Content as the public site receives it: image values replaced with resolved
+ * media (or null), scalar lists unwrapped to plain arrays (`['a', 'b']`).
+ */
 export function resolveImages<T>(
   page: ContentSchema,
   content: ContentRecord,
@@ -227,6 +238,12 @@ export function resolveImages<T>(
     if (field.kind === FieldKind.Image)
       return isRecord(value) ? resolve(value as unknown as ImageValue) : null;
     if (field.kind === FieldKind.List && Array.isArray(value)) {
+      if (field.scalar) {
+        const of = field.of[SCALAR_ITEM_KEY];
+        return value.map((item: unknown) =>
+          of && isRecord(item) ? map(of, item[SCALAR_ITEM_KEY]) : item,
+        );
+      }
       return value.map((item: unknown) => {
         if (!isRecord(item)) return item;
         const out: JsonRecord = { _key: item._key };

@@ -114,6 +114,25 @@ export type ListItem<I extends ListItemFields> = { readonly _key: string } & {
   readonly [K in keyof I]: StoredValue<I[K]>;
 };
 
+/**
+ * How a list is edited (docs/CONTENT_SCHEMA.md § Lists). Chosen automatically
+ * from the item shape when not set (`listDisplay()`):
+ * - `tags`: chips for one short text/select value per item;
+ * - `lines`: stacked inputs for one text value per item;
+ * - `rows`: table-like rows for 2–3 short scalar fields;
+ * - `cards`: collapsible cards for anything bigger (images, rich text, > 3 fields).
+ */
+export const ListDisplay = {
+  Tags: 'tags',
+  Lines: 'lines',
+  Rows: 'rows',
+  Cards: 'cards',
+} as const;
+export type ListDisplay = (typeof ListDisplay)[keyof typeof ListDisplay];
+
+/** Item key of a scalar list's value (`f.list({ of: f.text() })` stores `{ _key, value }`). */
+export const SCALAR_ITEM_KEY = 'value';
+
 export interface ListField<I extends ListItemFields = ListItemFields> extends FieldBase<
   'list',
   ListItem<I>[]
@@ -123,6 +142,20 @@ export interface ListField<I extends ListItemFields = ListItemFields> extends Fi
   readonly max?: number;
   /** Item field used as the item title in the editor. */
   readonly itemLabelField?: keyof I & string;
+  /** Editor layout; automatic when omitted (see `ListDisplay`). */
+  readonly display?: ListDisplay;
+  /**
+   * A list of plain values (`f.list({ of: f.text() })`): items are stored as
+   * `{ _key, value }` and the site receives `value[]`.
+   */
+  readonly scalar?: boolean;
+}
+
+/** A list of plain values: the site receives an array of the item field's value. */
+export interface ScalarListField<S extends ScalarField = ScalarField> extends ListField<{
+  readonly value: S;
+}> {
+  readonly scalar: true;
 }
 
 export type AnyField = ScalarField | ListField;
@@ -132,6 +165,56 @@ export type FieldMap = Readonly<Record<string, AnyField>>;
 export type StoredValue<F> = F extends FieldBase<FieldKind, infer V> ? V : never;
 
 // ── Builders ───────────────────────────────────────────────────────────────
+
+interface ListOptionsBase {
+  readonly label?: string;
+  readonly help?: string;
+  readonly required?: boolean;
+  readonly localized?: boolean;
+  readonly min?: number;
+  readonly max?: number;
+  readonly display?: ListDisplay;
+}
+
+function isFieldDescriptor(value: object): value is ScalarField {
+  return typeof (value as { kind?: unknown }).kind === 'string';
+}
+
+/**
+ * Repeatable values. `of` is either one field (a list of plain values: tags,
+ * bullet points) or a map of fields (a list of objects: cards, rows).
+ */
+function list<const S extends ScalarField>(
+  options: ListOptionsBase & { readonly of: S },
+): ScalarListField<S>;
+function list<const I extends ListItemFields>(
+  options: ListOptionsBase & { readonly of: I; readonly itemLabelField?: keyof I & string },
+): ListField<I>;
+function list(
+  options: ListOptionsBase & {
+    readonly of: ScalarField | ListItemFields;
+    readonly itemLabelField?: string;
+  },
+): ListField | ScalarListField {
+  const scalar = isFieldDescriptor(options.of);
+  const of: ListItemFields = scalar
+    ? { [SCALAR_ITEM_KEY]: options.of as ScalarField }
+    : (options.of as ListItemFields);
+  const field: ListField = {
+    ...base<'list', ListItem<ListItemFields>[]>(FieldKind.List, options, []),
+    of,
+    ...(options.min !== undefined ? { min: options.min } : {}),
+    ...(options.max !== undefined ? { max: options.max } : {}),
+    ...(scalar
+      ? { scalar: true, itemLabelField: SCALAR_ITEM_KEY }
+      : options.itemLabelField
+        ? { itemLabelField: options.itemLabelField }
+        : {}),
+    ...(options.display ? { display: options.display } : {}),
+  };
+  assertDisplayFits(field);
+  return field;
+}
 
 interface CommonOptions<V> {
   readonly label?: string;
@@ -230,21 +313,75 @@ export const f = {
     ...(options.placeholder ? { placeholder: options.placeholder } : {}),
   }),
 
-  list: <const I extends ListItemFields>(
-    options: Omit<CommonOptions<ListItem<I>[]>, 'default'> & {
-      readonly of: I;
-      readonly min?: number;
-      readonly max?: number;
-      readonly itemLabelField?: keyof I & string;
-    },
-  ): ListField<I> => ({
-    ...base<'list', ListItem<I>[]>(FieldKind.List, options, []),
-    of: options.of,
-    ...(options.min !== undefined ? { min: options.min } : {}),
-    ...(options.max !== undefined ? { max: options.max } : {}),
-    ...(options.itemLabelField ? { itemLabelField: options.itemLabelField } : {}),
-  }),
+  list,
 } as const;
+
+// ── List display ───────────────────────────────────────────────────────────
+
+/** Item fields that fit in one line (rows / tags / lines). */
+const INLINE_KINDS: ReadonlySet<FieldKind> = new Set([
+  FieldKind.Text,
+  FieldKind.Number,
+  FieldKind.Select,
+  FieldKind.Link,
+  FieldKind.Boolean,
+  FieldKind.Email,
+  FieldKind.Phone,
+  FieldKind.Color,
+]);
+/** A text up to this length is a tag (chip). */
+export const TAG_MAX_LENGTH = 40;
+/** A text up to this length is one line of a `lines` list. */
+export const LINE_MAX_LENGTH = 120;
+const ROWS_MAX_FIELDS = 3;
+
+/** The editor layout of a list: `display` if set, otherwise chosen from the item shape. */
+export function listDisplay(field: {
+  readonly display?: ListDisplay;
+  readonly of: ListItemFields;
+}): ListDisplay {
+  if (field.display) return field.display;
+  const items = Object.values(field.of);
+  if (items.length === 1 && items[0]) {
+    const only = items[0];
+    if (only.kind === FieldKind.Select) return ListDisplay.Tags;
+    if (only.kind === FieldKind.Text) {
+      const max = only.max ?? LINE_MAX_LENGTH;
+      if (max <= TAG_MAX_LENGTH) return ListDisplay.Tags;
+      if (max <= LINE_MAX_LENGTH) return ListDisplay.Lines;
+    }
+  }
+  if (items.length <= ROWS_MAX_FIELDS && items.every((item) => INLINE_KINDS.has(item.kind)))
+    return ListDisplay.Rows;
+  return ListDisplay.Cards;
+}
+
+/** Throws at definition time when an explicit `display` can't show the item shape. */
+function assertDisplayFits(field: ListField): void {
+  const items = Object.values(field.of);
+  const single = items.length === 1 ? items[0] : undefined;
+  const fail = (reason: string) => {
+    throw new Error(`f.list({ display: '${field.display}' }): ${reason}`);
+  };
+  switch (field.display) {
+    case ListDisplay.Tags:
+      if (!single || (single.kind !== FieldKind.Text && single.kind !== FieldKind.Select))
+        fail('items must be one text or select field.');
+      break;
+    case ListDisplay.Lines:
+      if (!single || single.kind !== FieldKind.Text) fail('items must be one text field.');
+      break;
+    case ListDisplay.Rows:
+      if (items.length > ROWS_MAX_FIELDS || !items.every((item) => INLINE_KINDS.has(item.kind)))
+        fail(
+          `items must be at most ${ROWS_MAX_FIELDS} short fields (text, number, select, link…).`,
+        );
+      break;
+    case ListDisplay.Cards:
+    case undefined:
+      break;
+  }
+}
 
 /** "heroImage" → "Hero image" (fallback label). */
 export function humanizeKey(key: string): string {

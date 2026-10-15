@@ -78,64 +78,84 @@ export async function saveDocument(
   input: SaveDocumentInput,
   extra?: (tx: Database, changed: ChangedRows) => Promise<boolean>,
 ): Promise<SaveResult & { extraChanged: boolean }> {
-  const { schema, store, key } = document;
+  await assertDocumentMedia(db, document, input);
+  return db.transaction((tx) => saveDocumentIn(tx, document, input, extra));
+}
+
+/** Images referenced by the input must exist (checked before the transaction). */
+export async function assertDocumentMedia(
+  db: Database,
+  document: ContentDocument,
+  input: Pick<SaveDocumentInput, 'content' | 'seo'>,
+): Promise<void> {
   await assertMediaExists(db, [
-    ...collectMediaIds(schema, input.content),
+    ...collectMediaIds(document.schema, input.content),
     ...(input.seo.ogImageId ? [input.seo.ogImageId] : []),
   ]);
+}
+
+/**
+ * `saveDocument` inside an existing transaction (several documents saved
+ * atomically, e.g. a page and the shared sections edited on it). Call
+ * `assertDocumentMedia` first.
+ */
+export async function saveDocumentIn(
+  tx: Database,
+  document: ContentDocument,
+  input: SaveDocumentInput,
+  extra?: (tx: Database, changed: ChangedRows) => Promise<boolean>,
+): Promise<SaveResult & { extraChanged: boolean }> {
+  const { schema, store, key } = document;
   const split = splitContent(schema, input.content);
+  // Sequential: one connection per transaction.
+  const rows = await store.readRows(tx, key, [input.locale]);
+  const storedSeo = document.hasSeo ? await store.readSeo(tx, key, input.locale) : null;
+  const nextShared = preserveOrphans(split.shared, rows.shared);
+  const nextLocalized = preserveOrphans(split.localized, rows.byLocale.get(input.locale));
+  const changed = {
+    shared: stableStringify(nextShared) !== stableStringify(rows.shared ?? {}),
+    localized:
+      stableStringify(nextLocalized) !== stableStringify(rows.byLocale.get(input.locale) ?? {}),
+    seo:
+      document.hasSeo &&
+      stableStringify(input.seo) !== stableStringify(parsePageSeo(storedSeo?.data)),
+  };
 
-  return db.transaction(async (tx) => {
-    // Sequential: one connection per transaction.
-    const rows = await store.readRows(tx, key, [input.locale]);
-    const storedSeo = document.hasSeo ? await store.readSeo(tx, key, input.locale) : null;
-    const nextShared = preserveOrphans(split.shared, rows.shared);
-    const nextLocalized = preserveOrphans(split.localized, rows.byLocale.get(input.locale));
-    const changed = {
-      shared: stableStringify(nextShared) !== stableStringify(rows.shared ?? {}),
-      localized:
-        stableStringify(nextLocalized) !== stableStringify(rows.byLocale.get(input.locale) ?? {}),
-      seo:
-        document.hasSeo &&
-        stableStringify(input.seo) !== stableStringify(parsePageSeo(storedSeo?.data)),
-    };
+  const versions = { ...input.versions };
+  const context = { userId: input.author.id, now: new Date() };
+  const write = async (version: Promise<number | null>) => {
+    const next = await version;
+    if (next === null) throw new GuardError(CONFLICT_MESSAGE, ActionErrorCode.Conflict);
+    return next;
+  };
+  if (changed.shared) {
+    versions.shared = await write(
+      store.writeContent(tx, key, SHARED_LOCALE, nextShared, input.versions.shared, context),
+    );
+  }
+  if (changed.localized) {
+    versions.localized = await write(
+      store.writeContent(tx, key, input.locale, nextLocalized, input.versions.localized, context),
+    );
+  }
+  if (changed.seo) {
+    versions.seo = await write(
+      store.writeSeo(tx, key, input.locale, input.seo, input.versions.seo, context),
+    );
+  }
 
-    const versions = { ...input.versions };
-    const context = { userId: input.author.id, now: new Date() };
-    const write = async (version: Promise<number | null>) => {
-      const next = await version;
-      if (next === null) throw new GuardError(CONFLICT_MESSAGE, ActionErrorCode.Conflict);
-      return next;
-    };
-    if (changed.shared) {
-      versions.shared = await write(
-        store.writeContent(tx, key, SHARED_LOCALE, nextShared, input.versions.shared, context),
-      );
-    }
-    if (changed.localized) {
-      versions.localized = await write(
-        store.writeContent(tx, key, input.locale, nextLocalized, input.versions.localized, context),
-      );
-    }
-    if (changed.seo) {
-      versions.seo = await write(
-        store.writeSeo(tx, key, input.locale, input.seo, input.versions.seo, context),
-      );
-    }
-
-    const extraChanged = extra ? await extra(tx, changed) : false;
-    if (changed.shared || changed.localized || changed.seo || extraChanged) {
-      await store.addRevision(
-        tx,
-        key,
-        input.locale,
-        { content: nextLocalized, shared: nextShared, seo: { ...input.seo } },
-        input.author,
-      );
-      await store.pruneRevisions(tx, key, input.locale, MAX_REVISIONS);
-    }
-    return { versions, changed, extraChanged };
-  });
+  const extraChanged = extra ? await extra(tx, changed) : false;
+  if (changed.shared || changed.localized || changed.seo || extraChanged) {
+    await store.addRevision(
+      tx,
+      key,
+      input.locale,
+      { content: nextLocalized, shared: nextShared, seo: { ...input.seo } },
+      input.author,
+    );
+    await store.pruneRevisions(tx, key, input.locale, MAX_REVISIONS);
+  }
+  return { versions, changed, extraChanged };
 }
 
 async function assertMediaExists(db: Database, ids: string[]): Promise<void> {

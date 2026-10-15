@@ -19,6 +19,8 @@ export const CacheTag = {
   collectionList: (collectionId: string) => `collection:${collectionId}:list`,
   /** One global (header/footer texts…): every page that renders it. */
   global: (globalId: string) => `global:${globalId}`,
+  /** One shared section: every page that uses it. */
+  shared: (sharedId: string) => `shared:${sharedId}`,
   /** Editable texts of one form. */
   form: (formId: string) => `form:${formId}`,
   /** One media item (rows are immutable; tag exists for deletes). */

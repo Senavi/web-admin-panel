@@ -13,10 +13,12 @@ import { blogPage } from './pages/blog';
 import { contactPage } from './pages/contact';
 import { homePage } from './pages/home';
 import { teamPage } from './pages/team';
+import { ctaShared } from './shared/cta';
 
 export const registry = createRegistry({
   pages: [homePage, aboutPage, teamPage, blogPage, contactPage],
   collections: [blog],
   globals: [siteGlobals],
   forms: [contactForm],
+  sharedSections: [ctaShared],
 });

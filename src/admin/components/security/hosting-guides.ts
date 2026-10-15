@@ -27,9 +27,9 @@ export const KEY_FIELDS: readonly KeyField[] = [
     name: 'databaseUrl',
     label: 'Connection string',
     where:
-      'Connect (top of the project) → Shared pooler → Transaction pooler (the address with pooler.supabase.com:6543). Put your database password instead of [YOUR-PASSWORD]',
+      'Connect (top of the project) → Session pooler (the address with pooler.supabase.com:5432; recommended for Netlify and Vercel). Put your database password instead of [YOUR-PASSWORD]',
     placeholder:
-      'postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:6543/postgres',
+      'postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:5432/postgres',
     secret: true,
   },
   {
@@ -145,8 +145,7 @@ export const OPTIONAL_HOSTING_VARIABLES: ReadonlyArray<{
 
 /** Plain-language description of each variable (setup page). */
 export const HOSTING_VARIABLE_HELP: Readonly<Record<HostingVariable, string>> = {
-  [HostingVariable.DatabaseUrl]:
-    'Connection string (Shared pooler → Transaction pooler, port 6543)',
+  [HostingVariable.DatabaseUrl]: 'Connection string (Session pooler, port 5432)',
   [HostingVariable.ServiceRoleKey]: 'Secret key (service_role)',
   [HostingVariable.SiteUrl]: 'Your own domain, optional',
   [HostingVariable.AuthSecret]: 'Optional',

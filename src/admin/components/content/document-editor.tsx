@@ -23,6 +23,7 @@ import { Button } from '@/admin/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import { ActionErrorCode, type ActionResult } from '@/core/actions/result';
 import { saveDocumentAction, type RevisionPreview } from '@/core/content/actions';
+import { DocumentKind } from '@/core/content/document-target';
 import type { EditorData, EditorVersions } from '@/core/content/editor-types';
 import { pageContentSchema } from '@/core/content/validation';
 import { pageSeoSchema } from '@/core/seo/page-seo';
@@ -97,6 +98,11 @@ export function DocumentEditor({
     mode: 'onBlur',
   });
   const [versions, setVersions] = useState<EditorVersions>(data.versions);
+  // Shared sections placed on this page: saved with it when edited here.
+  const placedShared = data.document.target.kind === DocumentKind.Page ? data.shared : [];
+  const [sharedVersions, setSharedVersions] = useState<Record<string, EditorVersions>>(() =>
+    Object.fromEntries(placedShared.map((shared) => [shared.id, shared.versions])),
+  );
   const [conflict, setConflict] = useState<string | null>(null);
   const [tab, setTab] = useState<string>('content');
   const { isDirty, isSubmitting } = form.formState;
@@ -105,6 +111,13 @@ export function DocumentEditor({
 
   const save = form.handleSubmit(
     async (values) => {
+      const dirtyContent = (form.formState.dirtyFields.content ?? {}) as Record<string, unknown>;
+      const editedShared = placedShared
+        .filter((shared) => dirtyContent[shared.id] !== undefined)
+        .map((shared) => ({
+          id: shared.id,
+          versions: sharedVersions[shared.id] ?? shared.versions,
+        }));
       const result = saveValues
         ? await saveValues(values, versions)
         : await saveDocumentAction({
@@ -113,9 +126,14 @@ export function DocumentEditor({
             content: values.content,
             seo: values.seo,
             versions,
+            shared: editedShared,
           });
       if (result.ok) {
         setVersions(result.data.versions);
+        if ('sharedVersions' in result.data) {
+          const next = result.data.sharedVersions;
+          setSharedVersions((current) => ({ ...current, ...next }));
+        }
         setConflict(null);
         form.reset({ ...values, extra: 'extra' in result.data ? result.data.extra : values.extra });
         toast.success(result.message ?? 'Saved.');
@@ -142,7 +160,12 @@ export function DocumentEditor({
   const onRestored = (values: RevisionPreview, next: EditorVersions) => {
     setVersions(next);
     setConflict(null);
-    form.reset({ ...form.getValues(), content: values.content, seo: values.seo });
+    // A page revision holds the page's own sections; shared sections keep their values.
+    form.reset({
+      ...form.getValues(),
+      content: { ...form.getValues().content, ...values.content },
+      seo: values.seo,
+    });
     router.refresh();
   };
 
@@ -259,7 +282,15 @@ export function DocumentEditor({
                 <TabsTrigger value="seo">Google &amp; sharing</TabsTrigger>
               </TabsList>
               <TabsContent value="content" keepMounted className="pt-4">
-                <SectionFields sections={data.document.sections} />
+                <SectionFields
+                  sections={data.document.sections}
+                  shared={data.shared}
+                  currentPageId={
+                    data.document.target.kind === DocumentKind.Page
+                      ? data.document.target.id
+                      : undefined
+                  }
+                />
               </TabsContent>
               <TabsContent value="seo" keepMounted className="pt-4">
                 <SeoPanel publicUrl={data.publicUrl ?? ''} defaults={data.document.seoDefaults} />
@@ -267,7 +298,15 @@ export function DocumentEditor({
             </Tabs>
           ) : (
             <div className="max-w-3xl">
-              <SectionFields sections={data.document.sections} />
+              <SectionFields
+                sections={data.document.sections}
+                shared={data.shared}
+                currentPageId={
+                  data.document.target.kind === DocumentKind.Page
+                    ? data.document.target.id
+                    : undefined
+                }
+              />
             </div>
           )}
         </form>

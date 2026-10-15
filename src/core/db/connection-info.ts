@@ -9,7 +9,8 @@
  * | shared-session     | aws-<n>-<region>.pooler.supabase.com:5432  | yes              |
  * | direct             | db.<ref>.supabase.co:5432                  | no (IPv6)        |
  * | dedicated          | db.<ref>.supabase.co:6543                  | no (IPv6)        |
- * Netlify and Vercel connect over IPv4 only.
+ * Netlify and Vercel connect over IPv4 only. The shared SESSION pooler is the
+ * recommended setup there (the transaction pooler caused errors on Netlify).
  */
 
 export const ConnectionKind = {
@@ -38,7 +39,7 @@ const POOLER_USER = /^[^.]+\.([a-z0-9]+)$/i;
 
 /** Plain-language fix for IPv6-only addresses (build log, Security status, Connect guide). */
 export const IPV6_ONLY_MESSAGE =
-  'This Supabase address works only over IPv6 (or with the paid IPv4 add-on). Netlify and Vercel need IPv4: in Supabase → Connect → Shared pooler → Transaction pooler, copy the address with `pooler.supabase.com:6543`.';
+  'This Supabase address works only over IPv6 (or with the paid IPv4 add-on). Netlify and Vercel need IPv4: in Supabase → Connect → Session pooler, copy the address with `pooler.supabase.com:5432`.';
 
 interface ParsedUrl {
   readonly user: string;

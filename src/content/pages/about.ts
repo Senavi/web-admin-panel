@@ -3,6 +3,9 @@
  */
 import { definePage, defineSection } from '@/core/content/define';
 import { f } from '@/core/content/fields';
+import { useShared } from '@/core/content/shared-section';
+
+import { ctaShared } from '../shared/cta';
 import type { RichTextDoc } from '@/core/content/rich-text';
 
 const storyEn: RichTextDoc = {
@@ -200,6 +203,8 @@ export const aboutPage = definePage({
         link: f.link({ label: 'Link to the team page' }),
       },
     }),
+    // Shared with Home: edited once, shown on both pages.
+    useShared(ctaShared),
   ],
   seed: {
     en: {

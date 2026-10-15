@@ -39,6 +39,11 @@ export default defineConfig([
     'src/core/db/migrations/**',
   ]),
   {
+    // Content schemas aren't React: `useShared()` places a shared section (not a hook).
+    files: ['src/content/**/*.ts', 'src/core/content/shared-section.ts', 'tests/**/*.ts'],
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
+  {
     files: ['**/*.{ts,tsx,mts}'],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },

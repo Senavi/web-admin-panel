@@ -14,12 +14,17 @@ import type { Database } from '@/core/db/types';
 import { loadMedia } from '@/core/media/resolve';
 import { AuditAction, writeAudit } from '@/core/security/audit';
 import { parsePageSeo, type PageSeo } from '@/core/seo/page-seo';
+
+/** SEO of documents without SEO (shared sections). */
+const DEFAULT_SEO: PageSeo = parsePageSeo(undefined);
 import { readSiteSettings } from '@/core/settings/repository';
 
 import { type ContentDocument, resolveDocument } from './document';
 import { documentTargetSchema } from './document-target';
 import type { EditorVersions, MediaPreview, RevisionSummary } from './editor-types';
-import { saveDocument, type SaveResult } from './save';
+import { DocumentKind } from './document-target';
+import { assertDocumentMedia, saveDocument, saveDocumentIn, type SaveResult } from './save';
+import { sharedUses } from './shared-section';
 import { validateDocumentInput } from './document-validation';
 import { collectMediaIds, type ContentRecord, mergeWithoutFallback } from './values';
 
@@ -37,7 +42,27 @@ const saveInputSchema = z.object({
   content: z.unknown(),
   seo: z.unknown(),
   versions: versionsSchema,
+  /** Shared sections edited on this page (saved with it, in the same transaction). */
+  shared: z
+    .array(z.object({ id: z.string().min(1).max(64), versions: versionsSchema }))
+    .max(50)
+    .default([]),
 });
+
+interface SharedSave {
+  readonly document: ContentDocument;
+  readonly label: string;
+  readonly content: ContentRecord;
+  readonly versions: EditorVersions;
+}
+
+/** Conflict on a shared section edited from a page: name the section. */
+function sharedConflict(label: string): GuardError {
+  return new GuardError(
+    `Someone else saved the shared section “${label}” since you opened this page. Reload to see their changes (your edits will be lost), or copy them first.`,
+    ActionErrorCode.Conflict,
+  );
+}
 
 /** Resolves the document and checks the locale is enabled. */
 async function resolveTarget(db: Database, input: unknown, locale: string) {
@@ -62,7 +87,9 @@ async function invalidate(
 /** Saves content (+ SEO when the document has it) of one document in one locale. */
 export async function saveDocumentAction(
   input: unknown,
-): Promise<ActionResult<{ versions: EditorVersions }>> {
+): Promise<
+  ActionResult<{ versions: EditorVersions; sharedVersions: Record<string, EditorVersions> }>
+> {
   return runAction(async () => {
     const user = await assertPermission(Permission.PagesEdit);
     const data = saveInputSchema.parse(input);
@@ -70,31 +97,103 @@ export async function saveDocumentAction(
     const document = await resolveTarget(db, data.target, data.locale);
 
     const validated = validateDocumentInput(document, data.content, data.seo);
-    if ('fieldErrors' in validated) {
-      return fail(
-        'Please fix the highlighted fields.',
-        ActionErrorCode.Validation,
-        validated.fieldErrors,
-      );
+    // Shared sections edited here: only those this page actually places.
+    const placed = new Set(
+      sharedUses({ sections: document.displaySections ?? [] }).map((use) => use.sharedId),
+    );
+    const sharedSaves: SharedSave[] = [];
+    const fieldErrors = 'fieldErrors' in validated ? { ...validated.fieldErrors } : {};
+    for (const edit of data.shared) {
+      if (!placed.has(edit.id))
+        throw new GuardError('Unknown shared section.', ActionErrorCode.Validation);
+      const sharedDocument = await resolveDocument({ kind: DocumentKind.Shared, id: edit.id });
+      if (!sharedDocument)
+        throw new GuardError('Unknown shared section.', ActionErrorCode.NotFound);
+      // Field errors keep the page's paths (`content.<section>.<field>`).
+      const result = validateDocumentInput(sharedDocument, data.content, undefined);
+      if ('fieldErrors' in result) Object.assign(fieldErrors, result.fieldErrors);
+      else
+        sharedSaves.push({
+          document: sharedDocument,
+          label: sharedDocument.label,
+          content: result.data.content,
+          versions: edit.versions,
+        });
+    }
+    if ('fieldErrors' in validated || Object.keys(fieldErrors).length > 0) {
+      return fail('Please fix the highlighted fields.', ActionErrorCode.Validation, fieldErrors);
     }
 
-    const result = await saveDocument(db, document, {
+    const author = { id: user.id, name: user.name };
+    const pageInput = {
       locale: data.locale,
       ...validated.data,
       versions: data.versions,
-      author: { id: user.id, name: user.name },
+      author,
+    };
+    await assertDocumentMedia(db, document, pageInput);
+    for (const save of sharedSaves)
+      await assertDocumentMedia(db, save.document, { content: save.content, seo: DEFAULT_SEO });
+    const { result, sharedResults } = await db.transaction(async (tx) => {
+      const pageResult = await saveDocumentIn(tx, document, pageInput);
+      const saved: Array<{ save: SharedSave; result: SaveResult }> = [];
+      for (const save of sharedSaves) {
+        try {
+          const sharedResult = await saveDocumentIn(tx, save.document, {
+            locale: data.locale,
+            content: save.content,
+            seo: DEFAULT_SEO,
+            versions: save.versions,
+            author,
+          });
+          saved.push({ save, result: sharedResult });
+        } catch (error) {
+          if (error instanceof GuardError && error.code === ActionErrorCode.Conflict)
+            throw sharedConflict(save.label);
+          throw error;
+        }
+      }
+      return { result: pageResult, sharedResults: saved };
     });
-    if (!result.changed.shared && !result.changed.localized && !result.changed.seo) {
-      return ok({ versions: result.versions }, 'No changes to save.');
+
+    const changedAny = (changed: SaveResult['changed']) =>
+      changed.shared || changed.localized || changed.seo;
+    const sharedVersions = Object.fromEntries(
+      sharedResults.map(({ save, result: sharedResult }) => [
+        save.document.target.kind === DocumentKind.Shared ? save.document.target.id : '',
+        sharedResult.versions,
+      ]),
+    );
+    if (
+      !changedAny(result.changed) &&
+      !sharedResults.some(({ result: r }) => changedAny(r.changed))
+    ) {
+      return ok({ versions: result.versions, sharedVersions }, 'No changes to save.');
     }
-    await writeAudit(db, {
-      action: AuditAction.ContentSave,
-      actor: { id: user.id, email: user.email },
-      target: document.auditTarget(data.locale),
-      summary: { ...result.changed },
-    });
-    await invalidate(document, data.locale, result);
-    return ok({ versions: result.versions }, 'Saved. The live site updates in a few seconds.');
+    const actor = { id: user.id, email: user.email };
+    if (changedAny(result.changed)) {
+      await writeAudit(db, {
+        action: AuditAction.ContentSave,
+        actor,
+        target: document.auditTarget(data.locale),
+        summary: { ...result.changed },
+      });
+      await invalidate(document, data.locale, result);
+    }
+    for (const { save, result: sharedResult } of sharedResults) {
+      if (!changedAny(sharedResult.changed)) continue;
+      await writeAudit(db, {
+        action: AuditAction.ContentSave,
+        actor,
+        target: save.document.auditTarget(data.locale),
+        summary: { ...sharedResult.changed, from: document.auditTarget(data.locale) },
+      });
+      await invalidate(save.document, data.locale, sharedResult);
+    }
+    return ok(
+      { versions: result.versions, sharedVersions },
+      'Saved. The live site updates in a few seconds.',
+    );
   });
 }
 

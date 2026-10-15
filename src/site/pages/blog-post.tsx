@@ -50,6 +50,15 @@ export async function BlogPostView({ item, locale, preview }: CollectionItemView
               {content.excerpt}
             </Text>
           ) : null}
+          {content.tags.length > 0 ? (
+            <ul className="flex flex-wrap gap-2" aria-label={t('tags')}>
+              {content.tags.map((tag) => (
+                <li key={tag} className="rounded-full bg-surface px-3 py-1">
+                  <Text variant="caption">{tag}</Text>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </Container>
       </Section>
       {content.cover ? (

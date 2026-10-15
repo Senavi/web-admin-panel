@@ -70,6 +70,7 @@ export function AccordionSection({
   open,
   onOpenChange,
   invalid = false,
+  badge,
   children,
 }: {
   id?: string;
@@ -81,6 +82,8 @@ export function AccordionSection({
   onOpenChange: (open: boolean) => void;
   /** Marks the header when the section contains a validation error. */
   invalid?: boolean;
+  /** Shown next to the title (e.g. a "Shared" badge). */
+  badge?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -93,8 +96,9 @@ export function AccordionSection({
       <CardHeader>
         <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 text-start [&[data-panel-open]>svg]:rotate-180">
           <span className="flex min-w-0 flex-col gap-1">
-            <CardTitle>
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <h2 className={cn(invalid && 'text-destructive')}>{title}</h2>
+              {badge}
             </CardTitle>
             {open && description ? <CardDescription>{description}</CardDescription> : null}
             {!open && summary ? (

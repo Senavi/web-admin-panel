@@ -17,6 +17,7 @@ import type { StorageAdapter } from '@/core/storage/types';
 import { CollectionItemStatus, itemSeedSchema } from './collection';
 import type { ContentSchema } from './define';
 import { globalKey } from './global';
+import { type AnySharedSection, ownSchema, sharedKey } from './shared-section';
 import { formKey } from '@/core/forms/define';
 import { contentRegistry as registry } from './project-registry';
 import type { DocumentStore } from './store';
@@ -59,7 +60,7 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     await syncDocument(
       db,
       storage,
-      { label: page.id, key: page.id, schema: page, store: pageStore },
+      { label: page.id, key: page.id, schema: ownSchema(page), store: pageStore },
       report,
     );
   }
@@ -76,6 +77,16 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
       db,
       storage,
       { label: formKey(form.id), key: formKey(form.id), schema: form.texts, store: pageStore },
+      report,
+    );
+  }
+  for (const shared of registry.sharedSections) {
+    const key = sharedKey(shared.id);
+    await adoptSharedContent(db, shared, report);
+    await syncDocument(
+      db,
+      storage,
+      { label: key, key, schema: shared.schema, store: pageStore },
       report,
     );
   }
@@ -98,6 +109,44 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     }
   }
   return report;
+}
+
+/**
+ * First sync of a shared section: if it has no rows yet, it adopts the values
+ * saved under its id on a page that uses it (in registry order) or in a global
+ * section with the same id. Moving a repeated section into a shared section
+ * therefore keeps the edited content. The old values stay where they were
+ * (reported as orphans, never deleted).
+ */
+async function adoptSharedContent(
+  db: Database,
+  shared: AnySharedSection,
+  report: SyncReport,
+): Promise<void> {
+  const key = sharedKey(shared.id);
+  const locales = [SHARED_LOCALE, ...projectConfig.localeCodes];
+  const existing = await pageStore.readRows(db, key, projectConfig.localeCodes);
+  if (existing.versions.size > 0) return;
+  const sources = [
+    ...registry.pagesUsingShared(shared.id).map((page) => page.id),
+    ...registry.globals
+      .filter((global) => global.sections.some((section) => section.id === shared.id))
+      .map((global) => globalKey(global.id)),
+  ];
+  const context = { userId: null, now: new Date() };
+  for (const source of sources) {
+    const rows = await pageStore.readRows(db, source, projectConfig.localeCodes);
+    const valuesFor = (locale: string) =>
+      locale === SHARED_LOCALE ? rows.shared?.[shared.id] : rows.byLocale.get(locale)?.[shared.id];
+    if (!locales.some((locale) => valuesFor(locale))) continue;
+    for (const locale of locales) {
+      const values = valuesFor(locale);
+      if (values)
+        await pageStore.writeContent(db, key, locale, { [shared.id]: values }, 0, context);
+    }
+    report.created.push(`${key} (from ${source})`);
+    return;
+  }
 }
 
 interface SyncTarget {

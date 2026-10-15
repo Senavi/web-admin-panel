@@ -1,11 +1,13 @@
-import type { SitePageContent } from '@/core/content/loader';
+import type { SharedSectionContent } from '@/core/content/shared-section';
+
+import type { ctaShared } from '@/content/shared/cta';
 
 import { ButtonLink } from '../components/ui/button';
 import { Container, Section, SectionIntro } from '../components/ui/layout';
 import { RichText } from '../components/ui/rich-text';
 import { Heading } from '../components/ui/typography';
 
-type Props = { content: SitePageContent<'home'>['cta'] };
+type Props = { content: SharedSectionContent<typeof ctaShared> };
 
 export function CtaBand({ content }: Props) {
   return (

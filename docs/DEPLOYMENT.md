@@ -13,8 +13,8 @@ runs in production.
    forms answer "This form isn't connected yet", and the admin (`projectConfig.adminPath`)
    shows a setup guide.
 4. **Add 2 variables** (Site configuration → Environment variables, Production context):
-   `DATABASE_URL` (Supabase → Connect → **Shared pooler → Transaction pooler**, the address
-   with `pooler.supabase.com:6543`, with your database password) and
+   `DATABASE_URL` (Supabase → Connect → **Session pooler**, the address with
+   `pooler.supabase.com:5432`, with your database password) and
    `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys → service_role). The project
    URL and the migration connection are derived from `DATABASE_URL`
    ([connection types](#which-connection-string)).
@@ -38,7 +38,7 @@ key unless you set `AUTH_SECRET` (see the table below).
    its round trip to every admin request.
 2. Note from the dashboard:
    - the **service_role** key (Project Settings → API Keys; the anon key is optional),
-   - the **Shared pooler → Transaction pooler** connection string (Connect) → `DATABASE_URL`.
+   - the **Session pooler** connection string (Connect) → `DATABASE_URL`.
 3. Either:
    - **From development (recommended):** turn on developer mode (avatar menu), open
      **Security → Connect Supabase** and follow the 5 steps. The dialog checks the keys, then
@@ -56,21 +56,22 @@ db:prepare` (migrations, RLS on every table, the `media` bucket, settings and de
 
 Supabase shows four (Connect → "Connect to your database"). Netlify and Vercel connect over
 **IPv4 only**; any of the four is accepted in `DATABASE_URL`, but only the shared pooler is
-reachable from there on the free plan.
+reachable from there on the free plan. Testing showed the **Session pooler** is the working
+setup on Netlify (the transaction pooler caused errors), so the Connect guide recommends it.
 
-| Type                                 | Host:port                                   | IPv4 (free plan)       | Use                           |
-| ------------------------------------ | ------------------------------------------- | ---------------------- | ----------------------------- |
-| Shared pooler, **transaction**       | `aws-<n>-<region>.pooler.supabase.com:6543` | yes                    | **recommended**               |
-| Shared pooler, session               | `aws-<n>-<region>.pooler.supabase.com:5432` | yes                    | works (1 connection/instance) |
-| Direct                               | `db.<ref>.supabase.co:5432`                 | no (IPv6; paid add-on) | local tools, IPv4 add-on      |
-| Dedicated pooler (paid, transaction) | `db.<ref>.supabase.co:6543`                 | no (IPv6; paid add-on) | with the IPv4 add-on          |
+| Type                                 | Host:port                                   | IPv4 (free plan)       | Use                                     |
+| ------------------------------------ | ------------------------------------------- | ---------------------- | --------------------------------------- |
+| Shared pooler, **session**           | `aws-<n>-<region>.pooler.supabase.com:5432` | yes                    | **recommended** (1 connection/instance) |
+| Shared pooler, transaction           | `aws-<n>-<region>.pooler.supabase.com:6543` | yes                    | accepted; caused errors on Netlify      |
+| Direct                               | `db.<ref>.supabase.co:5432`                 | no (IPv6; paid add-on) | local tools, IPv4 add-on                |
+| Dedicated pooler (paid, transaction) | `db.<ref>.supabase.co:6543`                 | no (IPv6; paid add-on) | with the IPv4 add-on                    |
 
 What the app does with it (D-086): the runtime uses it as is (session mode with one
 connection per instance and a short idle timeout); migrations use `DIRECT_URL` if set,
 otherwise the same address in session mode (port 5432) for the transaction pooler, otherwise
 `DATABASE_URL`; `SUPABASE_URL` is derived from the `postgres.<ref>` user or the `db.<ref>`
 host. If an IPv6-only address can't be reached, the build log, the Security status and the
-Connect guide say so in plain words and point to the shared pooler address.
+Connect guide say so in plain words and point to the Session pooler address.
 
 ## 2. Environment variables
 
@@ -78,7 +79,7 @@ Without `DATABASE_URL` production runs in **preview mode** (above) and needs not
 
 | Variable                    | Required | Notes                                                                                                                                                      |
 | --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | yes      | any Supabase connection string; use the shared transaction pooler (6543) on Netlify/Vercel                                                                 |
+| `DATABASE_URL`              | yes      | any Supabase connection string; use the Session pooler (5432) on Netlify/Vercel                                                                            |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes      | server only, never `NEXT_PUBLIC_`                                                                                                                          |
 | `SUPABASE_URL`              | optional | derived from `DATABASE_URL`; set it only to override                                                                                                       |
 | `DIRECT_URL`                | optional | migration connection; derived from `DATABASE_URL` (session mode, 5432)                                                                                     |

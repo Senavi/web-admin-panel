@@ -2,6 +2,7 @@
 import type { PageViewProps } from '@/core/content/page-route';
 
 import { StorySection, TeamTeaserSection, ValuesSection } from '../sections/about';
+import { CtaBand } from '../sections/cta-band';
 import { PageIntro } from '../sections/page-intro';
 
 export function AboutView({ content }: PageViewProps<'about'>) {
@@ -15,6 +16,7 @@ export function AboutView({ content }: PageViewProps<'about'>) {
       <StorySection content={content.story} />
       <ValuesSection content={content.values} />
       <TeamTeaserSection content={content.teamTeaser} />
+      <CtaBand content={content.cta} />
     </>
   );
 }

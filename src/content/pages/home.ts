@@ -3,7 +3,9 @@
  */
 import { definePage, defineSection } from '@/core/content/define';
 import { f } from '@/core/content/fields';
-import { richTextFromParagraphs } from '@/core/content/rich-text';
+import { useShared } from '@/core/content/shared-section';
+
+import { ctaShared } from '../shared/cta';
 
 export const FEATURE_ICONS = [
   { value: 'layout', label: 'Layout' },
@@ -50,6 +52,8 @@ export const homePage = definePage({
       fields: {
         heading: f.text({ label: 'Heading', required: true, max: 80 }),
         intro: f.textarea({ label: 'Intro', max: 300 }),
+        // One short line per item: edited as stacked lines; the site receives string[].
+        highlights: f.list({ label: 'Highlights', of: f.text({ max: 100 }), max: 6 }),
         items: f.list({
           label: 'Features',
           min: 1,
@@ -79,15 +83,8 @@ export const homePage = definePage({
         }),
       },
     }),
-    defineSection({
-      id: 'cta',
-      label: 'Call to action',
-      fields: {
-        title: f.text({ label: 'Title', required: true, max: 80 }),
-        body: f.richText({ label: 'Text', max: 500 }),
-        button: f.link({ label: 'Button', required: true }),
-      },
-    }),
+    // Shared with About: edited once, shown on both pages.
+    useShared(ctaShared),
   ],
   seed: {
     en: {
@@ -102,6 +99,11 @@ export const homePage = definePage({
       features: {
         heading: 'Everything a modern site needs',
         intro: 'Content, SEO and settings are managed in the admin. The design stays in code.',
+        highlights: [
+          'Every page in every enabled language',
+          'Fast by default: static pages and optimized images',
+          'Roles, two-factor sign-in and an activity log',
+        ],
         items: [
           {
             icon: 'layout',
@@ -132,13 +134,6 @@ export const homePage = definePage({
           { value: 0, suffix: '', label: 'Cookies for analytics' },
         ],
       },
-      cta: {
-        title: 'Ready to start your project?',
-        body: richTextFromParagraphs(
-          'Tell us about your idea and we will get back to you within one business day.',
-        ),
-        button: { label: 'Get in touch', href: '/contact', external: false },
-      },
     },
     uk: {
       hero: {
@@ -152,6 +147,11 @@ export const homePage = definePage({
       features: {
         heading: 'Усе, що потрібно сучасному сайту',
         intro: 'Контент, SEO та налаштування керуються в адмінці. Дизайн залишається в коді.',
+        highlights: [
+          'Кожна сторінка всіма увімкненими мовами',
+          'Швидкість за замовчуванням: статичні сторінки та оптимізовані зображення',
+          'Ролі, двофакторний вхід і журнал дій',
+        ],
         items: [
           {
             icon: 'layout',
@@ -181,13 +181,6 @@ export const homePage = definePage({
           { value: 2, suffix: '', label: 'Мови' },
           { value: 0, suffix: '', label: 'Cookie для аналітики' },
         ],
-      },
-      cta: {
-        title: 'Готові почати проєкт?',
-        body: richTextFromParagraphs(
-          'Розкажіть нам про свою ідею, і ми відповімо протягом одного робочого дня.',
-        ),
-        button: { label: 'Зв’язатися', href: '/contact', external: false },
       },
     },
   },

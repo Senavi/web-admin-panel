@@ -42,7 +42,8 @@
     "allPosts": "All posts",
     "backToBlog": "All posts",
     "preview": "Preview: this is how the post will look. It may not be published yet.",
-    "exitPreview": "Exit preview"
+    "exitPreview": "Exit preview",
+    "tags": "Tags"
   },
   "forms": {
     "errors": {

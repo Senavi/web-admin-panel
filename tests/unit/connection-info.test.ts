@@ -113,6 +113,6 @@ describe('connection errors', () => {
   it('never shows the password', () => {
     expect(maskConnectionString(SHARED_TX)).not.toContain('s3cret');
     expect(maskConnectionString(SHARED_TX)).toContain('****@aws-0-eu-central-1');
-    expect(IPV6_ONLY_MESSAGE).toContain('pooler.supabase.com:6543');
+    expect(IPV6_ONLY_MESSAGE).toContain('pooler.supabase.com:5432');
   });
 });

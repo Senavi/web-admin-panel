@@ -1,7 +1,7 @@
 'use client';
 
 import { GlobeIcon, LanguagesIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode, useContext } from 'react';
 import { useFormState, type FieldErrors, type FieldValues } from 'react-hook-form';
 
 import { Badge } from '@/admin/ui/badge';
@@ -34,6 +34,13 @@ export function errorsAt(
 }
 
 /**
+ * Compact fields (list `rows`): the label is for screen readers only (the row
+ * has column headers) and help text is left out.
+ */
+const CompactFieldsContext = createContext(false);
+export const CompactFields = CompactFieldsContext.Provider;
+
+/**
  * Label, help text, "Same in all languages" / "Not translated yet" badges and
  * errors around one generated control.
  */
@@ -64,6 +71,18 @@ export function FieldShell({
   const { inherited, defaultLocale, locale } = useEditor();
   const fieldErrors = errorsAt(errors, name);
   const isInherited = contentPath ? inherited.has(contentPath) : false;
+  const compact = useContext(CompactFieldsContext);
+  if (compact) {
+    return (
+      <Field data-invalid={fieldErrors.length > 0 || undefined} className="gap-1">
+        <FieldLabel htmlFor={id} className="sr-only">
+          {label}
+        </FieldLabel>
+        {children}
+        <FieldError errors={fieldErrors} />
+      </Field>
+    );
+  }
 
   return (
     <Field data-invalid={fieldErrors.length > 0 || undefined}>

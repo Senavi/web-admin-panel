@@ -30,6 +30,17 @@ export interface EditorDocument {
   readonly seoDefaults: { readonly title: string; readonly description: string };
 }
 
+/** A shared section shown in an editor (on a page that uses it, or opened directly). */
+export interface EditorSharedSection {
+  /** Shared section id = its section id in the page. */
+  readonly id: string;
+  readonly label: string;
+  /** Versions of the shared section's own rows (saved with the page when edited there). */
+  readonly versions: EditorVersions;
+  /** Pages that use it (all of them, including the one being edited). */
+  readonly usedOn: ReadonlyArray<{ readonly id: string; readonly label: string }>;
+}
+
 export interface EditorData {
   readonly document: EditorDocument;
   readonly locale: string;
@@ -42,6 +53,8 @@ export interface EditorData {
   readonly media: Readonly<Record<string, MediaPreview>>;
   /** Public URL of this locale; null when the document has no page of its own. */
   readonly publicUrl: string | null;
+  /** Shared sections in this editor (empty when there are none). */
+  readonly shared: readonly EditorSharedSection[];
 }
 
 export type LocaleStatus = 'complete' | 'incomplete' | 'missing';

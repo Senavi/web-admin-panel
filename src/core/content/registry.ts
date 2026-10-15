@@ -5,6 +5,7 @@ import { type AnyCollection, collectionBasePath } from './collection';
 import type { AnyGlobal } from './global';
 import type { AnyForm } from '@/core/forms/define';
 import type { AnyPage } from './define';
+import { type AnySharedSection, sharedUses } from './shared-section';
 
 /**
  * Content registry: the project's fixed set of pages (`src/content/index.ts`).
@@ -25,11 +26,13 @@ export interface RegistryInput<
   C extends readonly AnyCollection[] = readonly [],
   G extends readonly AnyGlobal[] = readonly [],
   F extends readonly AnyForm[] = readonly [],
+  S extends readonly AnySharedSection[] = readonly [],
 > {
   readonly pages: P;
   readonly collections?: C;
   readonly globals?: G;
   readonly forms?: F;
+  readonly sharedSections?: S;
 }
 
 export interface PageRegistry<
@@ -37,6 +40,7 @@ export interface PageRegistry<
   C extends readonly AnyCollection[] = readonly AnyCollection[],
   G extends readonly AnyGlobal[] = readonly AnyGlobal[],
   F extends readonly AnyForm[] = readonly AnyForm[],
+  S extends readonly AnySharedSection[] = readonly AnySharedSection[],
 > {
   readonly pages: P;
   readonly ids: readonly P[number]['id'][];
@@ -49,6 +53,10 @@ export interface PageRegistry<
   globalById(id: string): G[number] | undefined;
   readonly forms: F;
   formById(id: string): F[number] | undefined;
+  readonly sharedSections: S;
+  sharedSectionById(id: string): S[number] | undefined;
+  /** Pages that place a shared section, in registry order. */
+  pagesUsingShared(id: string): P[number][];
 }
 
 /** Stable ids are kebab-case: they are DB keys and admin URL segments. */
@@ -65,18 +73,20 @@ export function assertContentId(kind: string, id: string): void {
 
 export function createRegistry<const P extends readonly AnyPage[]>(
   pages: P,
-): PageRegistry<P, readonly [], readonly [], readonly []>;
+): PageRegistry<P, readonly [], readonly [], readonly [], readonly []>;
 export function createRegistry<
   const P extends readonly AnyPage[],
   const C extends readonly AnyCollection[] = readonly [],
   const G extends readonly AnyGlobal[] = readonly [],
   const F extends readonly AnyForm[] = readonly [],
->(input: RegistryInput<P, C, G, F>): PageRegistry<P, C, G, F>;
+  const S extends readonly AnySharedSection[] = readonly [],
+>(input: RegistryInput<P, C, G, F, S>): PageRegistry<P, C, G, F, S>;
 export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): PageRegistry {
   const pages = isPageList(input) ? input : input.pages;
   const collections = isPageList(input) ? [] : (input.collections ?? []);
   const globals = isPageList(input) ? [] : (input.globals ?? []);
   const forms = isPageList(input) ? [] : (input.forms ?? []);
+  const sharedSections = isPageList(input) ? [] : (input.sharedSections ?? []);
   const byId = new Map<string, AnyPage>();
   const byPath = new Map<string, AnyPage>();
   for (const page of pages) {
@@ -151,6 +161,30 @@ export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): Pa
     formById.set(form.id, form);
   }
 
+  const sharedById = new Map<string, AnySharedSection>();
+  for (const shared of sharedSections) {
+    assertContentId('Shared section', shared.id);
+    if (sharedById.has(shared.id)) throw new Error(`Duplicate shared section id "${shared.id}".`);
+    sharedById.set(shared.id, shared);
+  }
+  const usage = new Map<string, AnyPage[]>();
+  for (const page of pages) {
+    for (const use of sharedUses(page)) {
+      const shared = sharedById.get(use.sharedId);
+      if (!shared) {
+        throw new Error(
+          `Page "${page.id}" uses shared section "${use.sharedId}", which is not registered (createRegistry({ sharedSections })).`,
+        );
+      }
+      if (shared.section !== use) {
+        throw new Error(
+          `Page "${page.id}": place shared section "${use.sharedId}" with useShared(), not a copy.`,
+        );
+      }
+      usage.set(use.sharedId, [...(usage.get(use.sharedId) ?? []), page]);
+    }
+  }
+
   const buildTree = (parent: string | null): PageTreeNode[] =>
     pages
       .filter((page) => page.parent === parent)
@@ -168,6 +202,9 @@ export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): Pa
     globalById: (id) => globalById.get(id),
     forms,
     formById: (id) => formById.get(id),
+    sharedSections,
+    sharedSectionById: (id) => sharedById.get(id),
+    pagesUsingShared: (id) => usage.get(id) ?? [],
   };
 }
 
@@ -175,7 +212,8 @@ type AnyRegistryInput = RegistryInput<
   readonly AnyPage[],
   readonly AnyCollection[],
   readonly AnyGlobal[],
-  readonly AnyForm[]
+  readonly AnyForm[],
+  readonly AnySharedSection[]
 >;
 
 function isPageList(input: readonly AnyPage[] | AnyRegistryInput): input is readonly AnyPage[] {

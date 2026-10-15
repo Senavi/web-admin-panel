@@ -11,8 +11,11 @@ import { readSiteSettings } from '@/core/settings/repository';
 import type { ContentSchema } from './define';
 import { type ContentDocument, resolveDocument } from './document';
 import { DocumentKind, type DocumentTarget } from './document-target';
-import type { EditorData, LocaleStatus, MediaPreview } from './editor-types';
-import { storedRowsFor } from './store';
+import type { EditorData, EditorSharedSection, LocaleStatus, MediaPreview } from './editor-types';
+import { contentRegistry } from './project-registry';
+import { sharedKey, sharedUses } from './shared-section';
+import { type DocumentStore, storedRowsFor } from './store';
+import { pageStore } from './stores/table-store';
 import { pageContentSchema, parseStoredValue } from './validation';
 import {
   collectMediaIds,
@@ -28,10 +31,65 @@ export function editorDocument(document: ContentDocument, locale: string, defaul
     target: document.target,
     label: document.label,
     path: document.publicPath(defaultLocale, defaultLocale),
-    sections: document.schema.sections,
+    sections: document.displaySections ?? document.schema.sections,
     hasSeo: document.hasSeo,
     seoDefaults: document.seoDefaults(locale),
   };
+}
+
+interface LoadedValues {
+  readonly content: ContentRecord;
+  /** `section.field` paths not saved for this locale yet. */
+  readonly inherited: string[];
+  readonly versions: { readonly shared: number; readonly localized: number };
+}
+
+/** Stored values of one document in a locale with the full fallback chain (editor view). */
+async function loadValues(
+  db: Database,
+  schema: ContentSchema,
+  store: DocumentStore,
+  key: string,
+  locale: string,
+  defaultLocale: string,
+): Promise<LoadedValues> {
+  const [rows, assetIds] = await Promise.all([
+    store.readRows(db, key, [locale, defaultLocale]),
+    seedAssetIds(db, seedAssets(schema)),
+  ]);
+  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
+  const primary = storedRowsFor(rows, locale);
+  const content = resolveWithFallback(schema, {
+    primary,
+    defaultLocale: locale === defaultLocale ? undefined : storedRowsFor(rows, defaultLocale),
+    seeds: [
+      seedToStored(schema, seed?.[locale], assetIds),
+      seedToStored(schema, seed?.[defaultLocale], assetIds),
+    ],
+  });
+  const inherited: string[] = [];
+  for (const section of schema.sections) {
+    for (const [fieldKey, field] of Object.entries(section.fields)) {
+      const record = field.localized ? primary.localized : primary.shared;
+      if (parseStoredValue(field, record?.[section.id]?.[fieldKey]) === undefined)
+        inherited.push(`${section.id}.${fieldKey}`);
+    }
+  }
+  return {
+    content,
+    inherited,
+    versions: {
+      shared: rows.versions.get(SHARED_LOCALE) ?? 0,
+      localized: rows.versions.get(locale) ?? 0,
+    },
+  };
+}
+
+/** Pages that use a shared section (for "Also on …"). */
+function usedOn(sharedId: string) {
+  return contentRegistry
+    .pagesUsingShared(sharedId)
+    .map((page) => ({ id: page.id, label: page.label }));
 }
 
 /** Everything the editor needs for one document in one locale (uncached: always fresh). */
@@ -45,34 +103,52 @@ export async function loadEditorData(
   const db = await getDb();
   const { general } = await readSiteSettings(db);
   const defaultLocale = general.defaultLocale;
-
-  const [rows, assetIds, seoRow] = await Promise.all([
-    store.readRows(db, key, [locale, defaultLocale]),
-    seedAssetIds(db, seedAssets(schema)),
-    document.hasSeo ? store.readSeo(db, key, locale) : Promise.resolve(null),
-  ]);
-  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
-  const primary = storedRowsFor(rows, locale);
-  const content = resolveWithFallback(schema, {
-    primary,
-    defaultLocale: locale === defaultLocale ? undefined : storedRowsFor(rows, defaultLocale),
-    seeds: [
-      seedToStored(schema, seed?.[locale], assetIds),
-      seedToStored(schema, seed?.[defaultLocale], assetIds),
-    ],
+  // Shared sections placed in this page (stored under their own keys).
+  const uses = sharedUses({ sections: document.displaySections ?? [] }).flatMap((use) => {
+    const shared = contentRegistry.sharedSectionById(use.sharedId);
+    return shared ? [shared] : [];
   });
 
-  const inherited: string[] = [];
-  for (const section of schema.sections) {
-    for (const [fieldKey, field] of Object.entries(section.fields)) {
-      const record = field.localized ? primary.localized : primary.shared;
-      if (parseStoredValue(field, record?.[section.id]?.[fieldKey]) === undefined)
-        inherited.push(`${section.id}.${fieldKey}`);
+  const [own, seoRow, ...sharedValues] = await Promise.all([
+    loadValues(db, schema, store, key, locale, defaultLocale),
+    document.hasSeo ? store.readSeo(db, key, locale) : Promise.resolve(null),
+    ...uses.map((shared) =>
+      loadValues(db, shared.schema, pageStore, sharedKey(shared.id), locale, defaultLocale),
+    ),
+  ]);
+  const content: ContentRecord = { ...own.content };
+  const inherited = [...own.inherited];
+  const shared: EditorSharedSection[] = [];
+  uses.forEach((definition, index) => {
+    const values = sharedValues[index];
+    if (!values) return;
+    Object.assign(content, values.content);
+    inherited.push(...values.inherited);
+    shared.push({
+      id: definition.id,
+      label: definition.label,
+      versions: { ...values.versions, seo: 0 },
+      usedOn: usedOn(definition.id),
+    });
+  });
+  if (document.target.kind === DocumentKind.Shared) {
+    const definition = contentRegistry.sharedSectionById(document.target.id);
+    if (definition) {
+      shared.push({
+        id: definition.id,
+        label: definition.label,
+        versions: { ...own.versions, seo: 0 },
+        usedOn: usedOn(definition.id),
+      });
     }
   }
 
   const seo = parsePageSeo(seoRow?.data);
-  const mediaIds = [...collectMediaIds(schema, content), ...(seo.ogImageId ? [seo.ogImageId] : [])];
+  const allSections = { sections: document.displaySections ?? schema.sections };
+  const mediaIds = [
+    ...collectMediaIds(allSections, content),
+    ...(seo.ogImageId ? [seo.ogImageId] : []),
+  ];
   const mediaInfo = await loadMedia(db, mediaIds);
   const media: Record<string, MediaPreview> = {};
   for (const [id, info] of mediaInfo)
@@ -85,13 +161,10 @@ export async function loadEditorData(
     content,
     inherited,
     seo,
-    versions: {
-      shared: rows.versions.get(SHARED_LOCALE) ?? 0,
-      localized: rows.versions.get(locale) ?? 0,
-      seo: seoRow?.version ?? 0,
-    },
+    versions: { ...own.versions, seo: seoRow?.version ?? 0 },
     media,
     publicUrl: document.publicPath(locale, defaultLocale),
+    shared,
   };
 }
 

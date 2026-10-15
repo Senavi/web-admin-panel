@@ -112,6 +112,10 @@ function describeTarget(target: string, people: ReadonlyMap<string, string>): st
       const global = contentRegistry.globalById(id);
       return `${global?.label ?? id}${extra ? ` (${extra})` : ''}`;
     }
+    case 'shared': {
+      const shared = contentRegistry.sharedSectionById(id);
+      return `${shared?.label ?? id} (shared${extra ? `, ${extra}` : ''})`;
+    }
     case 'page': {
       const page = registry.byId(id);
       return `${page?.label ?? id}${extra ? ` (${extra})` : ''}`;

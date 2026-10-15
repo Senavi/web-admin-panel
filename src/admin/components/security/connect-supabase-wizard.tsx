@@ -108,6 +108,10 @@ function TaskIcon({ state, index }: { state: TaskState; index: number }) {
   );
 }
 
+/** The transaction pooler is accepted, but the session pooler is what works reliably on Netlify. */
+const TRANSACTION_POOLER_NOTE =
+  'Works, but on Netlify the Session pooler (…pooler.supabase.com:5432) is the reliable choice. If you see database errors after deploying, switch to it.';
+
 const CONNECTION_LABELS: Record<ConnectionKind, string> = {
   [ConnectionKind.SharedTransaction]: 'Shared pooler, transaction mode',
   [ConnectionKind.SharedSession]: 'Shared pooler, session mode',
@@ -125,6 +129,7 @@ function ConnectionTypeBadge({ url }: { url: string }) {
     <div role="status" aria-label="Connection type" className="flex flex-col gap-1.5">
       <div className="text-sm flex flex-wrap items-center gap-2">
         <span>{CONNECTION_LABELS[info.kind]}</span>
+        {info.kind === ConnectionKind.SharedSession ? <Badge>Recommended</Badge> : null}
         {supabase ? (
           info.ipv4 ? (
             <Badge variant="secondary">IPv4 ✓</Badge>
@@ -135,6 +140,9 @@ function ConnectionTypeBadge({ url }: { url: string }) {
       </div>
       {supabase && !info.ipv4 ? (
         <p className="text-xs text-destructive">{IPV6_ONLY_MESSAGE}</p>
+      ) : null}
+      {info.kind === ConnectionKind.SharedTransaction ? (
+        <p className="text-xs text-muted-foreground">{TRANSACTION_POOLER_NOTE}</p>
       ) : null}
     </div>
   );

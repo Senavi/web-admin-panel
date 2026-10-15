@@ -82,7 +82,7 @@ export default function SetupPage() {
       <Step
         number={2}
         title="Copy two values"
-        description="In your Supabase project. Keep them private: they give full access to the database. Use the Shared pooler address (pooler.supabase.com:6543): Netlify and Vercel connect over IPv4 only."
+        description="In your Supabase project. Keep them private: they give full access to the database. Use the Session pooler address (pooler.supabase.com:5432): Netlify and Vercel connect over IPv4 only."
       >
         <dl aria-label="Values to copy" className="flex flex-col divide-y rounded-md border">
           {variables.map((name) => (

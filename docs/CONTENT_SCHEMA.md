@@ -70,20 +70,21 @@ page ids (admin URLs).
 
 Every builder accepts `label`, `help`, `required`, `localized` (default `true`) and `default`.
 
-| Builder                 | Stored value                | Site receives                                                            | Extra options                   |
-| ----------------------- | --------------------------- | ------------------------------------------------------------------------ | ------------------------------- |
-| `f.text()`              | `string`                    | `string`                                                                 | `min`, `max`, `placeholder`     |
-| `f.textarea()`          | `string`                    | `string`                                                                 | `max`, `rows`                   |
-| `f.richText()`          | rich text JSON              | rich text JSON (render with `<RichText>`)                                | `max` (plain-text chars)        |
-| `f.image()`             | `{ mediaId, alt }`          | `ResolvedImage \| null` (`src`, `width`, `height`, `alt`, `blurDataURL`) | `recommendedSize`               |
-| `f.link()`              | `{ label, href, external }` | same                                                                     |                                 |
-| `f.list({ of })`        | `Array<{ _key, …fields }>`  | same, images resolved                                                    | `min`, `max`, `itemLabelField`  |
-| `f.boolean()`           | `boolean`                   | `boolean`                                                                |                                 |
-| `f.number()`            | `number`                    | `number`                                                                 | `min`, `max`, `step`, `integer` |
-| `f.select({ options })` | union of option values      | same                                                                     | `options: [{ value, label }]`   |
-| `f.color()`             | `#rrggbb`                   | same                                                                     |                                 |
-| `f.email()`             | `string` (validated email)  | same; link with `mailtoHref()`                                           | `placeholder`                   |
-| `f.phone()`             | `string` (validated phone)  | same; link with `telHref()`                                              | `placeholder`                   |
+| Builder                    | Stored value                | Site receives                                                            | Extra options                             |
+| -------------------------- | --------------------------- | ------------------------------------------------------------------------ | ----------------------------------------- |
+| `f.text()`                 | `string`                    | `string`                                                                 | `min`, `max`, `placeholder`               |
+| `f.textarea()`             | `string`                    | `string`                                                                 | `max`, `rows`                             |
+| `f.richText()`             | rich text JSON              | rich text JSON (render with `<RichText>`)                                | `max` (plain-text chars)                  |
+| `f.image()`                | `{ mediaId, alt }`          | `ResolvedImage \| null` (`src`, `width`, `height`, `alt`, `blurDataURL`) | `recommendedSize`                         |
+| `f.link()`                 | `{ label, href, external }` | same                                                                     |                                           |
+| `f.list({ of })`           | `Array<{ _key, …fields }>`  | same, images resolved                                                    | `min`, `max`, `itemLabelField`, `display` |
+| `f.list({ of: f.text() })` | `Array<{ _key, value }>`    | **plain values**: `string[]`                                             | `min`, `max`, `display`                   |
+| `f.boolean()`              | `boolean`                   | `boolean`                                                                |                                           |
+| `f.number()`               | `number`                    | `number`                                                                 | `min`, `max`, `step`, `integer`           |
+| `f.select({ options })`    | union of option values      | same                                                                     | `options: [{ value, label }]`             |
+| `f.color()`                | `#rrggbb`                   | same                                                                     |                                           |
+| `f.email()`                | `string` (validated email)  | same; link with `mailtoHref()`                                           | `placeholder`                             |
+| `f.phone()`                | `string` (validated phone)  | same; link with `telHref()`                                              | `placeholder`                             |
 
 Notes:
 
@@ -91,12 +92,39 @@ Notes:
   across languages" in the editor. Image _alt text_ is always per locale, even for shared
   images.
 - **Lists** are localized as a whole (`localized` on the list, not on item fields). Items
-  carry a stable `_key` so editors can reorder them.
+  carry a stable `_key` so editors can reorder them. See [Lists](#lists) for layouts.
 - **Rich text** allows paragraphs, headings (h2–h4), bullet/numbered lists, bold, italic and
   links (http(s), mailto:, tel:, relative paths, anchors). It is stored as JSON, validated on
   save and again on render, and never injected as HTML.
 - Use `required` for editorial rules; stored data is read leniently (an invalid or missing
   value falls back, it never crashes the page).
+
+## Lists
+
+`of` is either **one field** (a list of plain values: tags, bullet points; the site receives
+`string[]`) or **a map of fields** (a list of objects). The editor layout is chosen from the
+item shape, or set with `display`:
+
+| Item shape                                                     | Auto `display` | Editor                                                                                                     |
+| -------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
+| one text (`max` ≤ 40) or select, or `display: 'tags'`          | `tags`         | chips: type + Enter adds, × or Delete removes, Alt+←/→ or drag to reorder, paste comma/line-separated text |
+| one text (`max` ≤ 120, or no `max`)                            | `lines`        | stacked inputs, all visible: Enter adds the next line, Backspace on an empty line removes it, paste lines  |
+| 2–3 short fields (text, number, select, link, boolean, email…) | `rows`         | a row per item, all visible, column headers                                                                |
+| image, rich text, textarea, or more than 3 fields              | `cards`        | compact cards with a preview (thumbnail + `itemLabelField`); collapsed, a new card opens                   |
+
+```ts
+tags: f.list({ label: 'Tags', of: f.text({ max: 30 }), max: 8 }),            // tags → string[]
+highlights: f.list({ label: 'Highlights', of: f.text({ max: 100 }) }),        // lines → string[]
+stats: f.list({ of: { value: f.number(), suffix: f.text(), label: f.text() } }), // rows
+team: f.list({ of: { photo: f.image(), name: f.text(), bio: f.textarea() }, itemLabelField: 'name' }), // cards
+```
+
+Prefer the simplest data shape: a list of strings for tags or bullet points (not objects
+with one field), no nested lists, and only the fields the design needs. Only sections and
+`cards` collapse; `tags`, `lines` and `rows` always show every item. `min`/`max` and per-item
+validation apply to every layout; every layout works with the keyboard (move buttons or
+Alt+arrows) and screen readers. An explicit `display` that can't show the item shape throws
+when the schema loads.
 
 ## Reading content on the site
 
@@ -220,10 +248,55 @@ Storage: `collection_items` (slug, status, publish date, version), `collection_i
 `collection_item_seo`, `collection_item_revisions` (last 20) and `collection_slug_redirects`.
 Cache tags: `collection:{id}`, `collection:{id}:list`, `collection:{id}:{slug}`.
 
+## Shared sections
+
+A **section of page content that repeats** on several pages (CTA band, testimonials, "why
+us") is a shared section: defined once, placed in each page in site order, stored once, and
+editable from every page that uses it. In the admin each page shows all its sections in
+order; the shared one has a "Shared" badge and "Also on: About, Services. Changes here update
+all 3 pages." Saving the page saves an edited shared section in the same transaction; a
+concurrent edit is reported as a conflict naming the section.
+
+```ts
+// src/content/shared/cta.ts
+export const ctaShared = defineSharedSection({
+  id: 'cta', // stable DB key and the section id in pages
+  label: 'Call to action',
+  fields: { title: f.text({ label: 'Title' }), button: f.link({ label: 'Button' }) },
+  seed: { en: { title: 'Ready?', button: { label: 'Contact', href: '/contact', external: false } } },
+});
+
+// in a page: sections in site order
+sections: [heroSection, useShared(ctaShared), faqSection],
+
+// src/content/index.ts
+createRegistry({ pages, …, sharedSections: [ctaShared] });
+
+// in the view: like any section
+<CtaBand content={content.cta} /> // type: SharedSectionContent<typeof ctaShared>
+```
+
+- The page's own seed doesn't include shared sections (they are seeded in their definition).
+- Cache tag `shared:{id}`: saving it revalidates every page that uses it.
+- **Pages → Every page** lists shared sections with "Used on N pages"; opening one edits it
+  directly.
+- `content:check` warns about a shared section no page uses; using an unregistered one fails
+  when the registry loads.
+- **Moving an existing section:** give the shared section the same id as the repeated
+  section (or the global's section) and replace it with `useShared()`. On the next
+  `pnpm content:sync` (or `pnpm dev` start / deploy), the shared section adopts the values
+  saved under that id on the first page that uses it, or in a global section with that id.
+  The old values stay where they were (reported as orphans, never deleted).
+
+**Rule:** globals are for layout chrome (header, footer, contacts, socials, announcement
+bar). A section of page content that repeats is a shared section, never a global: otherwise
+it disappears from the pages it appears on in the admin.
+
 ## Globals
 
-Content shared by many pages (header/footer texts, contacts, social links, legal line):
-sections and seed like a page, but no route and no SEO. Edited in **Pages → Every page**.
+Layout chrome shared by every page (header/footer texts, contacts, social links, legal line,
+announcement bar): sections and seed like a page, but no route and no SEO. Edited in
+**Pages → Every page**. Repeated page sections are [shared sections](#shared-sections).
 
 ```ts
 // src/content/globals/site.ts
