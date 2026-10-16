@@ -6,8 +6,11 @@
 
 export interface LocaleState {
   readonly defaultLocale: string;
+  /** Published languages. */
   readonly enabledLocales: readonly string[];
-  /** All locales the project supports (enabled or not). */
+  /** Draft languages: only staff can open them. */
+  readonly draftLocales?: readonly string[];
+  /** Every language the site has selected (published or draft): the URL prefixes the router knows. */
   readonly supportedLocales: readonly string[];
 }
 
@@ -20,13 +23,15 @@ export type LocaleDecision =
   | { readonly type: 'redirect'; readonly pathname: string; readonly locale: string }
   /** Prefixed, valid URL: serve as-is. */
   | { readonly type: 'pass'; readonly locale: string }
-  /** Supported but disabled locale: respond 404. */
+  /** Draft language without a staff session: respond 404. */
   | { readonly type: 'not-found' };
 
 export interface RequestHints {
   readonly acceptLanguage?: string | null;
   readonly cookieLocale?: string | null;
   readonly isBot: boolean;
+  /** Valid staff session: draft languages are previewable. */
+  readonly staff?: boolean;
 }
 
 /** `/uk/about` → { locale: 'uk', rest: '/about' } when `uk` is supported. */
@@ -78,7 +83,10 @@ export function decideLocaleRoute(
   const { locale, rest } = splitLocale(pathname, state.supportedLocales);
 
   if (locale) {
-    if (!state.enabledLocales.includes(locale)) return { type: 'not-found' };
+    if (!state.enabledLocales.includes(locale)) {
+      const previewable = hints.staff && state.draftLocales?.includes(locale);
+      return previewable ? { type: 'pass', locale } : { type: 'not-found' };
+    }
     // The default locale is served without a prefix: /en/about → /about.
     if (locale === state.defaultLocale) return { type: 'redirect', pathname: rest, locale };
     return { type: 'pass', locale };

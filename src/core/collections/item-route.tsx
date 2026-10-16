@@ -9,7 +9,7 @@ import { getCurrentUser } from '@/core/auth/server/session';
 import { collectionItemPath } from '@/core/content/collection';
 import type { ResolvedImage } from '@/core/content/define';
 import { contentRegistry } from '@/core/content/project-registry';
-import { getLocaleSettings, isEnabledLocale } from '@/core/i18n/locales';
+import { getLocaleSettings, isRoutableLocale } from '@/core/i18n/locales';
 import { localizedPath } from '@/core/i18n/routing';
 import { JsonLd } from '@/core/seo/json-ld';
 import { composeMetadata, defaultOgImagePath } from '@/core/seo/page-metadata';
@@ -89,7 +89,7 @@ export function createCollectionItemRoute<Id extends CollectionId>(
 
   async function Page({ params }: RouteProps) {
     const { locale, slug } = await params;
-    if (!(await isEnabledLocale(locale))) notFound();
+    if (!(await isRoutableLocale(locale))) notFound();
     const { item, preview } = await load(locale, slug);
     if (!item) {
       const current = await findSlugRedirect(collectionId, slug);

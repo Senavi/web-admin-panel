@@ -14,6 +14,7 @@ import { getDb } from '@/core/db/client';
 import { PagesArea, pagesAreaHref } from '@/core/project/paths';
 import { getRequestSettings } from '@/core/settings/request';
 import { timed } from '@/core/perf/timing';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 export const instant = false;
 
@@ -62,7 +63,7 @@ async function PagesSidebar() {
   const { general } = await getRequestSettings();
   const [statuses, itemCounts, unread] = await timed('db:tree', () =>
     Promise.all([
-      loadPageStatuses(db, general.enabledLocales),
+      loadPageStatuses(db, selectedLocales(general)),
       countItems(
         db,
         contentRegistry.collections.map((collection) => collection.id),
@@ -132,7 +133,7 @@ async function PagesSidebar() {
     <PagesTree
       tree={registry.tree().map(toTreeNode)}
       statuses={statuses}
-      locales={general.enabledLocales}
+      locales={selectedLocales(general)}
       groups={groups}
     />
   );

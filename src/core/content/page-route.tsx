@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import type { ComponentType } from 'react';
 
 import { registry } from '@/content';
-import { isEnabledLocale } from '@/core/i18n/locales';
+import { isRoutableLocale } from '@/core/i18n/locales';
 import { JsonLd } from '@/core/seo/json-ld';
 import { buildPageMetadata } from '@/core/seo/page-metadata';
 import { buildStructuredData } from '@/core/seo/structured-data';
@@ -38,7 +38,7 @@ export function createPageRoute<Id extends PageId>(
 
   async function Page({ params }: RouteProps) {
     const { locale } = await params;
-    if (!(await isEnabledLocale(locale))) notFound();
+    if (!(await isRoutableLocale(locale))) notFound();
     const [content, structuredData] = await Promise.all([
       getPageContent(pageId, locale),
       buildStructuredData(pageId, locale),

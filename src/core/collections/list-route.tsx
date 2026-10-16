@@ -4,7 +4,7 @@ import type { ComponentType } from 'react';
 
 import { getPageContent, type PageId, type SitePageContent } from '@/core/content/loader';
 import { contentRegistry } from '@/core/content/project-registry';
-import { getLocaleSettings, isEnabledLocale } from '@/core/i18n/locales';
+import { getLocaleSettings, isRoutableLocale } from '@/core/i18n/locales';
 import { localizedPath } from '@/core/i18n/routing';
 import { JsonLd } from '@/core/seo/json-ld';
 import { buildPageMetadata } from '@/core/seo/page-metadata';
@@ -61,7 +61,7 @@ export function createCollectionListRoute<P extends PageId, C extends Collection
 
   async function resolve({ params, searchParams }: RouteProps) {
     const [{ locale }, query] = await Promise.all([params, searchParams]);
-    if (!(await isEnabledLocale(locale))) notFound();
+    if (!(await isRoutableLocale(locale))) notFound();
     const pageNumber = parseListPage(query[PAGE_PARAM]);
     if (pageNumber === null) notFound();
     return { locale, pageNumber };

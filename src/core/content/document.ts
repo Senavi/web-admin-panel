@@ -4,6 +4,8 @@ import { projectConfig } from '@project/config';
 
 import { registry } from '@/content';
 import { CacheTag } from '@/core/cache/tags';
+import { selectedLocales } from '@/core/i18n/language-state';
+import { readSiteSettings } from '@/core/settings/repository';
 import { findItem, itemText, readItemRows } from '@/core/collections/repository';
 import { getDb } from '@/core/db/client';
 import { localizedPath } from '@/core/i18n/routing';
@@ -90,7 +92,8 @@ async function itemDocument(collectionId: string, itemId: string): Promise<Conte
   const db = await getDb();
   const item = await findItem(db, collectionId, itemId);
   if (!item) return null;
-  const rows = await readItemRows(db, item.id, projectConfig.localeCodes);
+  const { general } = await readSiteSettings(db);
+  const rows = await readItemRows(db, item.id, selectedLocales(general));
   const { defaultLocale } = projectConfig;
   const text = (field: string | undefined, locale: string) =>
     itemText(collection, rows, field, locale, defaultLocale);

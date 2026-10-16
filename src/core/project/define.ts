@@ -1,3 +1,5 @@
+import { DEFAULT_FONT_SCRIPTS, type ScriptCode } from '../i18n/languages';
+
 /**
  * Project configuration contract. The project layer provides a single
  * `project.config.ts` at the repository root built with `defineProjectConfig`.
@@ -20,6 +22,12 @@ export interface ProjectConfigInput<TLocale extends string = string> {
   readonly supportedLocales: readonly (LocaleDefinition & { readonly code: TLocale })[];
   /** Fallback default locale when settings have not been saved yet. */
   readonly defaultLocale: NoInfer<TLocale>;
+  /**
+   * Writing systems the site fonts cover (ISO 15924: `Latn`, `Latx` = Latin extended, `Cyrl`…).
+   * Adding a language outside this set shows a "check with your developer" warning in the
+   * admin. Defaults to Latin + Cyrillic. Keep it in sync with `src/site/theme/fonts.ts`.
+   */
+  readonly fontScripts?: readonly ScriptCode[];
   /** URL path of the admin panel. Must start with `/`. Defaults to `/admin`. */
   readonly adminPath?: `/${string}`;
   /**
@@ -79,13 +87,14 @@ export interface ProjectFormsConfig {
 export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
 export interface ProjectConfig<TLocale extends string = string> extends Required<
-  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited' | 'csp' | 'forms'>
+  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited' | 'csp' | 'forms' | 'fontScripts'>
 > {
   readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
   readonly csp: SiteCspSources;
   readonly forms: ProjectFormsConfig;
   readonly brand: { readonly themeColor: string; readonly backgroundColor: string };
   readonly localeCodes: readonly TLocale[];
+  readonly fontScripts: readonly ScriptCode[];
 }
 
 const DEFAULT_ADMIN_PATH = '/admin';
@@ -127,6 +136,7 @@ export function defineProjectConfig<const TLocale extends string>(
       backgroundColor: input.brand?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
     },
     localeCodes,
+    fontScripts: input.fontScripts ?? DEFAULT_FONT_SCRIPTS,
   };
 }
 

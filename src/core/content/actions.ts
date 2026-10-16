@@ -27,6 +27,7 @@ import { assertDocumentMedia, saveDocument, saveDocumentIn, type SaveResult } fr
 import { sharedUses } from './shared-section';
 import { validateDocumentInput } from './document-validation';
 import { collectMediaIds, type ContentRecord, mergeWithoutFallback } from './values';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 const versionsSchema = z.object({
   shared: z.number().int().min(0),
@@ -69,7 +70,7 @@ async function resolveTarget(db: Database, input: unknown, locale: string) {
   const document = await resolveDocument(documentTargetSchema.parse(input));
   if (!document) throw new GuardError('This item no longer exists.', ActionErrorCode.NotFound);
   const { general } = await readSiteSettings(db);
-  if (!general.enabledLocales.includes(locale))
+  if (!selectedLocales(general).includes(locale))
     throw new GuardError('This language is not enabled.', ActionErrorCode.Validation);
   return document;
 }

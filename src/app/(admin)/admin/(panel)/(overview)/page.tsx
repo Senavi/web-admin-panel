@@ -7,10 +7,11 @@ import { BreakdownCard } from '@/admin/components/overview/breakdown-card';
 import { KpiCard } from '@/admin/components/overview/kpi-card';
 import { RangeSelect } from '@/admin/components/overview/range-select';
 import { VisitorsChart } from '@/admin/components/overview/visitors-chart';
-import { projectConfig } from '@project/config';
 import { getOverview, parseRange, RANGE_LABELS } from '@/core/analytics/queries';
 import { can, Permission } from '@/core/auth/permissions';
 import { requirePermission } from '@/core/auth/server/session';
+import { localeInfo } from '@/core/i18n/locales';
+import { selectedLocales } from '@/core/i18n/language-state';
 import { contentRegistry } from '@/core/content/project-registry';
 import { getDb } from '@/core/db/client';
 import { countNew } from '@/core/forms/inbox';
@@ -29,11 +30,12 @@ function siteStateText(status: SiteSettings['status']): string {
   return 'The site is live';
 }
 
-function localeNames(codes: readonly string[]): string {
-  return codes
-    .map(
-      (code) =>
-        projectConfig.supportedLocales.find((locale) => locale.code === code)?.label ?? code,
+function localeNames(general: SiteSettings['general']): string {
+  return selectedLocales(general)
+    .map((code) =>
+      general.draftLocales.includes(code)
+        ? `${localeInfo(code).label} (draft)`
+        : localeInfo(code).label,
     )
     .join(', ');
 }
@@ -64,7 +66,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
   const statusParts = [
     siteStateText(settings.status),
     settings.status.indexing ? 'Visible in Google' : 'Hidden from Google',
-    localeNames(settings.general.enabledLocales),
+    localeNames(settings.general),
   ];
 
   return (

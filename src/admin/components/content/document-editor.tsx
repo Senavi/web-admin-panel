@@ -36,6 +36,8 @@ import { SeoPanel } from './seo-panel';
 export interface LocaleOption {
   readonly code: string;
   readonly label: string;
+  /** Draft language: editable here, hidden on the site. */
+  readonly draft?: boolean;
 }
 
 const NO_EXTRA = z.object({});
@@ -203,7 +205,7 @@ export function DocumentEditor({
               onChange={switchLocale}
               options={locales.map((locale) => ({
                 value: locale.code,
-                label: `${locale.label} (${locale.code})`,
+                label: `${locale.label} (${locale.code})${locale.draft ? ' · Draft' : ''}`,
               }))}
               ariaLabel="Language"
               className="w-44"

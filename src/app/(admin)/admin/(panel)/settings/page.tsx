@@ -15,7 +15,7 @@ import { localeInfo } from '@/core/i18n/locales';
 import { loadMedia } from '@/core/media/resolve';
 import { readLocalizedSettings } from '@/core/settings/repository';
 import { getRequestSettings } from '@/core/settings/request';
-import { projectConfig } from '@project/config';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 export const metadata: Metadata = { title: 'Settings' };
 export const instant = false;
@@ -24,7 +24,7 @@ export default async function SettingsPage() {
   await requirePermission(Permission.SettingsManage);
   const db = await getDb();
   const settings = await getRequestSettings();
-  const enabled = settings.general.enabledLocales;
+  const enabled = selectedLocales(settings.general);
   const localized = Object.fromEntries(
     await Promise.all(
       enabled.map(async (code) => [code, await readLocalizedSettings(db, code)] as const),
@@ -53,9 +53,10 @@ export default async function SettingsPage() {
         <SettingsScreen
           settings={settings}
           localized={localized}
-          locales={projectConfig.localeCodes.map((code) => ({
+          locales={enabled.map((code) => ({
             code,
             label: localeInfo(code).label,
+            draft: settings.general.draftLocales.includes(code),
           }))}
           media={media}
           forms={contentRegistry.forms.map((form) => ({ id: form.id, label: form.label }))}

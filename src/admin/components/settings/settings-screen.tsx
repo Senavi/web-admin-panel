@@ -8,25 +8,24 @@ import {
   RhfColor,
   RhfMedia,
   RhfNumber,
-  RhfSelect,
   RhfSwitch,
   RhfText,
   RhfTextarea,
 } from '@/admin/components/forms/rhf-fields';
 import { DeveloperSection } from '@/admin/components/layout/developer-mode';
 import { useConfirm } from '@/admin/hooks/use-confirm';
-import { Checkbox } from '@/admin/ui/checkbox';
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/admin/ui/field';
-import { Label } from '@/admin/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import { Textarea } from '@/admin/ui/textarea';
 import type { MediaPreview } from '@/core/content/editor-types';
+import { selectedLocales } from '@/core/i18n/language-state';
 import {
   formDestinationsSchema,
   type LocalizedSettings,
   type SiteSettings,
 } from '@/core/settings/schema';
 
+import { LanguagesField } from './languages-field';
 import { SettingsTabForm, type SettingsTabValues } from './settings-tab-form';
 
 export const SettingsTab = {
@@ -53,6 +52,7 @@ const TITLE_ONLY = '%s';
 export interface LocaleOption {
   readonly code: string;
   readonly label: string;
+  readonly draft?: boolean;
 }
 
 export interface FormSettingsInfo {
@@ -140,51 +140,14 @@ export function SettingsScreen(props: SettingsScreenProps) {
 
 // ── General ──────────────────────────────────────────────────────────────────
 
-function GeneralTab({ settings, locales }: SettingsScreenProps) {
+function GeneralTab({ settings }: SettingsScreenProps) {
   return (
     <SettingsTabForm
       label={TAB_LABELS[SettingsTab.General]}
       defaultValues={{ groups: { general: { ...settings.general } } }}
     >
       <RhfText name="groups.general.siteName" label="Site name" />
-      <FieldSet>
-        <FieldLegend variant="label">Languages</FieldLegend>
-        <Controller
-          name="groups.general.enabledLocales"
-          render={({ field }) => {
-            const value = (field.value as string[] | undefined) ?? [];
-            return (
-              <div className="flex flex-wrap gap-4">
-                {locales.map((locale) => (
-                  <Field key={locale.code} orientation="horizontal" className="w-auto">
-                    <Checkbox
-                      id={`locale-${locale.code}`}
-                      checked={value.includes(locale.code)}
-                      onCheckedChange={(checked) =>
-                        field.onChange(
-                          checked
-                            ? [...value, locale.code]
-                            : value.filter((code) => code !== locale.code),
-                        )
-                      }
-                    />
-                    <Label htmlFor={`locale-${locale.code}`} className="font-normal">
-                      {locale.label}
-                    </Label>
-                  </Field>
-                ))}
-              </div>
-            );
-          }}
-        />
-        <FieldDescription>Turned-off languages disappear from the site.</FieldDescription>
-      </FieldSet>
-      <RhfSelect
-        name="groups.general.defaultLocale"
-        label="Main language"
-        description="Opens when someone visits the site's address. It must be turned on above."
-        options={locales.map((locale) => ({ value: locale.code, label: locale.label }))}
-      />
+      <LanguagesField />
     </SettingsTabForm>
   );
 }
@@ -256,7 +219,8 @@ function SearchTab({
   onUploaded,
 }: SettingsScreenProps & MediaProps) {
   const { confirm, dialog } = useConfirm();
-  const enabled = locales.filter((locale) => settings.general.enabledLocales.includes(locale.code));
+  const selected = selectedLocales(settings.general);
+  const enabled = locales.filter((locale) => selected.includes(locale.code));
   const siteName = settings.general.siteName;
   const defaultValues: SearchValues = {
     groups: {

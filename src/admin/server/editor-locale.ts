@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 
 import { localeInfo } from '@/core/i18n/locales';
 import { getRequestSettings } from '@/core/settings/request';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 /**
  * Locale of an editor screen from `?locale=` (default locale when missing;
@@ -15,12 +16,17 @@ export async function resolveEditorLocale(
 ) {
   const { general } = await getRequestSettings();
   const requested = typeof query.locale === 'string' ? query.locale : general.defaultLocale;
-  if (!general.enabledLocales.includes(requested)) {
+  const selected = selectedLocales(general);
+  if (!selected.includes(requested)) {
     redirect(`${basePath}${basePath.includes('?') ? '&' : '?'}locale=${general.defaultLocale}`);
   }
   return {
     locale: requested,
     defaultLocale: general.defaultLocale,
-    locales: general.enabledLocales.map((code) => ({ code, label: localeInfo(code).label })),
+    locales: selected.map((code) => ({
+      code,
+      label: localeInfo(code).label,
+      draft: general.draftLocales.includes(code),
+    })),
   };
 }

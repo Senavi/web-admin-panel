@@ -13,6 +13,7 @@ import { UserStatus } from '@/core/auth/roles';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
 import { users } from '@/core/db/schema';
+import { selectedLocales } from '@/core/i18n/language-state';
 import { isPreviewMode } from '@/core/preview/mode';
 import { previewSiteState } from '@/core/preview/seed-data';
 import { readSiteSettings } from '@/core/settings/repository';
@@ -41,7 +42,8 @@ export async function loadSiteState(): Promise<SiteState> {
   return {
     defaultLocale: settings.general.defaultLocale,
     enabledLocales: settings.general.enabledLocales,
-    supportedLocales: [...projectConfig.localeCodes],
+    draftLocales: settings.general.draftLocales,
+    supportedLocales: selectedLocales(settings.general),
     maintenance: settings.status.maintenance.enabled,
     privateMode: settings.status.privateMode,
     indexing: settings.status.indexing,
@@ -52,7 +54,7 @@ export async function loadSiteState(): Promise<SiteState> {
       ...projectConfig.siteRoutes,
     ],
     collections: await getCollectionGateState(
-      settings.general.enabledLocales,
+      selectedLocales(settings.general),
       settings.general.defaultLocale,
     ),
   };

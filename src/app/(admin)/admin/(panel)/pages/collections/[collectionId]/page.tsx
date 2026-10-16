@@ -19,6 +19,7 @@ import { getDb } from '@/core/db/client';
 import { PagesArea, pagesAreaHref } from '@/core/project/paths';
 import { getRequestSettings } from '@/core/settings/request';
 import { timed } from '@/core/perf/timing';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 export const instant = false;
 
@@ -55,7 +56,7 @@ export default async function CollectionPage({
   const db = await getDb();
   const { general } = await getRequestSettings();
   const table = await timed('db:items', () =>
-    loadItemTable(db, collection, query, general.enabledLocales, general.defaultLocale),
+    loadItemTable(db, collection, query, selectedLocales(general), general.defaultLocale),
   );
   const basePath = pagesAreaHref(PagesArea.Collections, collection.id);
 
@@ -76,7 +77,7 @@ export default async function CollectionPage({
         table={table}
         query={query}
         basePath={basePath}
-        locales={general.enabledLocales}
+        locales={selectedLocales(general)}
         itemLabel={collection.itemLabel}
         untitled={untitledItemLabel(collection.itemLabel)}
       />

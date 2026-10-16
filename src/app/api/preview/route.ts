@@ -12,6 +12,7 @@ import { getDb } from '@/core/db/client';
 import { NO_STORE } from '@/core/http/headers';
 import { localizedPath } from '@/core/i18n/routing';
 import { readSiteSettings } from '@/core/settings/repository';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 const querySchema = z.object({
   collection: z.string().min(1).max(64),
@@ -41,7 +42,7 @@ export async function GET(request: Request): Promise<Response> {
     !parsed.success ||
     !collection ||
     !item ||
-    !general.enabledLocales.includes(parsed.data.locale)
+    !selectedLocales(general).includes(parsed.data.locale)
   ) {
     return new Response('Not found', { status: 404, headers: { 'Cache-Control': NO_STORE } });
   }

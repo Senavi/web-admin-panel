@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { projectConfig } from '@project/config';
 
+import { isKnownLanguage } from '@/core/i18n/languages';
+
 /**
  * Site settings, stored as validated JSON (`settings` + `settings_localized`).
  * Every field has a default so new fields can be added without migrations;
@@ -9,22 +11,36 @@ import { projectConfig } from '@project/config';
  */
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-const localeCode = z.enum(projectConfig.localeCodes as [string, ...string[]]);
+/** Any language of the master list (`core/i18n/languages.ts`) or one the project config names. */
+export const localeCode = z
+  .string()
+  .refine(
+    (code) =>
+      isKnownLanguage(code) || (projectConfig.localeCodes as readonly string[]).includes(code),
+    'Unknown language.',
+  );
 const mediaId = z.uuid().nullable().default(null);
 const trimmed = (max: number) => z.string().trim().max(max);
 
 export const generalSettingsSchema = z
   .object({
     siteName: trimmed(80).min(1).default(projectConfig.name),
+    /** Published languages: routed on the site, in the switcher, sitemap and hreflang. */
     enabledLocales: z
       .array(localeCode)
       .min(1)
       .default([...projectConfig.localeCodes]),
+    /** Draft languages: editable in the admin, hidden on the site (staff can preview them). */
+    draftLocales: z.array(localeCode).default([]),
     defaultLocale: localeCode.default(projectConfig.defaultLocale),
   })
   .refine((value) => value.enabledLocales.includes(value.defaultLocale), {
-    message: 'The default locale must be enabled.',
+    message: 'The main language must be published.',
     path: ['defaultLocale'],
+  })
+  .refine((value) => !value.draftLocales.some((code) => value.enabledLocales.includes(code)), {
+    message: 'A language is either a draft or published.',
+    path: ['draftLocales'],
   });
 
 export const seoSettingsSchema = z.object({

@@ -190,6 +190,7 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
     acceptLanguage: request.headers.get('accept-language'),
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value,
     isBot: isBotUserAgent(request.headers.get('user-agent')),
+    staff,
   });
 
   // Unknown URLs get the static localized 404 page with HTTP 404.
@@ -245,8 +246,12 @@ async function routeSite(request: NextRequest): Promise<NextResponse> {
       response = rememberLocale(request, next(request, pathname), decision.locale);
       break;
     case 'not-found':
-      // The [locale] layout renders the 404 for a disabled locale.
-      response = next(request, pathname);
+      // A draft language without a staff session looks like any unknown URL.
+      response = await staticPageResponse(
+        origin,
+        `/${state.defaultLocale}${SiteRoute.NotFound}`,
+        404,
+      );
       break;
   }
   return withSiteHeaders(response, state, request, staff);

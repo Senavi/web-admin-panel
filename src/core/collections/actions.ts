@@ -27,6 +27,7 @@ import { readSiteSettings } from '@/core/settings/repository';
 import { takenSlugs } from './admin';
 import { type ItemMeta, itemMetaSchema, toDateInput } from './meta';
 import { findItem } from './repository';
+import { selectedLocales } from '@/core/i18n/language-state';
 
 const ID = z.string().min(1).max(64);
 const itemRefSchema = z.object({ collectionId: ID, itemId: z.uuid() });
@@ -165,7 +166,7 @@ export async function saveItemAction(input: unknown): Promise<ActionResult<SaveI
     const collection = collectionOrThrow(data.collectionId);
     const db = await getDb();
     const { general } = await readSiteSettings(db);
-    if (!general.enabledLocales.includes(data.locale))
+    if (!selectedLocales(general).includes(data.locale))
       throw new GuardError('This language is not enabled.', ActionErrorCode.Validation);
     const document = await resolveDocument({
       kind: DocumentKind.Item,

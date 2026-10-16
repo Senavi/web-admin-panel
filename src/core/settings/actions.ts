@@ -4,8 +4,6 @@ import { sql } from 'drizzle-orm';
 import { updateTag } from 'next/cache';
 import { z } from 'zod';
 
-import { projectConfig } from '@project/config';
-
 import { ActionErrorCode, fail, ok, type ActionResult } from '@/core/actions/result';
 import { runAction } from '@/core/actions/run';
 import { Permission } from '@/core/auth/permissions';
@@ -22,6 +20,7 @@ import {
   brandingSettingsSchema,
   formsSettingsSchema,
   generalSettingsSchema,
+  localeCode,
   type LocalizedSettings,
   localizedSettingsSchema,
   securitySettingsSchema,
@@ -48,13 +47,13 @@ const GROUP_PERMISSIONS: Partial<Record<SettingsGroup, Permission>> = {
 
 const GROUPS = Object.keys(GROUP_SCHEMAS) as SettingsGroup[];
 const looseRecord = z.record(z.string(), z.unknown());
-const localeSchema = z.enum(projectConfig.localeCodes as [string, ...string[]]);
+const localeSchema = localeCode;
 
 const saveInputSchema = z.object({
   /** Partial values per group; merged into the stored group, then validated whole. */
   groups: z.partialRecord(z.enum(GROUPS as [SettingsGroup, ...SettingsGroup[]]), looseRecord),
   /** Partial per-language values (title template, description, share texts). */
-  localized: z.partialRecord(localeSchema, looseRecord).default({}),
+  localized: z.record(localeSchema, looseRecord).default({}),
 });
 
 /** Keys whose value changed (audit summary; never values of secrets). */

@@ -9,7 +9,7 @@ import '@/site/theme/site.css';
 import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 
-import { getLocaleSettings, isEnabledLocale, localeInfo } from '@/core/i18n/locales';
+import { getLocaleSettings, isRoutableLocale, localeInfo } from '@/core/i18n/locales';
 import { getIconMetadata } from '@/core/media/branding';
 import { buildSiteMetadata } from '@/core/seo/page-metadata';
 import { getSiteSettings } from '@/core/settings/loader';
@@ -34,7 +34,7 @@ export async function generateViewport(): Promise<Viewport> {
 
 export default async function SiteRootLayout({ children, params }: LayoutProps<'/[locale]'>) {
   const { locale } = await params;
-  if (!(await isEnabledLocale(locale))) notFound();
+  if (!(await isRoutableLocale(locale))) notFound();
   const { dir } = localeInfo(locale);
 
   return (

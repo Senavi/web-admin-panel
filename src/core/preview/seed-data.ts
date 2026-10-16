@@ -164,7 +164,8 @@ export function previewSiteState(): SiteState {
   return {
     defaultLocale,
     enabledLocales,
-    supportedLocales: [...projectConfig.localeCodes],
+    draftLocales: [],
+    supportedLocales: [...enabledLocales],
     maintenance: false,
     privateMode: false,
     indexing: false,

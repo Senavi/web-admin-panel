@@ -11,6 +11,9 @@ export const projectConfig = defineProjectConfig({
     { code: 'uk', label: 'Українська' },
   ],
   defaultLocale: 'en',
+  // Writing systems the fonts in src/site/theme/fonts.ts cover (Latn, Latx = Latin extended, Cyrl…).
+  // Languages outside this set get a "check with your developer" warning in Settings.
+  fontScripts: ['Latn', 'Cyrl'],
   // Admin URL: a custom path per project (`/<4 consonants of the domain>-admin`).
   adminPath: '/stst-admin',
   // Public routes outside the content registry (e.g. '/legal', '/blog/:slug'). Others → 404.

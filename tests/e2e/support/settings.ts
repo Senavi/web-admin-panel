@@ -94,17 +94,30 @@ export async function waitForPublicSite(baseURL: string | undefined): Promise<vo
   await context.dispose();
 }
 
-const LOCALE_LABELS: Record<string, string> = { en: 'English', uk: 'Українська' };
+const LANGUAGE_NAMES: Record<string, string> = { en: 'English', uk: 'Ukrainian' };
 
-/** Enables exactly these locales in Settings → General (default stays `en`). */
+/** Publishes exactly these demo locales in Settings → General (the main language `en` stays). */
 export async function setEnabledLocales(page: Page, locales: readonly string[]): Promise<void> {
   const form = await openSettingsTab(page, 'general', 'General');
   let changed = false;
-  for (const code of ['en', 'uk']) {
-    const box = form.getByRole('checkbox', { name: LOCALE_LABELS[code] });
-    if ((await box.getAttribute('aria-checked')) !== String(locales.includes(code))) {
-      await box.click();
-      changed = true;
+  for (const code of ['uk']) {
+    const row = form.locator(`li[data-language="${code}"]`);
+    const published = (await row.getAttribute('data-state')) === 'published';
+    if (locales.includes(code) === published) continue;
+    changed = true;
+    if (published) {
+      await row.getByRole('button', { name: 'Unpublish' }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Unpublish' }).click();
+    } else {
+      if ((await row.count()) === 0) {
+        await form.getByLabel('Add a language').fill(LANGUAGE_NAMES[code] ?? code);
+        await form
+          .getByRole('list', { name: 'Languages found' })
+          .getByRole('button')
+          .first()
+          .click();
+      }
+      await row.getByRole('button', { name: 'Publish language' }).click();
     }
   }
   if (changed) await saveSettingsTab(page);
