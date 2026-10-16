@@ -740,3 +740,83 @@ On Netlify the shared transaction pooler (6543) caused errors in testing; the sh
 pooler (5432) works. The Connect guide, setup page and docs point to Connect → Session pooler
 and show "Recommended" for it; the other types are still accepted with their IPv4/IPv6
 badges, and the runtime keeps one connection per instance on the session pooler (D-086).
+
+## v1.7: any language, editable interface texts, integrations
+
+### D-090 Languages are chosen by the admin; the stored settings are the truth
+
+`src/core/i18n/languages.ts` is a master list of ~100 languages (BCP 47 code, English and
+native name, direction, writing system). `project.config.ts` keeps `supportedLocales` only as
+the initial set and the fallback default. Settings → General → Languages stores two lists:
+`enabledLocales` (**Published**: routed, in the switcher, sitemap and hreflang) and
+`draftLocales` (**Draft**: editable in the admin, hidden on the site). The main language is
+always published and cannot be removed; a language is never both. Adding, publishing,
+unpublishing or removing a language never touches another language's content: removing only
+leaves both lists, the content stays and the language can be added again. v1.6 settings
+parse unchanged (no drafts; the enabled locales stay published). The proxy's site state
+carries `draftLocales` and `supportedLocales` = published + draft (the URL prefixes it
+knows): a draft prefix answers the static 404 unless a valid staff session is present, in
+which case the page renders (so the [locale] layout accepts any selected locale and relies
+on the proxy for the draft gate). Everything per language in the admin (editors, page tree
+statuses, settings SEO, interface texts) offers all selected languages, drafts marked. A
+language outside `projectConfig.fontScripts` (default Latin + Cyrillic; `Latx` = Latin
+extended) or a right-to-left one shows "Check with your developer: fonts/layout may need
+changes for this language". The switcher is a dropdown with native names
+(`variant="tabs"` keeps the old look). `privacyPath` in the project config adds the privacy
+link to the cookie banner.
+
+### D-091 Interface texts: files are defaults, edits are stored per language
+
+The small site texts live in `src/site/messages/<locale>.json` (defaults, registered with
+their admin descriptions in `src/content/ui-texts.ts`). Edits are stored in `ui_texts`
+(namespace, language, flat `{ "errors.required": "…" }`, version) holding **only** texts that
+differ from what the language would show anyway. The merged text is: the language's edit →
+the language's file → the main language's edit → the main language's file → English, so a new
+language starts from the main language's texts ("Not translated") while a language with its
+own file is not overridden by the main language's edits. Pages, globals, collections and forms
+declare `uiTexts: ['blog', …]`; their editors show an "Interface texts" accordion with
+"Also on: …" (same idea as shared sections, D-087), and Pages → Every page → Interface texts
+lists all of them. Saving is its own action (a namespace belongs to several pages): optimistic
+version check, previous state kept in `ui_text_revisions` (20 per namespace/language), audit
+`ui:<namespace>:<locale>`, cache tag `ui:{namespace}`. Placeholders (`{date}`) must be kept and
+no other braces are allowed. `content:check` reads the site code and fails for a message key
+missing in `en.json`, a namespace that is used but not declared by any page/global/
+collection/form, or a text without an admin description.
+
+### D-092 Integration credentials are stored encrypted (exception to "no secrets in the database")
+
+Until now no secret lived in the database. Clients connect email themselves, so API keys and
+SMTP passwords entered in Settings → Integrations are stored in `integration_secrets` as
+AES-256-GCM: key = HKDF-SHA256 of the auth secret (`AUTH_SECRET`, or the value derived from
+the Supabase service key) with its own `info` label, a random IV per value, the secret's name
+as authenticated data. The browser only ever sees `••••1234`, "Replace" and "Remove";
+decryption happens server-side when a mail is sent; audit entries name the secret, not the
+value; only admins (`integrations.manage`) can change them. If the auth secret is rotated the
+values become unreadable: the card asks to enter them again and Security shows a problem
+instead of crashing. Database credentials and the auth secret itself stay in env.
+
+### D-093 Consent-based scripts; the site CSP follows the published state
+
+Google Analytics 4, Tag Manager, Hotjar, HubSpot and Meta Pixel are configured by ID (not
+secrets) in Settings → Integrations. While any is on, a small banner (bottom-right,
+`src/site/components/cookie-banner.tsx`, texts in the `cookie` interface texts) asks for
+consent; scripts load with `next/script` only after "Accept" (the choice lives 6 months in a
+cookie; the footer's "Cookie settings" reopens it; declining after accepting reloads the page).
+With nothing on there is no banner and nothing loads. The origins a tool needs are in the
+published site state (`integrationCsp`) and the proxy builds the site CSP from them on each
+response, so enabling a tool needs no rebuild. The static CSP in `next.config.ts` stays the
+fallback; admin CSP is untouched.
+
+### D-094 Email: environment, then Integrations, then development files
+
+`resolveMailConfig` picks the provider: `MAIL_PROVIDER=resend|smtp` in env (shown read-only as
+"Set on the server"), else the provider connected in Settings → Integrations (Resend, or SMTP
+with presets for Brevo, Mailgun, Postmark, SendGrid and Gmail), else development files
+(`MAIL_PROVIDER=dev` or any non-production run), else none. Env `dev` is therefore a default
+for development, not an override of a connected provider. Settings → Requests gets **Default
+recipients** used by every form without a list of its own; a form's own list stays an
+override. A failed delivery because email is not connected does not use up retry attempts, so
+submissions saved before a provider was connected are sent by the retry job once one is. A
+warning appears in Settings → Requests and on the Overview when email is connected but nobody
+receives requests; Security lists integration problems (unreadable credentials, a failed
+test email).

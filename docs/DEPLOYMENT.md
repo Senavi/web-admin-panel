@@ -145,9 +145,15 @@ The build log always prints the decision and its reason.
 
 ## Forms
 
-1. Set the env variables above for the destinations you need and redeploy.
-2. **Settings → Requests**: per form enable Email (recipients), Webhook (https URL) and/or
-   Telegram (chat id), and set how long submissions are kept (default 12 months).
+1. Email: connect a provider in **Settings → Integrations → Email** (Resend, or SMTP with
+   presets; admins only, credentials are stored encrypted, "Send test email" checks it), or
+   set `MAIL_PROVIDER` and the variables above on the server. `MAIL_PROVIDER=resend|smtp` in
+   env wins and shows as "Set on the server" in the admin. Set the other variables for the
+   destinations you need (webhook, Telegram) and redeploy.
+2. **Settings → Requests**: add **Default recipients** (used by every form without a list of
+   its own), optionally a list per form, Webhook (https URL) and/or Telegram (chat id), and
+   set how long submissions are kept (default 12 months). The admin warns when email is
+   connected but nobody receives requests.
 3. Verify webhooks on the receiving side: compute `HMAC-SHA256(FORMS_WEBHOOK_SECRET, body)`
    over the raw request body and compare it (constant time) with `X-Signature` after
    `sha256=`. The `X-Submission-Id` header identifies retries.

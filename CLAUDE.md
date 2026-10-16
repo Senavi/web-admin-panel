@@ -105,6 +105,10 @@ the core loaders (they fall back to seeds), never `getDb()` directly from site c
   server**, validates input with Zod and writes an audit log entry. Hiding UI is not
   access control.
 - Secrets stay server-side: no `NEXT_PUBLIC_` secrets, `import 'server-only'` in
-  server modules, never store secrets in the database.
+  server modules. Database and auth secrets stay in env and are never stored in the
+  database. The only exception is the credentials of integrations (email API key, SMTP
+  password) entered in Settings → Integrations: stored AES-256-GCM encrypted
+  (`src/core/integrations/crypto.ts`), never returned to the browser, never logged
+  (docs/DECISIONS.md D-092).
 - Don't weaken security headers, CSP, cookie flags, rate limits, upload validation or
   rich-text validation.

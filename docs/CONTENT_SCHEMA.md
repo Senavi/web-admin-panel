@@ -392,12 +392,31 @@ Spam protection (honeypot, signed minimum fill time, rate limits, optional Turns
 delivery (email, webhook, Telegram), retention and permissions: docs/SECURITY.md § Forms
 and docs/DEPLOYMENT.md § Forms.
 
+## Interface texts
+
+The small texts of the public site (buttons, form messages, pagination, cookie banner, 404) are
+not page content. They are read with next-intl (`getTranslations('blog')`) and stay editable:
+
+1. Defaults: `src/site/messages/<locale>.json` (nested objects are allowed: `forms.errors.required`).
+2. Catalog: `src/content/ui-texts.ts` (`defineUiTexts`) registers the message files and gives
+   every key a human description ("Button on blog cards"), grouped by namespace.
+3. Declare where a namespace appears: `uiTexts: ['blog', 'common']` on `definePage`,
+   `defineGlobal`, `defineCollection` and `defineForm`. The header/footer namespaces (`nav`,
+   `footer`, `common`, `cookie`, `notFound`) belong to the `site` global.
+
+Admins edit a namespace on any page that declares it (an accordion item "Interface texts" with
+"Also on: …"; changes update every place) or in Pages → Every page → Interface texts.
+Edits are stored per language in `ui_texts`; the shown text is the language's edit, its file,
+the main language's edit and file, then English (D-091). Cache tag `ui:{namespace}`. Placeholders
+like `{date}` must stay in the text. `pnpm content:check` verifies the keys used in site code
+and the declarations.
+
 ## Commands
 
 | Command              | What it does                                                                                                                                                                                                                                                                                                               |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm content:sync`  | Imports seed images, creates missing rows and fills **missing** fields from seeds/defaults (pages, globals, form texts), and creates seed collection items once (deleted or renamed seed items don't come back). Never overwrites edited content. Reports orphaned fields without deleting them. Runs on every `pnpm dev`. |
-| `pnpm content:check` | Fails when a registered page or collection has no route, a route uses an unregistered page/collection, or paths differ. Globals and forms need no routes. Runs in CI.                                                                                                                                                      |
+| `pnpm content:check` | Fails when a registered page or collection has no route, a route uses an unregistered page/collection, or paths differ. Globals and forms need no routes. Also checks the interface texts (keys used in site code exist in `en.json`, every used namespace is declared by a page, global, collection or form). Runs in CI.                                                                                                                                                      |
 
 ## Adding a page (checklist)
 

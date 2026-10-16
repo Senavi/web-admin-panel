@@ -6,6 +6,77 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-16
+
+Any language, editable interface texts, Settings → Integrations, `/storybook`.
+
+### Added
+
+- **Languages added by the admin** (Settings → General → Languages): a built-in list of ~100
+  languages with a searchable picker. A new language starts as **Draft** (editable in the
+  admin, hidden on the site; staff can preview it) and is shown after **Publish language**.
+  The main language is always published; removing a language keeps its content. Only
+  published languages are routed and appear in the switcher, sitemap and hreflang. Languages
+  with a right-to-left layout or a script the fonts do not cover show "Check with your
+  developer". The language switcher is now a dropdown with native names
+  (`<LanguageSwitcher variant="tabs" />` keeps the old row). New project config:
+  `fontScripts`, `privacyPath`.
+- **Interface texts editable in the admin**: buttons, form messages, menu labels, pagination,
+  404 and cookie texts. Edit them under "Interface texts" on the pages that show them
+  (`uiTexts: [...]` on pages, globals, collections and forms; "Also on: …" like shared
+  sections) or in Pages → Every page → Interface texts. A new language starts from the main
+  language's texts, marked "Not translated". `pnpm content:check` verifies message keys and
+  declarations. Cache tag `ui:{namespace}`.
+- **Settings → Integrations** (admins only): Google Analytics 4, Google Tag Manager, Hotjar,
+  HubSpot and Meta Pixel by ID (validated); email for forms with Resend or SMTP (presets for
+  Brevo, Mailgun, Postmark, SendGrid, Gmail), "Send test email", status Off / On / Error.
+  Credentials are stored encrypted (AES-256-GCM, key from `AUTH_SECRET`), never shown again.
+  The Security status card lists integration problems.
+- **Cookie banner**: a small card bottom-right with equal Accept / Decline, remembered for
+  6 months, "Cookie settings" in the footer. Tools load only after Accept; the site CSP gets
+  their origins at runtime (no rebuild). No banner when nothing needs consent.
+- **Default recipients** in Settings → Requests for every form without its own list, and a
+  warning (there and on the Overview) when email is connected but nobody receives requests.
+- **`/storybook`** for staff: tokens (colors with contrast, fonts, text styles, spacing,
+  radii, shadows) and a project slot `src/site/storybook.tsx` for components; everyone else
+  gets the site's 404.
+
+### Changed
+
+- Email providers are resolved as `MAIL_PROVIDER=resend|smtp` in env → provider connected in
+  Integrations → development files → none. Emails to default recipients are retried by the
+  maintenance job after a provider is connected.
+- The stored language settings are the source of truth; `supportedLocales` is the initial set.
+- Site message files are read through the interface-texts catalog
+  (`src/content/ui-texts.ts`); `src/site/i18n/request.ts` no longer imports them directly.
+
+### Fixed
+
+- The "Choose a new password" screen no longer loops after sign-in; a session that must choose
+  a password lasts ~30 minutes.
+
+### Security
+
+- New exception to "no secrets in the database", only for integration credentials (D-092).
+  Draft languages are visible to signed-in staff only. See docs/SECURITY.md.
+
+### Upgrading from 1.6.x
+
+Run the migrations (`pnpm db:migrate`; deploys run them in `db:prepare`): they add
+`ui_texts`, `ui_text_revisions` and `integration_secrets`. Existing languages stay
+**Published**; nothing else changes. To use the new features in a project:
+
+1. Copy `src/content/ui-texts.ts` (register your `src/site/messages/<locale>.json` files and
+   describe every key), read messages with `getTranslations` as before, and add
+   `uiTexts: [...]` to the pages, globals, collections and forms that show them. Without
+   declarations `pnpm content:check` fails for namespaces the site uses.
+2. Replace `src/site/i18n/request.ts` with the template's version (messages come from
+   `getSiteMessages`).
+3. Add the `cookie` namespace to your messages and `Consent` to your root layout
+   (`src/site/layout/consent.tsx`, `src/site/components/cookie-banner.tsx`) to use the
+   banner; add `privacyPath` to `project.config.ts` and `fontScripts` if your fonts differ.
+4. `MAIL_PROVIDER=dev` in env no longer hides a provider connected in Settings → Integrations.
+
 ## [1.6.0] - 2026-10-15
 
 Shared sections inside pages, lists that are quick to edit, Session pooler.

@@ -112,11 +112,26 @@ mode only; with a database it is always a real secret (D-079).
 - `src/core/env.ts` validates env at startup; production fails fast on missing values.
 - `AUTH_SECRET` defaults to HKDF-SHA256 of `SUPABASE_SERVICE_ROLE_KEY` (D-080); set it
   explicitly to rotate the two independently. Development uses only the generated dev secret.
-- Server-only modules import `server-only`; no `NEXT_PUBLIC_` secrets; secrets are never
-  stored in the database; the admin never shows their values (Connect Supabase masks them).
+- Server-only modules import `server-only`; no `NEXT_PUBLIC_` secrets; database and auth
+  secrets are never stored in the database; the admin never shows their values (Connect
+  Supabase masks them).
+- **Integration credentials** (email API key, SMTP password; Settings → Integrations, admins
+  only) are the one exception: stored AES-256-GCM encrypted with a key derived by HKDF from
+  the auth secret (own `info` label, random IV per value, bound to the value's name). They are
+  never returned to the browser (only `••••1234`), never written to the audit log and decrypted
+  only server-side when sending. A rotated `AUTH_SECRET` makes them unreadable: the admin is
+  asked to enter them again (D-092).
 - Supabase: RLS enabled on every table with no policies; service role key server-only;
   storage bucket public-read, server-write.
 - Activity log (audit log) of admin actions and sign-in attempts (IP stored only as a keyed hash).
+
+## Integrations and consent
+
+- Analytics and marketing scripts (GA4, GTM, Hotjar, HubSpot, Meta Pixel) load only after the
+  visitor accepts the cookie banner, only on the public site, and their origins are added to
+  the site CSP at runtime from the published state; the admin CSP never changes (D-093).
+- IDs are validated per tool before they are embedded in a script.
+- Draft languages answer the 404 to everyone except signed-in staff (D-090).
 
 ## Privacy (analytics)
 

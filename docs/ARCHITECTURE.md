@@ -139,8 +139,12 @@ Postgres protocol on 127.0.0.1. Next.js workers and CLI scripts connect with pos
 The proxy rewrites unprefixed URLs to the default locale (`/about` → `/en/about`
 internally), passes prefixed non-default locales (`/uk/about`), redirects
 `/en/about` → `/about`, and on the first visit to `/` redirects humans (not bots) to their
-`Accept-Language` locale, remembering the choice in the `site_locale` cookie. Disabled
-locales render the localized 404. Rules: `src/core/i18n/routing.ts`.
+`Accept-Language` locale, remembering the choice in the `site_locale` cookie. The
+languages come from the stored settings (Settings → General → Languages), not from
+`project.config.ts`: **published** languages are routed, **draft** languages render only for a
+signed-in staff session, every other prefix is an ordinary unknown URL. The proxy reads them
+from the site state. Rules: `src/core/i18n/routing.ts`, `language-state.ts`, master list in
+`languages.ts` (D-090). Interface texts reach next-intl through `getSiteMessages` (D-091).
 
 ## Public site rendering
 
@@ -180,7 +184,9 @@ revalidated through cache tags. No admin code, auth or DB driver reaches the cli
 
 Static headers for every response come from `next.config.ts` (`src/core/security/headers.ts`).
 Site pages get a CSP without nonces; admin requests get a nonce CSP from the proxy, and the
-admin root layout passes the nonce to its providers. See docs/SECURITY.md.
+admin root layout passes the nonce to its providers. The proxy adds the origins of the
+integrations that are on (from the published site state) to the site CSP on each response
+(D-093). See docs/SECURITY.md.
 
 ## Maintenance
 

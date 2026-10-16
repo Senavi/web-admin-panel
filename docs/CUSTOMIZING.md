@@ -22,8 +22,13 @@ The dev admin's credentials are in `.data/dev-admin-credentials.txt` (or set
 ### 2. Project config: `project.config.ts`
 
 - `name`: default site name (admins can change it in Settings).
-- `supportedLocales` / `defaultLocale`: every language the site can have. Admins enable a
-  subset in Settings → General.
+- `supportedLocales` / `defaultLocale`: the **initial** languages. After launch admins add any
+  language of the built-in list in Settings → General → Languages (new ones start as Draft);
+  the stored settings are the source of truth (D-090).
+- `fontScripts`: writing systems the site fonts cover (`Latn`, `Latx` = Latin extended, `Cyrl`…);
+  adding a language outside this set or a right-to-left one shows "Check with your developer".
+  Keep it in sync with `src/site/theme/fonts.ts`.
+- `privacyPath`: the privacy page (a `siteRoutes` path or a page) linked from the cookie banner.
 - `adminPath`: admin URL. Use a custom path per project: `/<4 consonants of the domain>-admin`
   (e.g. `example.com` → `/xmpl-admin`; the demo uses `/stst-admin`). The proxy rewrites it to
   the internal `/admin` routes, and the internal path answers 404 (D-082).
@@ -99,8 +104,29 @@ delivery in **Settings → Requests** (secrets in env, docs/DEPLOYMENT.md § For
 
 ### 6. Languages
 
-Add locales to `supportedLocales`, add `src/site/messages/<locale>.json`, add seed content per
-locale and per-locale SEO defaults (`seo.localized`). Enable them in Settings → General.
+Admins add languages themselves (Settings → General → Languages: Draft first, then Publish).
+A language works without any code: pages fall back to the main language until translated and
+its interface texts start from the main language's texts. For better defaults add
+`src/site/messages/<locale>.json` and register it in `src/content/ui-texts.ts`; add seed
+content and per-locale SEO defaults (`seo.localized`) for languages the site ships with. For
+a language whose script the fonts do not cover (or a right-to-left one) change
+`src/site/theme/fonts.ts` and `fontScripts`; `dir="rtl"` is set on `<html>` automatically.
+The language switcher is a dropdown; `<LanguageSwitcher variant="tabs" />` keeps the old row.
+
+### Interface texts
+
+Buttons, form messages, menu labels and other small texts are interface texts: defaults in
+`src/site/messages/<locale>.json`, an admin description for every key in
+`src/content/ui-texts.ts`, and `uiTexts: ['blog', 'common']` on the page, global, collection or
+form that shows them. Editors then show them under "Interface texts" with "Also on: …". Read
+them with `getTranslations('ns')` as before. `pnpm content:check` fails for a key missing in
+`en.json` or a namespace nobody declares (docs/CONTENT_SCHEMA.md § Interface texts).
+
+### Integrations and the cookie banner
+
+Analytics, marketing tools and email are configured by admins in Settings → Integrations; no
+code is needed. Restyle the banner by editing `src/site/components/cookie-banner.tsx` (texts
+are the `cookie` interface texts). Set `privacyPath` to link the privacy page.
 
 ### 7. Maintenance page and OG image
 

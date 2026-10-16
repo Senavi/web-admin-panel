@@ -55,9 +55,13 @@ test.describe('demo site', () => {
   test('language switcher links to the same page in the other locale', async ({ page }) => {
     await page.goto('/about/team');
     await page
-      .getByRole('navigation', { name: 'Language' })
+      .getByRole('button', { name: /^Language:/ })
       .first()
-      .getByRole('link', { name: 'uk' })
+      .click();
+    await page
+      .getByRole('list', { name: 'Language' })
+      .first()
+      .getByRole('link', { name: 'Українська' })
       .click();
     await expect(page).toHaveURL(/\/uk\/about\/team$/);
   });
