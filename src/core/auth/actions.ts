@@ -139,6 +139,12 @@ export async function changePasswordAction(input: unknown): Promise<ActionResult
       .set({ mustChangePassword: false, sessionVersion: sql`${users.sessionVersion} + 1` })
       .where(eq(users.id, user.id))
       .returning({ sessionVersion: users.sessionVersion });
+    // The session made while the password was temporary becomes a normal one.
+    const { security } = await readSiteSettings(db);
+    await db
+      .update(sessions)
+      .set({ expiresAt: new Date(Date.now() + security.sessionLifetimeDays * 86_400_000) })
+      .where(eq(sessions.userId, user.id));
     await issueGateCookie({
       id: user.id,
       role: user.role,

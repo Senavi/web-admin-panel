@@ -18,10 +18,18 @@ import { Role, UserStatus } from '../roles';
 import { resolveSiteUrl } from '@/core/site-url';
 
 import { getAuthSecret } from '../secret';
+import { PENDING_PASSWORD_SESSION_SECONDS } from './pending-password';
 import { findUserById } from './users';
 
 export const AUTH_BASE_PATH = '/api/auth';
 const DAY_SECONDS = 60 * 60 * 24;
+/**
+ * A session of someone who still has to choose a new password (temporary
+ * password) starts with this lifetime. Better Auth extends old sessions on use,
+ * so the limit is enforced from the session's creation time in `getCurrentUser`
+ * (`PENDING_PASSWORD_SESSION_SECONDS`); choosing the password gives every session
+ * of the user the normal lifetime (`changePasswordAction`).
+ */
 
 /**
  * Better Auth configuration. All sign-in / password / 2FA mutations go through
@@ -96,10 +104,10 @@ export function createAuth(db: Database) {
             const user = await findUserById(db, session.userId);
             if (!user || user.status !== UserStatus.Active) return false;
             const { security } = await readSiteSettings(db);
-            const expiresAt = new Date(
-              Date.now() + security.sessionLifetimeDays * DAY_SECONDS * 1000,
-            );
-            return { data: { ...session, expiresAt } };
+            const seconds = user.mustChangePassword
+              ? PENDING_PASSWORD_SESSION_SECONDS
+              : security.sessionLifetimeDays * DAY_SECONDS;
+            return { data: { ...session, expiresAt: new Date(Date.now() + seconds * 1000) } };
           },
         },
       },

@@ -10,6 +10,7 @@ import { getRequestSettings } from '@/core/settings/request';
 import { can, Permission } from '../permissions';
 import { isRole, Role, UserStatus } from '../roles';
 import { getAuth } from './instance';
+import { pendingSessionExpired } from './pending-password';
 import { timed } from '@/core/perf/timing';
 
 export interface CurrentUser {
@@ -42,6 +43,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!result) return null;
   const { user, session } = result;
   if (user.status !== UserStatus.Active || !isRole(user.role)) return null;
+  // A pending-password session is short-lived and never extended (≈30 min since sign-in).
+  if (user.mustChangePassword && pendingSessionExpired(session.createdAt)) return null;
   return {
     id: user.id,
     email: user.email,
