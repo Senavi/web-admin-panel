@@ -18,6 +18,7 @@ import {
 } from '@/core/security/headers';
 import { isKnownRoute } from '@/core/i18n/route-match';
 import { isPreviewMode } from '@/core/preview/mode';
+import { STORYBOOK_PATH } from '@/core/storybook/slot';
 import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
 import {
   ACCESS_PATH,
@@ -88,7 +89,34 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return next(request, pathname);
   }
 
+  if (pathname === STORYBOOK_PATH || pathname.startsWith(`${STORYBOOK_PATH}/`)) {
+    return storybookResponse(request);
+  }
+
   return routeSite(request);
+}
+
+/**
+ * `/storybook` is for staff only: a valid admin session (the signed gate cookie, any role)
+ * continues to the page; everyone else gets exactly the site's 404, never a login redirect,
+ * so the page's existence isn't revealed. Never cached or indexed; not in robots.txt.
+ */
+async function storybookResponse(request: NextRequest): Promise<NextResponse> {
+  const { origin, pathname } = request.nextUrl;
+  const state = await siteStateFor(request);
+  const staff =
+    state !== null &&
+    (await isStaffToken(getAuthSecret(), request.cookies.get(GATE_COOKIE_NAME)?.value, state));
+  const response = staff
+    ? next(request, pathname)
+    : await staticPageResponse(
+        origin,
+        `/${state?.defaultLocale ?? projectConfig.defaultLocale}${SiteRoute.NotFound}`,
+        404,
+      );
+  response.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
+  response.headers.set(HeaderName.CacheControl, NO_STORE);
+  return response;
 }
 
 /**

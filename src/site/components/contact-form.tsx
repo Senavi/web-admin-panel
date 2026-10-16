@@ -16,7 +16,7 @@ import {
 } from '@/core/forms/use-site-form';
 
 import { buttonClasses } from './ui/button-styles';
-import { cx } from './ui/cn';
+import { choiceClasses, controlClasses, LABEL_CLASS, textareaClasses } from './ui/form-styles';
 import { Heading, Text } from './ui/typography';
 
 export interface ContactFormStrings {
@@ -25,10 +25,6 @@ export interface ContactFormStrings {
   readonly sending: string;
   readonly choose: string;
 }
-
-const CONTROL =
-  'text-body w-full rounded-md border-thin border-border bg-background px-4 py-2 text-foreground';
-const CONTROL_INVALID = 'border-danger';
 
 export function ContactForm({
   config,
@@ -135,7 +131,7 @@ function Field({
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-start gap-3">
-          <input {...inputProps} className="mt-1 size-5 accent-primary" />
+          <input {...inputProps} className={choiceClasses()} />
           <label htmlFor={ids.input} className="text-body-sm">
             {consentText ?? field.label}
             {required ? <span className="sr-only"> ({strings.required})</span> : null}
@@ -148,7 +144,7 @@ function Field({
   }
 
   const label = (
-    <label htmlFor={ids.input} className="text-label">
+    <label htmlFor={ids.input} className={LABEL_CLASS}>
       {field.label}
       {required ? (
         <span className="text-danger" aria-hidden="true">
@@ -168,10 +164,10 @@ function Field({
           {...inputProps}
           placeholder={field.placeholder}
           rows={6}
-          className={cx(CONTROL, error && CONTROL_INVALID)}
+          className={textareaClasses({ invalid: Boolean(error) })}
         />
       ) : type === FormFieldType.Select ? (
-        <select {...inputProps} className={cx(CONTROL, 'min-h-11', error && CONTROL_INVALID)}>
+        <select {...inputProps} className={controlClasses({ invalid: Boolean(error) })}>
           <option value="">{strings.choose}</option>
           {field.options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -183,7 +179,7 @@ function Field({
         <input
           {...inputProps}
           placeholder={field.placeholder}
-          className={cx(CONTROL, 'min-h-11')}
+          className={controlClasses({ invalid: Boolean(error) })}
         />
       )}
       {help}

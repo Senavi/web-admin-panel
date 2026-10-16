@@ -1,6 +1,6 @@
 /**
  * Fails when registered pages/collections and site routes are out of sync;
- * warns about shared sections no page uses.
+ * warns about shared sections no page uses; checks the /storybook project slot.
  *
  *   pnpm content:check
  */
@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import { contentRegistry as registry } from '@/core/content/project-registry';
 import { checkRoutes, type RouteFile } from '@/core/content/route-check';
+import { checkStorybookSlot, STORYBOOK_SLOT_FILE } from '@/core/storybook/slot';
 
 const SITE_APP_DIR = path.join(process.cwd(), 'src', 'app', '(site)');
 
@@ -20,10 +21,15 @@ function findPageFiles(dir: string): RouteFile[] {
     .map((file) => ({ file, source: fs.readFileSync(path.join(dir, file), 'utf8') }));
 }
 
+const slotPath = path.join(process.cwd(), STORYBOOK_SLOT_FILE);
 const problems = checkRoutes(
   registry.pages.map((page) => ({ id: page.id, path: page.path })),
   findPageFiles(SITE_APP_DIR),
   registry.collections.map((collection) => ({ id: collection.id, itemPath: collection.itemPath })),
+);
+
+problems.push(
+  ...checkStorybookSlot(fs.existsSync(slotPath) ? fs.readFileSync(slotPath, 'utf8') : null),
 );
 
 // Shared sections: unknown ids already fail when the registry is built.
