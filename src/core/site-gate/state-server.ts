@@ -13,6 +13,7 @@ import { UserStatus } from '@/core/auth/roles';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
 import { users } from '@/core/db/schema';
+import { integrationCspSources } from '@/core/integrations/model';
 import { selectedLocales } from '@/core/i18n/language-state';
 import { isPreviewMode } from '@/core/preview/mode';
 import { previewSiteState } from '@/core/preview/seed-data';
@@ -53,6 +54,7 @@ export async function loadSiteState(): Promise<SiteState> {
       ...contentRegistry.collections.map((collection) => collection.itemPath),
       ...projectConfig.siteRoutes,
     ],
+    integrationCsp: integrationCspSources(settings.integrations.analytics),
     collections: await getCollectionGateState(
       selectedLocales(settings.general),
       settings.general.defaultLocale,

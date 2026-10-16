@@ -20,6 +20,7 @@ import {
   brandingSettingsSchema,
   formsSettingsSchema,
   generalSettingsSchema,
+  integrationsSettingsSchema,
   localeCode,
   type LocalizedSettings,
   localizedSettingsSchema,
@@ -38,11 +39,13 @@ const GROUP_SCHEMAS = {
   analytics: analyticsSettingsSchema,
   security: securitySettingsSchema,
   forms: formsSettingsSchema,
+  integrations: integrationsSettingsSchema,
 } satisfies Record<SettingsGroup, z.ZodType>;
 
 /** Groups that need more than `settings.manage`. */
 const GROUP_PERMISSIONS: Partial<Record<SettingsGroup, Permission>> = {
   forms: Permission.FormsSettings,
+  integrations: Permission.IntegrationsManage,
 };
 
 const GROUPS = Object.keys(GROUP_SCHEMAS) as SettingsGroup[];

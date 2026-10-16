@@ -52,6 +52,17 @@ export const uiTexts = defineUiTexts({
         hours: 'Label of the opening hours',
       },
     },
+    cookie: {
+      label: 'Cookie banner',
+      texts: {
+        text: 'Sentence in the cookie banner',
+        privacy: 'Link to the privacy policy in the banner',
+        accept: 'Button: accept cookies',
+        decline: 'Button: decline cookies',
+        settings: 'Footer link that reopens the banner',
+        label: 'Name of the banner (read by screen readers)',
+      },
+    },
     notFound: {
       label: 'Page not found',
       texts: {

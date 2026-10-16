@@ -15,6 +15,7 @@ import {
 import { DeveloperSection } from '@/admin/components/layout/developer-mode';
 import { useConfirm } from '@/admin/hooks/use-confirm';
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/admin/ui/field';
+import { Alert, AlertDescription } from '@/admin/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import { Textarea } from '@/admin/ui/textarea';
 import type { MediaPreview } from '@/core/content/editor-types';
@@ -25,6 +26,7 @@ import {
   type SiteSettings,
 } from '@/core/settings/schema';
 
+import { IntegrationsTab, type IntegrationsInfo } from './integrations-tab';
 import { LanguagesField } from './languages-field';
 import { SettingsTabForm, type SettingsTabValues } from './settings-tab-form';
 
@@ -33,6 +35,7 @@ export const SettingsTab = {
   Brand: 'brand',
   Search: 'search',
   Requests: 'requests',
+  Integrations: 'integrations',
   Access: 'access',
 } as const;
 export type SettingsTab = (typeof SettingsTab)[keyof typeof SettingsTab];
@@ -42,6 +45,7 @@ const TAB_LABELS: Record<SettingsTab, string> = {
   [SettingsTab.Brand]: 'Brand',
   [SettingsTab.Search]: 'Google & sharing',
   [SettingsTab.Requests]: 'Requests',
+  [SettingsTab.Integrations]: 'Integrations',
   [SettingsTab.Access]: 'Site access',
 };
 
@@ -71,13 +75,22 @@ export interface SettingsScreenProps {
   readonly telegramAvailable: boolean;
   /** Plain description of the email provider, e.g. "Resend · forms@example.com". */
   readonly emailProvider: string;
+  /** Present for admins: the Integrations tab. */
+  readonly integrations: IntegrationsInfo | null;
+  /** Email is connected but no form has recipients: requests are saved, not emailed. */
+  readonly noRecipientsWarning: boolean;
 }
 
-function isTab(value: string | null, hasForms: boolean): value is SettingsTab {
-  return (
-    Object.values(SettingsTab).some((tab) => tab === value) &&
-    (hasForms || value !== SettingsTab.Requests)
+function visibleTabs(props: Pick<SettingsScreenProps, 'forms' | 'integrations'>): SettingsTab[] {
+  return Object.values(SettingsTab).filter(
+    (value) =>
+      (value !== SettingsTab.Requests || props.forms.length > 0) &&
+      (value !== SettingsTab.Integrations || props.integrations !== null),
   );
+}
+
+function isTab(value: string | null, visible: readonly SettingsTab[]): value is SettingsTab {
+  return visible.some((tab) => tab === value);
 }
 
 /** Settings as tabs (`?tab=`), one Save per tab. */
@@ -86,14 +99,12 @@ export function SettingsScreen(props: SettingsScreenProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const requested = searchParams.get('tab');
-  const tab = isTab(requested, props.forms.length > 0) ? requested : SettingsTab.General;
+  const tabs = visibleTabs(props);
+  const tab = isTab(requested, tabs) ? requested : SettingsTab.General;
   const [media, setMedia] = useState(props.media);
   const addMedia = useCallback(
     (preview: MediaPreview) => setMedia((current) => ({ ...current, [preview.id]: preview })),
     [],
-  );
-  const tabs = Object.values(SettingsTab).filter(
-    (value) => value !== SettingsTab.Requests || props.forms.length > 0,
   );
 
   return (
@@ -128,6 +139,11 @@ export function SettingsScreen(props: SettingsScreenProps) {
         {props.forms.length > 0 ? (
           <TabsContent value={SettingsTab.Requests}>
             <RequestsTab {...props} />
+          </TabsContent>
+        ) : null}
+        {props.integrations ? (
+          <TabsContent value={SettingsTab.Integrations}>
+            <IntegrationsTab settings={props.settings} info={props.integrations} />
           </TabsContent>
         ) : null}
         <TabsContent value={SettingsTab.Access}>
@@ -407,7 +423,13 @@ function LinesField({
 
 // ── Requests (forms) ─────────────────────────────────────────────────────────
 
-function RequestsTab({ settings, forms, telegramAvailable, emailProvider }: SettingsScreenProps) {
+function RequestsTab({
+  settings,
+  forms,
+  telegramAvailable,
+  emailProvider,
+  noRecipientsWarning,
+}: SettingsScreenProps) {
   const destinations = Object.fromEntries(
     forms.map((form) => [
       form.id,
@@ -418,7 +440,13 @@ function RequestsTab({ settings, forms, telegramAvailable, emailProvider }: Sett
     <SettingsTabForm
       label={TAB_LABELS[SettingsTab.Requests]}
       defaultValues={{
-        groups: { forms: { retentionMonths: settings.forms.retentionMonths, destinations } },
+        groups: {
+          forms: {
+            retentionMonths: settings.forms.retentionMonths,
+            defaultRecipients: settings.forms.defaultRecipients,
+            destinations,
+          },
+        },
       }}
       toSave={(values) => {
         const forms = values.groups.forms as {
@@ -437,13 +465,25 @@ function RequestsTab({ settings, forms, telegramAvailable, emailProvider }: Sett
       <p className="text-sm text-muted-foreground">
         Every request is saved in Pages → Forms. Here you choose who also gets it by email.
       </p>
+      {noRecipientsWarning ? (
+        <Alert role="alert" data-testid="no-recipients-warning">
+          <AlertDescription>
+            Requests are saved but not emailed: add recipients below.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <LinesField
+        name="groups.forms.defaultRecipients"
+        label="Default recipients"
+        description="Email addresses, one per line. Used by every form that has no list of its own."
+      />
       {forms.map((form) => (
         <FieldSet key={form.id}>
           <FieldLegend>{form.label}</FieldLegend>
           <LinesField
             name={`groups.forms.destinations.${form.id}.email.recipients`}
             label="Send requests to"
-            description="Email addresses, one per line. Leave empty to only keep requests in the admin."
+            description="Email addresses, one per line. Leave empty to use the default recipients."
           />
           <DeveloperSection>
             <RhfSwitch

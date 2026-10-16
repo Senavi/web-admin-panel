@@ -1,18 +1,15 @@
 import 'server-only';
 
 import { createHmac } from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-
 import { eq } from 'drizzle-orm';
-import nodemailer from 'nodemailer';
 
 import { humanizeKey } from '@/core/content/fields';
-import { MAIL_DIR } from '@/core/db/paths';
 import { type DeliveryRecord, type DeliveryState, formSubmissions } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
-import { env, isProduction, MailProvider } from '@/core/env';
-import type { FormDestinations } from '@/core/settings/schema';
+import { env } from '@/core/env';
+import { resolveMailConfig } from '@/core/mail/config';
+import { MailNotConfiguredError, sendMail } from '@/core/mail/send';
+import { type FormDestinations, formDestinationsSchema } from '@/core/settings/schema';
 
 import { type AnyForm, FormFieldType } from './define';
 
@@ -20,7 +17,7 @@ import { type AnyForm, FormFieldType } from './define';
  * Delivery of stored submissions to the destinations configured in Settings →
  * Forms. Each destination is independent: a failure is recorded on the
  * submission (shown in the inbox) and retried by the maintenance job. Secrets
- * come from env only; submission data is never logged.
+ * come from env or the encrypted integration credentials; submission data is never logged.
  */
 
 export const Destination = {
@@ -47,6 +44,19 @@ export interface Submission {
   readonly pagePath: string | null;
   readonly createdAt: Date;
   readonly data: Readonly<Record<string, string | boolean>>;
+}
+
+/**
+ * A form's destinations with the default recipients applied: a form without a
+ * recipient list of its own emails the default recipients (Settings → Requests).
+ */
+export function withDefaultRecipients(
+  destinations: FormDestinations | undefined,
+  defaultRecipients: readonly string[],
+): FormDestinations | undefined {
+  if (destinations?.email.enabled || defaultRecipients.length === 0) return destinations;
+  const base = destinations ?? formDestinationsSchema.parse({});
+  return { ...base, email: { enabled: true, recipients: [...defaultRecipients] } };
 }
 
 /** Destinations enabled for a form. */
@@ -98,61 +108,20 @@ function replyTo(form: AnyForm, submission: Submission): string | undefined {
   return undefined;
 }
 
-function mailProvider(): MailProvider | null {
-  return env().MAIL_PROVIDER ?? (isProduction() ? null : MailProvider.Dev);
-}
-
 async function sendEmail(
+  db: Database,
   form: AnyForm,
   submission: Submission,
   recipients: readonly string[],
 ): Promise<void> {
-  const subject = `New submission: ${form.label}`.replace(/[\r\n]/g, ' ');
-  const text = plainTextBody(form, submission);
-  const reply = replyTo(form, submission);
-  const from = env().MAIL_FROM ?? 'Website <forms@localhost>';
-  switch (mailProvider()) {
-    case MailProvider.Dev: {
-      await fs.mkdir(MAIL_DIR, { recursive: true });
-      const file = path.join(MAIL_DIR, `${submission.createdAt.getTime()}-${submission.id}.txt`);
-      const headers = [
-        `From: ${from}`,
-        `To: ${recipients.join(', ')}`,
-        ...(reply ? [`Reply-To: ${reply}`] : []),
-        `Subject: ${subject}`,
-      ];
-      await fs.writeFile(file, `${headers.join('\n')}\n\n${text}\n`, 'utf8');
-      return;
-    }
-    case MailProvider.Resend: {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env().RESEND_API_KEY ?? ''}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from, to: recipients, subject, text, reply_to: reply }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      if (!response.ok) throw new Error(`Resend responded ${response.status}`);
-      return;
-    }
-    case MailProvider.Smtp: {
-      const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } = env();
-      const port = SMTP_PORT ?? 587;
-      const transport = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port,
-        secure: port === 465,
-        ...(SMTP_USER ? { auth: { user: SMTP_USER, pass: SMTP_PASSWORD ?? '' } } : {}),
-        connectionTimeout: TIMEOUT_MS,
-      });
-      await transport.sendMail({ from, to: [...recipients], subject, text, replyTo: reply });
-      return;
-    }
-    case null:
-      throw new Error('Email is not configured (set MAIL_PROVIDER).');
-  }
+  await sendMail(await resolveMailConfig(db), {
+    id: submission.id,
+    createdAt: submission.createdAt,
+    to: recipients,
+    subject: `New submission: ${form.label}`,
+    text: plainTextBody(form, submission),
+    replyTo: replyTo(form, submission),
+  });
 }
 
 /** `sha256=<hex>` HMAC of the raw body (verify with FORMS_WEBHOOK_SECRET). */
@@ -207,6 +176,7 @@ async function sendTelegram(form: AnyForm, submission: Submission, chatId: strin
 }
 
 function send(
+  db: Database,
   destination: Destination,
   form: AnyForm,
   submission: Submission,
@@ -214,7 +184,7 @@ function send(
 ): Promise<void> {
   switch (destination) {
     case Destination.Email:
-      return sendEmail(form, submission, config.email.recipients);
+      return sendEmail(db, form, submission, config.email.recipients);
     case Destination.Webhook:
       return sendWebhook(form, submission, config.webhook.url);
     case Destination.Telegram:
@@ -245,12 +215,15 @@ export async function deliverSubmission(
       const attempts = (previous[destination]?.attempts ?? 0) + 1;
       const at = new Date().toISOString();
       try {
-        await send(destination, form, submission, config);
+        await send(db, destination, form, submission, config);
         return [destination, { status: DeliveryStatus.Sent, attempts, at }];
       } catch (error) {
+        // "Email is not connected" is not the submission's fault: it is retried until a
+        // provider is set up (within the retry window) without using up the attempts.
+        const kept = error instanceof MailNotConfiguredError ? attempts - 1 : attempts;
         return [
           destination,
-          { status: DeliveryStatus.Failed, attempts, at, error: reasonOf(error) },
+          { status: DeliveryStatus.Failed, attempts: kept, at, error: reasonOf(error) },
         ];
       }
     }),

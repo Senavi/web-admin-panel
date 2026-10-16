@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { Alert, AlertDescription } from '@/admin/ui/alert';
+import { mailStatus } from '@/core/forms/mail-status';
+import { hasRecipients } from '@/core/integrations/health';
+import { MailSource } from '@/core/mail/config';
 import { CollapsibleSection } from '@/admin/components/layout/accordion';
 import { PageHeader } from '@/admin/components/layout/page-header';
 import { BreakdownCard } from '@/admin/components/overview/breakdown-card';
@@ -63,6 +67,14 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
   const inboxForm =
     [...forms].sort((a, b) => (unread[b.id] ?? 0) - (unread[a.id] ?? 0))[0] ?? forms[0];
 
+  // Email is connected but nobody receives requests.
+  const mail = showRequests ? await mailStatus(db) : null;
+  const unemailed =
+    mail !== null &&
+    mail.configured &&
+    mail.source !== MailSource.Dev &&
+    !hasRecipients(settings.forms);
+
   const statusParts = [
     siteStateText(settings.status),
     settings.status.indexing ? 'Visible in Google' : 'Hidden from Google',
@@ -76,6 +88,21 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
         description={`How the site is doing · ${RANGE_LABELS[range].toLowerCase()}`}
         actions={<RangeSelect value={range} />}
       />
+      {unemailed ? (
+        <Alert role="alert" data-testid="no-recipients-warning">
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            Requests are saved but not emailed: add recipients.
+            {can(user.role, Permission.SettingsManage) ? (
+              <Link
+                href={`${adminHref(AdminRoute.Settings)}?tab=requests`}
+                className="font-medium underline underline-offset-4"
+              >
+                Open Settings → Requests
+              </Link>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <section aria-label="Key metrics" className="grid gap-4 sm:grid-cols-3">
         <KpiCard label="Visitors" value={current.visitors} previous={previous.visitors} />
         <KpiCard label="Page views" value={current.views} previous={previous.views} />

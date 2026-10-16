@@ -23,6 +23,11 @@ export interface ProjectConfigInput<TLocale extends string = string> {
   /** Fallback default locale when settings have not been saved yet. */
   readonly defaultLocale: NoInfer<TLocale>;
   /**
+   * Privacy policy page (a site route, e.g. `/privacy`) linked from the cookie banner.
+   * The banner shows the link only when this is set.
+   */
+  readonly privacyPath?: `/${string}`;
+  /**
    * Writing systems the site fonts cover (ISO 15924: `Latn`, `Latx` = Latin extended, `Cyrl`…).
    * Adding a language outside this set shows a "check with your developer" warning in the
    * admin. Defaults to Latin + Cyrillic. Keep it in sync with `src/site/theme/fonts.ts`.
@@ -87,7 +92,10 @@ export interface ProjectFormsConfig {
 export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
 export interface ProjectConfig<TLocale extends string = string> extends Required<
-  Omit<ProjectConfigInput<TLocale>, 'brand' | 'onUserInvited' | 'csp' | 'forms' | 'fontScripts'>
+  Omit<
+    ProjectConfigInput<TLocale>,
+    'brand' | 'onUserInvited' | 'csp' | 'forms' | 'fontScripts' | 'privacyPath'
+  >
 > {
   readonly onUserInvited?: (invite: UserInvite) => Promise<void>;
   readonly csp: SiteCspSources;
@@ -95,6 +103,7 @@ export interface ProjectConfig<TLocale extends string = string> extends Required
   readonly brand: { readonly themeColor: string; readonly backgroundColor: string };
   readonly localeCodes: readonly TLocale[];
   readonly fontScripts: readonly ScriptCode[];
+  readonly privacyPath?: `/${string}`;
 }
 
 const DEFAULT_ADMIN_PATH = '/admin';
@@ -137,6 +146,7 @@ export function defineProjectConfig<const TLocale extends string>(
     },
     localeCodes,
     fontScripts: input.fontScripts ?? DEFAULT_FONT_SCRIPTS,
+    privacyPath: input.privacyPath,
   };
 }
 

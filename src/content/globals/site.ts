@@ -18,7 +18,7 @@ export const SOCIAL_NETWORKS = [
 export const siteGlobals = defineGlobal({
   id: 'site',
   label: 'Header & footer',
-  uiTexts: ['common', 'nav', 'footer', 'notFound'],
+  uiTexts: ['common', 'nav', 'footer', 'cookie', 'notFound'],
   sections: [
     defineSection({
       id: 'contacts',

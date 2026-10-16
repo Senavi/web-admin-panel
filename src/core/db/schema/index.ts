@@ -4,6 +4,7 @@ export * from './collections';
 export * from './content';
 export * from './enums';
 export * from './forms';
+export * from './integrations';
 export * from './media';
 export * from './settings';
 export * from './system';

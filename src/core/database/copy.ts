@@ -28,6 +28,7 @@ export const COPY_TABLES = [
   schema.formSubmissions,
   schema.uiTexts,
   schema.uiTextRevisions,
+  schema.integrationSecrets,
 ] as const;
 
 const BATCH = 200;

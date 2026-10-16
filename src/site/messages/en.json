@@ -63,5 +63,13 @@
     "choose": "Choose…",
     "sendAnother": "Send another message",
     "confirm": "Please check your message and press “Send message” again to send it."
+  },
+  "cookie": {
+    "text": "We use cookies to measure how the site is used and to improve it. You can accept or decline.",
+    "privacy": "Privacy policy",
+    "accept": "Accept",
+    "decline": "Decline",
+    "settings": "Cookie settings",
+    "label": "Cookies"
   }
 }

@@ -13,7 +13,12 @@ import { isLocked, recordFailure } from '@/core/security/throttle';
 import { readSiteSettings } from '@/core/settings/repository';
 import type { SiteSettings } from '@/core/settings/schema';
 
-import { DeliveryStatus, deliverSubmission, enabledDestinations } from './delivery';
+import {
+  DeliveryStatus,
+  deliverSubmission,
+  enabledDestinations,
+  withDefaultRecipients,
+} from './delivery';
 import { FormHiddenField } from './fields';
 import {
   checkFormToken,
@@ -104,7 +109,10 @@ export async function processSubmission(
   if (!result.ok) return done({ status: FormSubmitStatus.Invalid, errors: result.errors, values });
 
   const pagePath = safeRedirectPath(data.get(FormHiddenField.Page), '').slice(0, PAGE_PATH_MAX);
-  const config = settings.forms.destinations[form.id];
+  const config = withDefaultRecipients(
+    settings.forms.destinations[form.id],
+    settings.forms.defaultRecipients,
+  );
   const destinations = enabledDestinations(config);
   const now = new Date();
   const [stored] = await db

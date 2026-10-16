@@ -9,6 +9,7 @@ import { localizedPath } from '@/core/i18n/routing';
 import { Container } from '../components/ui/layout';
 import { Text } from '../components/ui/typography';
 import { HEADER_NAV, pagePath } from '../navigation';
+import { CookieSettings } from './consent';
 
 export async function SiteFooter({
   locale,
@@ -38,6 +39,7 @@ export async function SiteFooter({
               {legal.line}
             </Text>
           ) : null}
+          <CookieSettings />
         </div>
         <div className="flex flex-col gap-2">
           <Text variant="label">{footer('contact')}</Text>

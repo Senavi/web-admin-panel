@@ -176,7 +176,8 @@ export const tokens = {
   "container": {
     "content": "72rem",
     "wide": "80rem",
-    "prose": "42rem"
+    "prose": "42rem",
+    "banner": "24rem"
   },
   "breakpoint": {
     "sm": "40rem",

@@ -16,6 +16,8 @@ export const Permission = {
   FormsDelete: 'forms.delete',
   /** Settings → Forms: destinations and retention. */
   FormsSettings: 'forms.settings',
+  /** Settings → Integrations: analytics IDs, email provider, credentials (admins only). */
+  IntegrationsManage: 'integrations.manage',
   ManagersManage: 'managers.manage',
   SettingsManage: 'settings.manage',
   SecurityManage: 'security.manage',

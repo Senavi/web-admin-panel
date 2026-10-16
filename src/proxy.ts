@@ -8,6 +8,7 @@ import { can } from '@/core/auth/permissions';
 import { permissionForAdminPath } from '@/core/auth/route-permissions';
 import { getAuthSecret } from '@/core/auth/secret';
 import { isBotUserAgent } from '@/core/http/bots';
+import { mergeCspSources } from '@/core/integrations/model';
 import { HeaderName, NO_STORE, ROBOTS_NOINDEX } from '@/core/http/headers';
 import {
   adminCsp,
@@ -315,6 +316,13 @@ function withSiteHeaders(
 ): NextResponse {
   if (isNoindex(state) || isPreviewMode())
     response.headers.set(HeaderName.RobotsTag, ROBOTS_NOINDEX);
+  // Integrations that are on add their origins to the site CSP at runtime (no rebuild).
+  if (state.integrationCsp && Object.keys(state.integrationCsp).length > 0) {
+    response.headers.set(
+      CSP_HEADER,
+      staticPageCsp(mergeCspSources(projectConfig.csp, state.integrationCsp)),
+    );
+  }
   const notice = staff
     ? state.maintenance
       ? SiteNotice.Maintenance

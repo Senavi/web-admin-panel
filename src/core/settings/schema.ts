@@ -3,6 +3,14 @@ import { z } from 'zod';
 import { projectConfig } from '@project/config';
 
 import { isKnownLanguage } from '@/core/i18n/languages';
+import {
+  AnalyticsId,
+  analyticsDefinition,
+  EmailProviderKind,
+  MAIL_FROM_PATTERN,
+  SMTP_PRESET_IDS,
+  SmtpSecurity,
+} from '@/core/integrations/model';
 
 /**
  * Site settings, stored as validated JSON (`settings` + `settings_localized`).
@@ -140,7 +148,83 @@ export const formDestinationsSchema = z
   });
 export type FormDestinations = z.output<typeof formDestinationsSchema>;
 
+/** One analytics tool: off, or on with an ID in the tool's format. */
+const analyticsToolSchema = (pattern: RegExp, message: string) =>
+  z
+    .object({
+      enabled: z.boolean().default(false),
+      id: trimmed(40).default(''),
+    })
+    .superRefine((value, ctx) => {
+      if (value.enabled && !pattern.test(value.id))
+        ctx.addIssue({ code: 'custom', path: ['id'], message });
+      if (value.id !== '' && !pattern.test(value.id))
+        ctx.addIssue({ code: 'custom', path: ['id'], message });
+    });
+
+function analyticsTool(id: AnalyticsId) {
+  const { pattern, invalidMessage } = analyticsDefinition(id);
+  return analyticsToolSchema(pattern, invalidMessage).prefault({});
+}
+
+export const emailIntegrationSchema = z
+  .object({
+    provider: z
+      .enum([EmailProviderKind.None, EmailProviderKind.Resend, EmailProviderKind.Smtp])
+      .default(EmailProviderKind.None),
+    /** `Name <forms@example.com>`. */
+    from: trimmed(200).default(''),
+    smtp: z
+      .object({
+        preset: z.enum(SMTP_PRESET_IDS).default('other'),
+        host: trimmed(255)
+          .regex(/^[A-Za-z0-9.-]*$/, 'Use a host name like smtp.example.com.')
+          .default(''),
+        port: z.number().int().min(1).max(65535).default(587),
+        user: trimmed(255).default(''),
+        security: z
+          .enum([SmtpSecurity.StartTls, SmtpSecurity.Ssl, SmtpSecurity.None])
+          .default(SmtpSecurity.StartTls),
+      })
+      .prefault({}),
+    /** Result of the last "Send test email". */
+    lastCheck: z
+      .object({
+        ok: z.boolean(),
+        at: z.string().max(40),
+        error: z.string().max(300).optional(),
+      })
+      .nullable()
+      .default(null),
+  })
+  .superRefine((value, ctx) => {
+    if (value.provider === EmailProviderKind.None) return;
+    if (!MAIL_FROM_PATTERN.test(value.from))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['from'],
+        message: 'Enter the sender, for example Website <forms@example.com>.',
+      });
+    if (value.provider === EmailProviderKind.Smtp && !value.smtp.host)
+      ctx.addIssue({ code: 'custom', path: ['smtp', 'host'], message: 'Enter the SMTP server.' });
+  });
+
+export const integrationsSettingsSchema = z.object({
+  analytics: z
+    .object({
+      [AnalyticsId.Ga4]: analyticsTool(AnalyticsId.Ga4),
+      [AnalyticsId.Gtm]: analyticsTool(AnalyticsId.Gtm),
+      [AnalyticsId.Hotjar]: analyticsTool(AnalyticsId.Hotjar),
+      [AnalyticsId.HubSpot]: analyticsTool(AnalyticsId.HubSpot),
+      [AnalyticsId.Meta]: analyticsTool(AnalyticsId.Meta),
+    })
+    .prefault({}),
+  email: emailIntegrationSchema.prefault({}),
+});
+
 export const formsSettingsSchema = z.object({
+  /** Recipients of every form that has no list of its own. */
+  defaultRecipients: z.array(z.email('Enter a valid email address.')).max(10).default([]),
   /** Submissions older than this are deleted by the maintenance job. */
   retentionMonths: z.number().int().min(1).max(60).default(12),
   /** Per form id. Forms without an entry are stored in the inbox only. */
@@ -155,6 +239,7 @@ export const siteSettingsSchema = z.object({
   analytics: analyticsSettingsSchema.prefault({}),
   security: securitySettingsSchema.prefault({}),
   forms: formsSettingsSchema.prefault({}),
+  integrations: integrationsSettingsSchema.prefault({}),
 });
 
 export type SiteSettings = z.output<typeof siteSettingsSchema>;

@@ -1,5 +1,6 @@
 import type { CollectionGateState } from '@/core/collections/gate';
 import type { LocaleState } from '@/core/i18n/routing';
+import type { SiteCspSources } from '@/core/project/define';
 
 /**
  * Public site state the request proxy needs on every request, served by the
@@ -16,6 +17,8 @@ export interface SiteState extends LocaleState {
   readonly routes: readonly string[];
   /** Published collection items and slug redirects (404/308 before rendering). */
   readonly collections: readonly CollectionGateState[];
+  /** Origins the integrations that are on need in the site CSP (analytics, marketing tools). */
+  readonly integrationCsp?: SiteCspSources;
 }
 
 /** Internal site routes the proxy rewrites to (never shown in the address bar). */

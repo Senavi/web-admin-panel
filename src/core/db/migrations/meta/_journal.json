@@ -43,6 +43,13 @@
       "when": 1792152582722,
       "tag": "0005_interface_texts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792153267314,
+      "tag": "0006_integration_secrets",
+      "breakpoints": true
     }
   ]
 }

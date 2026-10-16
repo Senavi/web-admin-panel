@@ -14,6 +14,7 @@ import { getIconMetadata } from '@/core/media/branding';
 import { buildSiteMetadata } from '@/core/seo/page-metadata';
 import { getSiteSettings } from '@/core/settings/loader';
 import { Analytics } from '@/site/layout/analytics';
+import { Consent } from '@/site/layout/consent';
 import { StaffNotice } from '@/site/layout/staff-notice';
 import { fontVariables } from '@/site/theme/fonts';
 
@@ -36,6 +37,7 @@ export default async function SiteRootLayout({ children, params }: LayoutProps<'
   const { locale } = await params;
   if (!(await isRoutableLocale(locale))) notFound();
   const { dir } = localeInfo(locale);
+  const { defaultLocale } = await getLocaleSettings();
 
   return (
     <html lang={locale} dir={dir} className={fontVariables}>
@@ -43,6 +45,7 @@ export default async function SiteRootLayout({ children, params }: LayoutProps<'
         {children}
         <StaffNotice />
         <Analytics />
+        <Consent locale={locale} defaultLocale={defaultLocale} />
       </body>
     </html>
   );

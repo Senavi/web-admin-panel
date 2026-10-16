@@ -4,7 +4,10 @@ import { Suspense } from 'react';
 import { PageHeader } from '@/admin/components/layout/page-header';
 import { SettingsScreen } from '@/admin/components/settings/settings-screen';
 import { Skeleton } from '@/admin/ui/skeleton';
-import { Permission } from '@/core/auth/permissions';
+import { can, Permission } from '@/core/auth/permissions';
+import { hasRecipients } from '@/core/integrations/health';
+import { readSecretInfos } from '@/core/integrations/secrets';
+import { MailSource } from '@/core/mail/config';
 import { requirePermission } from '@/core/auth/server/session';
 import type { MediaPreview } from '@/core/content/editor-types';
 import { contentRegistry } from '@/core/content/project-registry';
@@ -21,7 +24,7 @@ export const metadata: Metadata = { title: 'Settings' };
 export const instant = false;
 
 export default async function SettingsPage() {
-  await requirePermission(Permission.SettingsManage);
+  const user = await requirePermission(Permission.SettingsManage);
   const db = await getDb();
   const settings = await getRequestSettings();
   const enabled = selectedLocales(settings.general);
@@ -42,6 +45,19 @@ export default async function SettingsPage() {
   for (const [id, info] of await loadMedia(db, ids))
     media[id] = { id, src: info.src, width: info.width, height: info.height };
 
+  const mail = await mailStatus(db);
+  const integrations = can(user.role, Permission.IntegrationsManage)
+    ? {
+        secrets: await readSecretInfos(db),
+        emailFromServer: mail.source === MailSource.Env ? mail.line : null,
+      }
+    : null;
+  const noRecipientsWarning =
+    contentRegistry.forms.length > 0 &&
+    mail.configured &&
+    mail.source !== MailSource.Dev &&
+    !hasRecipients(settings.forms);
+
   return (
     <>
       <PageHeader
@@ -61,7 +77,9 @@ export default async function SettingsPage() {
           media={media}
           forms={contentRegistry.forms.map((form) => ({ id: form.id, label: form.label }))}
           telegramAvailable={Boolean(env().TELEGRAM_BOT_TOKEN)}
-          emailProvider={mailStatus().line}
+          emailProvider={mail.line}
+          integrations={integrations}
+          noRecipientsWarning={noRecipientsWarning}
         />
       </Suspense>
     </>

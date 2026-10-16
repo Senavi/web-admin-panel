@@ -2,6 +2,9 @@ import 'server-only';
 
 import { contentRegistry } from '@/core/content/project-registry';
 import { mailStatus, type MailStatus } from '@/core/forms/mail-status';
+import { integrationProblems } from '@/core/integrations/health';
+import { MailSource } from '@/core/mail/config';
+import { getDb } from '@/core/db/client';
 
 import { checkDatabase, checkStorage, type DatabaseHealth, type StorageHealth } from './health';
 
@@ -15,6 +18,12 @@ export interface SiteHealth {
   readonly okText: string;
 }
 
+const UNKNOWN_MAIL: MailStatus = {
+  configured: true,
+  source: MailSource.None,
+  line: 'Unknown: the database doesn’t answer.',
+};
+
 /**
  * One status for the Security page: database, file storage and email. Required
  * production variables are enforced at startup (env schema), so they are not
@@ -22,7 +31,10 @@ export interface SiteHealth {
  */
 export async function checkSiteHealth(): Promise<SiteHealth> {
   const [database, storage] = await Promise.all([checkDatabase(), checkStorage()]);
-  const mail = mailStatus();
+  // Mail and integration checks read the database: skip them while it is down.
+  const [mail, integrations] = database.ok
+    ? await getDb().then((db) => Promise.all([mailStatus(db), integrationProblems(db)]))
+    : [UNKNOWN_MAIL, [] as string[]];
   const usesEmail = contentRegistry.forms.length > 0;
 
   const problems: string[] = [];
@@ -34,7 +46,10 @@ export async function checkSiteHealth(): Promise<SiteHealth> {
   if (!storage.ok)
     problems.push('File storage doesn’t answer. Images can’t be uploaded right now.');
   if (usesEmail && !mail.configured)
-    problems.push('Email is not set up. New requests are saved here but not sent by email.');
+    problems.push(
+      'Email is not connected. New requests are saved here but not sent by email (Settings → Integrations).',
+    );
+  problems.push(...integrations);
 
   return {
     database,

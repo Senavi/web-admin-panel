@@ -166,7 +166,16 @@ describe('usage check', () => {
     const problems = checkUiTexts({
       catalog,
       files,
-      declared: new Set(['common', 'nav', 'footer', 'notFound', 'blog', 'contact', 'forms']),
+      declared: new Set([
+        'common',
+        'nav',
+        'footer',
+        'cookie',
+        'notFound',
+        'blog',
+        'contact',
+        'forms',
+      ]),
     });
     expect(problems).toEqual([]);
   });

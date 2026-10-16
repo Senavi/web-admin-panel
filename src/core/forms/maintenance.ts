@@ -13,6 +13,7 @@ import {
   deliverSubmission,
   enabledDestinations,
   MAX_DELIVERY_ATTEMPTS,
+  withDefaultRecipients,
 } from './delivery';
 
 export const FORMS_JOB = 'forms-maintenance';
@@ -67,7 +68,7 @@ export async function runFormsMaintenance(
   let delivered = 0;
   for (const row of candidates) {
     const form = contentRegistry.formById(row.formId);
-    const config = forms.destinations[row.formId];
+    const config = withDefaultRecipients(forms.destinations[row.formId], forms.defaultRecipients);
     if (!form || !config) continue;
     const enabled = new Set(enabledDestinations(config));
     const failed = Object.entries(row.delivery)
