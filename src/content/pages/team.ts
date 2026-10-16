@@ -57,6 +57,7 @@ export const teamPage = definePage({
   id: 'team',
   path: '/about/team',
   label: 'Team',
+  uiTexts: ['nav'],
   parent: 'about',
   seo: {
     title: 'Our team',

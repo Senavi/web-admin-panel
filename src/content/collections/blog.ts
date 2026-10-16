@@ -16,6 +16,7 @@ export const blog = defineCollection({
   itemLabel: 'Post',
   listPageId: 'blog',
   itemPath: '/blog/:slug',
+  uiTexts: ['blog'],
   fields: {
     title: f.text({ label: 'Title', required: true, max: 120 }),
     excerpt: f.textarea({ label: 'Short description', max: 300 }),

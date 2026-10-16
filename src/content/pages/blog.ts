@@ -10,6 +10,7 @@ export const blogPage = definePage({
   path: '/blog',
   label: 'Blog',
   parent: null,
+  uiTexts: ['blog'],
   seo: {
     title: 'Blog',
     description: 'News, guides and stories from our team.',

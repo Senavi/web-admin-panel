@@ -21,6 +21,8 @@ export const CacheTag = {
   global: (globalId: string) => `global:${globalId}`,
   /** One shared section: every page that uses it. */
   shared: (sharedId: string) => `shared:${sharedId}`,
+  /** Interface texts of one namespace ("Read more", form messages…): every page that shows them. */
+  ui: (namespace: string) => `ui:${namespace}`,
   /** Editable texts of one form. */
   form: (formId: string) => `form:${formId}`,
   /** One media item (rows are immutable; tag exists for deletes). */

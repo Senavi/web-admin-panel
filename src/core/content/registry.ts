@@ -57,6 +57,18 @@ export interface PageRegistry<
   sharedSectionById(id: string): S[number] | undefined;
   /** Pages that place a shared section, in registry order. */
   pagesUsingShared(id: string): P[number][];
+  /** Interface text namespaces declared by a document (`uiTexts: [...]`). */
+  uiTextsOf(kind: UiTextUserKind, id: string): readonly string[];
+  /** Every document that shows an interface text namespace, in registry order. */
+  uiTextUsers(namespace: string): UiTextUser[];
+}
+
+export type UiTextUserKind = 'page' | 'global' | 'collection' | 'form';
+
+export interface UiTextUser {
+  readonly kind: UiTextUserKind;
+  readonly id: string;
+  readonly label: string;
 }
 
 /** Stable ids are kebab-case: they are DB keys and admin URL segments. */
@@ -185,6 +197,33 @@ export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): Pa
     }
   }
 
+  const uiTextUsers: Array<UiTextUser & { namespaces: readonly string[] }> = [
+    ...pages.map((page) => ({
+      kind: 'page' as const,
+      id: page.id,
+      label: page.label,
+      namespaces: page.uiTexts ?? [],
+    })),
+    ...globals.map((global) => ({
+      kind: 'global' as const,
+      id: global.id,
+      label: global.label,
+      namespaces: global.uiTexts ?? [],
+    })),
+    ...collections.map((collection) => ({
+      kind: 'collection' as const,
+      id: collection.id,
+      label: collection.label,
+      namespaces: collection.uiTexts ?? [],
+    })),
+    ...forms.map((form) => ({
+      kind: 'form' as const,
+      id: form.id,
+      label: form.label,
+      namespaces: form.uiTexts ?? [],
+    })),
+  ];
+
   const buildTree = (parent: string | null): PageTreeNode[] =>
     pages
       .filter((page) => page.parent === parent)
@@ -205,6 +244,12 @@ export function createRegistry(input: readonly AnyPage[] | AnyRegistryInput): Pa
     sharedSections,
     sharedSectionById: (id) => sharedById.get(id),
     pagesUsingShared: (id) => usage.get(id) ?? [],
+    uiTextsOf: (kind, id) =>
+      uiTextUsers.find((user) => user.kind === kind && user.id === id)?.namespaces ?? [],
+    uiTextUsers: (namespace) =>
+      uiTextUsers
+        .filter((user) => user.namespaces.includes(namespace))
+        .map(({ kind, id, label }) => ({ kind, id, label })),
   };
 }
 

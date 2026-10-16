@@ -26,6 +26,8 @@ export const COPY_TABLES = [
   schema.collectionSlugRedirects,
   schema.collectionSeedLog,
   schema.formSubmissions,
+  schema.uiTexts,
+  schema.uiTextRevisions,
 ] as const;
 
 const BATCH = 200;

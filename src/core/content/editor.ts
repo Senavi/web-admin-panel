@@ -6,6 +6,8 @@ import { SHARED_LOCALE } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import { loadMedia, seedAssetIds } from '@/core/media/resolve';
 import { parsePageSeo } from '@/core/seo/page-seo';
+import { loadUiTextGroups, namespacesOf } from '@/core/ui-texts/editor';
+import type { UiTextUserKind } from './registry';
 import { readSiteSettings } from '@/core/settings/repository';
 
 import type { ContentSchema } from './define';
@@ -92,6 +94,22 @@ function usedOn(sharedId: string) {
     .map((page) => ({ id: page.id, label: page.label }));
 }
 
+/** The registry entry whose `uiTexts` a document shows (shared sections declare none). */
+function uiTextOwner(target: DocumentTarget): { kind: UiTextUserKind; id: string } | null {
+  switch (target.kind) {
+    case DocumentKind.Page:
+      return { kind: 'page', id: target.id };
+    case DocumentKind.Global:
+      return { kind: 'global', id: target.id };
+    case DocumentKind.Form:
+      return { kind: 'form', id: target.id };
+    case DocumentKind.Item:
+      return { kind: 'collection', id: target.collectionId };
+    case DocumentKind.Shared:
+      return null;
+  }
+}
+
 /** Everything the editor needs for one document in one locale (uncached: always fresh). */
 export async function loadEditorData(
   target: DocumentTarget,
@@ -149,6 +167,15 @@ export async function loadEditorData(
     ...collectMediaIds(allSections, content),
     ...(seo.ogImageId ? [seo.ogImageId] : []),
   ];
+  const owner = uiTextOwner(document.target);
+  const uiTexts = owner
+    ? await loadUiTextGroups(db, {
+        namespaces: namespacesOf(owner.kind, owner.id),
+        locale,
+        mainLocale: defaultLocale,
+        exclude: owner,
+      })
+    : [];
   const mediaInfo = await loadMedia(db, mediaIds);
   const media: Record<string, MediaPreview> = {};
   for (const [id, info] of mediaInfo)
@@ -165,6 +192,7 @@ export async function loadEditorData(
     media,
     publicUrl: document.publicPath(locale, defaultLocale),
     shared,
+    uiTexts,
   };
 }
 

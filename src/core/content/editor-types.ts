@@ -1,4 +1,5 @@
 import type { PageSeo } from '@/core/seo/page-seo';
+import type { UiTextGroup } from '@/core/ui-texts/editor-types';
 
 import type { SectionDefinition } from './define';
 import type { DocumentTarget } from './document-target';
@@ -55,6 +56,8 @@ export interface EditorData {
   readonly publicUrl: string | null;
   /** Shared sections in this editor (empty when there are none). */
   readonly shared: readonly EditorSharedSection[];
+  /** Interface texts this document shows (empty when it declares none). */
+  readonly uiTexts: readonly UiTextGroup[];
 }
 
 export type LocaleStatus = 'complete' | 'incomplete' | 'missing';

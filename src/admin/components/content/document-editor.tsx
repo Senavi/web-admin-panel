@@ -29,6 +29,7 @@ import { pageContentSchema } from '@/core/content/validation';
 import { pageSeoSchema } from '@/core/seo/page-seo';
 
 import { EditorProvider } from './editor-context';
+import { InterfaceTextsPanel } from './interface-texts-panel';
 import { RevisionsSheet } from './revisions-sheet';
 import { SectionFields } from './section-fields';
 import { SeoPanel } from './seo-panel';
@@ -313,6 +314,14 @@ export function DocumentEditor({
           )}
         </form>
       </FormProvider>
+      {/* Outside the form: interface texts save on their own. */}
+      <div className="mt-6">
+        <InterfaceTextsPanel
+          groups={data.uiTexts}
+          locale={data.locale}
+          localeLabel={locales.find((locale) => locale.code === data.locale)?.label ?? data.locale}
+        />
+      </div>
     </EditorProvider>
   );
 }

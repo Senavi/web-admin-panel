@@ -10,6 +10,8 @@ import path from 'node:path';
 import { contentRegistry as registry } from '@/core/content/project-registry';
 import { checkRoutes, type RouteFile } from '@/core/content/route-check';
 import { checkStorybookSlot, STORYBOOK_SLOT_FILE } from '@/core/storybook/slot';
+import { uiTextCatalog } from '@/core/ui-texts/project-catalog';
+import { checkUiTexts, type SourceFile } from '@/core/ui-texts/usage-check';
 
 const SITE_APP_DIR = path.join(process.cwd(), 'src', 'app', '(site)');
 
@@ -30,6 +32,33 @@ const problems = checkRoutes(
 
 problems.push(
   ...checkStorybookSlot(fs.existsSync(slotPath) ? fs.readFileSync(slotPath, 'utf8') : null),
+);
+
+// Interface texts: keys used in site code exist; every namespace used is declared somewhere.
+function readSources(dir: string): SourceFile[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    .filter((file) => /\.(tsx?|jsx?)$/.test(file))
+    .map((file) => ({
+      file: path.join(path.relative(process.cwd(), dir), file),
+      source: fs.readFileSync(path.join(dir, file), 'utf8'),
+    }));
+}
+const declaredUiTexts = new Set(
+  [
+    ...registry.pages.map((page) => page.uiTexts),
+    ...registry.globals.map((global) => global.uiTexts),
+    ...registry.collections.map((collection) => collection.uiTexts),
+    ...registry.forms.map((form) => form.uiTexts),
+  ].flatMap((namespaces) => namespaces ?? []),
+);
+problems.push(
+  ...checkUiTexts({
+    catalog: uiTextCatalog,
+    files: [...readSources(path.join(process.cwd(), 'src', 'site')), ...readSources(SITE_APP_DIR)],
+    declared: declaredUiTexts,
+  }),
 );
 
 // Shared sections: unknown ids already fail when the registry is built.

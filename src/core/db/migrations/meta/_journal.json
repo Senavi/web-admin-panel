@@ -36,6 +36,13 @@
       "when": 1791795179624,
       "tag": "0004_developer_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792152582722,
+      "tag": "0005_interface_texts",
+      "breakpoints": true
     }
   ]
 }

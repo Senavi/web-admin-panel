@@ -5,6 +5,7 @@ import { inArray } from 'drizzle-orm';
 import { projectConfig } from '@project/config';
 
 import { registry } from '@/content';
+import { uiTextCatalog } from '@/core/ui-texts/project-catalog';
 import { contentRegistry } from '@/core/content/project-registry';
 import { collectionItemStore } from '@/core/content/stores/table-store';
 import { ITEM_SECTION } from '@/core/content/collection';
@@ -120,6 +121,8 @@ function describeTarget(target: string, people: ReadonlyMap<string, string>): st
       const page = registry.byId(id);
       return `${page?.label ?? id}${extra ? ` (${extra})` : ''}`;
     }
+    case 'ui':
+      return `Interface texts · ${uiTextCatalog.namespaces[id]?.label ?? id}${extra ? ` (${extra})` : ''}`;
     case 'settings':
       return `Settings · ${[id, extra].filter(Boolean).join(' · ')}`;
     case 'session':

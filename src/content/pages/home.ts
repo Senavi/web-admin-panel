@@ -21,6 +21,7 @@ export const homePage = definePage({
   path: '/',
   label: 'Home',
   parent: null,
+  uiTexts: ['blog'],
   seo: {
     title: 'Home',
     description: 'A fast, accessible website with a custom admin panel.',

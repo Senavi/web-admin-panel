@@ -9,6 +9,7 @@ import { defineForm, FormFieldType } from '@/core/forms/define';
 export const contactForm = defineForm({
   id: 'contact',
   label: 'Contact form',
+  uiTexts: ['forms'],
   fields: {
     name: { type: FormFieldType.Text, required: true, max: 100, label: 'Name' },
     email: { type: FormFieldType.Email, required: true, label: 'Email' },

@@ -68,6 +68,8 @@ export interface CollectionInput<Id extends string, F extends FieldMap> {
   /** Item URL pattern, must start with the list page path, e.g. `/blog/:slug`. */
   readonly itemPath: `/${string}/:slug`;
   readonly fields: F;
+  /** Interface text namespaces the list and item pages show (shown in the item editor). */
+  readonly uiTexts?: readonly string[];
   /** Used for the admin table, default SEO title and slug suggestion. */
   readonly titleField: keyof F & string;
   /** Default meta description. */

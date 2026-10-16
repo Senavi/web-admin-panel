@@ -93,7 +93,7 @@ async function PagesSidebar() {
   }
 
   // Layout chrome (globals) and sections shared by several pages.
-  const everyPage = [
+  const everyPage: SidebarGroup['items'][number][] = [
     ...contentRegistry.globals.map((global) => ({
       id: global.id,
       label: global.label,
@@ -109,6 +109,12 @@ async function PagesSidebar() {
       };
     }),
   ];
+  everyPage.push({
+    id: 'interface-texts',
+    label: 'Interface texts',
+    href: pagesAreaHref(PagesArea.InterfaceTexts),
+    note: 'Buttons, messages and labels',
+  });
   if (everyPage.length > 0) {
     groups.push({ id: PagesArea.SiteWide, title: 'Every page', items: everyPage });
   }

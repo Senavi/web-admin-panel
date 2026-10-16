@@ -45,6 +45,8 @@ export interface FormInput<Id extends string, F extends FormFields> {
   /** Admin label, e.g. "Contact form". */
   readonly label: string;
   readonly fields: F;
+  /** Interface text namespaces the form shows (validation messages…). */
+  readonly uiTexts?: readonly string[];
   /** Registered page shown after a successful submission; inline success message otherwise. */
   readonly successRedirectPageId?: string;
   readonly seed?: Partial<Record<ProjectLocale, FormTextsSeed>>;

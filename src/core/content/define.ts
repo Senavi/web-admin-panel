@@ -125,6 +125,11 @@ export interface PageDefinition<Id extends string = string, S extends SectionLis
   /** Parent page id: builds the page tree in the admin. */
   readonly parent: string | null;
   readonly sections: S;
+  /**
+   * Interface text namespaces this page shows (`src/content/ui-texts.ts`), e.g. `['blog', 'common']`.
+   * They appear in the page editor under "Interface texts".
+   */
+  readonly uiTexts?: readonly string[];
   readonly seo: PageSeoDefaults;
   /** Initial content per locale (from the design). Used by `content:sync` and as fallback. */
   readonly seed?: Partial<Record<ProjectLocale, PageSeed<S>>>;

@@ -13,6 +13,8 @@ export interface GlobalDefinition<Id extends string = string, S extends SectionL
   /** Admin label, e.g. "Header & footer". */
   readonly label: string;
   readonly sections: S;
+  /** Interface text namespaces this global's pieces show (header/footer → `nav`, `common`…). */
+  readonly uiTexts?: readonly string[];
   readonly seed?: Partial<Record<ProjectLocale, PageSeed<S>>>;
 }
 

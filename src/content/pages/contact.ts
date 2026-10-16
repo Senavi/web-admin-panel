@@ -9,6 +9,7 @@ export const contactPage = definePage({
   id: 'contact',
   path: '/contact',
   label: 'Contact',
+  uiTexts: ['contact', 'forms'],
   parent: null,
   seo: {
     title: 'Contact',

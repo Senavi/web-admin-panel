@@ -32,6 +32,8 @@ export const PagesArea = {
   SiteWide: 'site-wide',
   Forms: 'forms',
   Shared: 'shared',
+  /** All interface texts of the site in one place. */
+  InterfaceTexts: 'interface-texts',
 } as const;
 export type PagesArea = (typeof PagesArea)[keyof typeof PagesArea];
 
