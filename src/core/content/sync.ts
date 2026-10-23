@@ -357,6 +357,8 @@ async function recordCodeUpdate(
       locale === SHARED_LOCALE ? projectConfig.defaultLocale : locale,
     ),
   );
+  // Explicit times: the "before" revision must sort before the update in the history.
+  const now = Date.now();
   for (const locale of locales) {
     const seo = { ...parsePageSeo((await target.store.readSeo(db, target.key, locale))?.data) };
     const history = await target.store.listRevisions(db, target.key, locale);
@@ -367,6 +369,7 @@ async function recordCodeUpdate(
         locale,
         { content: before.byLocale.get(locale) ?? {}, shared: before.shared ?? {}, seo },
         { id: null, name: BEFORE_CODE_UPDATE_AUTHOR },
+        new Date(now - 1000),
       );
     }
     await target.store.addRevision(
@@ -375,6 +378,7 @@ async function recordCodeUpdate(
       locale,
       { content: after.byLocale.get(locale) ?? {}, shared: after.shared ?? {}, seo },
       { id: null, name: CODE_UPDATE_AUTHOR },
+      new Date(now),
     );
     await target.store.pruneRevisions(db, target.key, locale, MAX_REVISIONS);
   }

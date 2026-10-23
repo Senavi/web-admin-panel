@@ -75,6 +75,8 @@ export interface DocumentStore {
     snapshot: RevisionSnapshot,
     /** `id` is null for system revisions (updates from code). */
     author: { readonly id: string | null; readonly name: string },
+    /** Defaults to now; set when several revisions are written at once (their order matters). */
+    createdAt?: Date,
   ): Promise<void>;
   /** Deletes all but the newest `keep` revisions of (key, locale). */
   pruneRevisions(db: Database, key: string, locale: string, keep: number): Promise<void>;

@@ -32,6 +32,9 @@ jobs:
       - name: Dependency audit (non-blocking)
         run: pnpm audit --audit-level=moderate
         continue-on-error: true
+      # Blocking: a release must not ship a runtime dependency with a critical advisory.
+      - name: Critical advisories in production dependencies (blocking)
+        run: pnpm audit --prod --audit-level=critical
 
   build-without-env:
     name: Build without env (preview mode)

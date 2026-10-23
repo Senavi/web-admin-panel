@@ -6,6 +6,35 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-23
+
+Security release: Next.js 16.4.1. No behavior changes.
+
+### Security
+
+- `next`, `@next/env` and `eslint-config-next` upgraded from 16.4.0 to **16.4.1**, which fixes:
+  - **critical** GHSA-673q-mjm6-r5xr: remote code execution in `use cache` functions returning
+    typed arrays (the template uses Cache Components, so every site was affected);
+  - **critical** GHSA-2464-fhr4-w9xw: remote code execution in the Image Optimization API with
+    SVG files (the template never enables `dangerouslyAllowSVG`; now covered by a unit and an
+    e2e test);
+  - **high** GHSA-p3m5-59mp-jv5r: denial of service in the App Router through Server Actions.
+- Uploaded files served by the local storage driver (`/api/media/*`, development and
+  self-hosting) keep their own sandboxing CSP: the site page CSP from `next.config.ts` no
+  longer replaces it (SVG logos are served with `sandbox` again).
+- CI: a blocking `pnpm audit --prod --audit-level=critical` step (the moderate-level audit
+  stays non-blocking). docs/SECURITY.md describes how to respond to a framework advisory.
+
+### Fixed
+
+- An update from code ("Before update from code" and "Update from code" revisions) is listed
+  in a stable order in the history.
+
+### Upgrading from 1.7.x (and older)
+
+**Update every project now:** `git fetch template --tags && git merge v1.7.2 && pnpm install`,
+then redeploy.
+
 ## [1.7.1] - 2026-10-23
 
 Team-friendly local databases and seeds.

@@ -112,13 +112,14 @@ function createTableStore(tables: TableSet): DocumentStore {
       return updated?.version ?? null;
     },
 
-    async addRevision(db, key, locale, snapshot, author) {
+    async addRevision(db, key, locale, snapshot, author, createdAt) {
       await db.insert(revisions).values({
         ...keyValue(key),
         locale,
         snapshot,
         authorId: author.id,
         authorName: author.name,
+        ...(createdAt ? { createdAt } : {}),
       });
     },
 

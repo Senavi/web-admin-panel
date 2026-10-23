@@ -43,8 +43,9 @@ const nextConfig: NextConfig = {
     return [
       { source: '/:path*', headers: baseSecurityHeaders() },
       // Static pages: CSP without nonces. Admin pages get a nonce CSP from the proxy.
+      // Uploaded files (`/api/media`) keep their own sandboxing CSP (SVG logos).
       {
-        source: `/((?!${admin}(?:/|$)|_next/static|_next/image).*)`,
+        source: `/((?!${admin}(?:/|$)|_next/static|_next/image|api/media/).*)`,
         headers: [{ key: CSP_HEADER, value: staticPageCsp(projectConfig.csp) }],
       },
     ];

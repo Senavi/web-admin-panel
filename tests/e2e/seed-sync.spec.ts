@@ -90,10 +90,14 @@ test.describe.serial('seed content follows the code', () => {
     // Restorable: the version before the reset is in the history.
     await page.getByRole('button', { name: 'History' }).click();
     const revisions = page.getByRole('list', { name: 'Revisions' }).getByRole('button');
-    await revisions.nth(1).click();
+    await revisions
+      .filter({ hasText: 'Update from code' })
+      .filter({ hasNotText: 'Before update from code' })
+      .click();
     await page.getByRole('button', { name: 'Restore this version' }).click();
     await expect(page.getByText('Revision restored.')).toBeVisible();
     await expect(leadBox(page)).toHaveValue('Written by the client');
+    await expect(titleBox(page)).toHaveValue(SEED_TITLE);
 
     // Nothing left to reset in a section that matches the code.
     await page.getByRole('button', { name: 'More actions' }).click();

@@ -84,6 +84,9 @@ summarized in CLAUDE.md.
 - SVG only for logos: sanitized with svgo + strict deny-list (scripts, event handlers,
   foreignObject, external references, entities); served with `Content-Security-Policy: sandbox`.
 - Local media is served with `nosniff` and a sandboxing CSP.
+- SVG never goes through the image optimizer (`/_next/image`): `images.dangerouslyAllowSVG`
+  stays off (unit test) and SVG logos render with `unoptimized` (e2e `svg-images.spec.ts`
+  checks the optimizer refuses an uploaded SVG).
 
 ## Headers
 
@@ -140,8 +143,20 @@ days are deleted. Raw events are deleted after the retention period.
 
 ## Dependencies
 
-Lockfile committed; pnpm build scripts allow-listed; `pnpm audit` in CI (non-blocking for
-low severity).
+Lockfile committed; pnpm build scripts allow-listed. CI runs `pnpm audit --audit-level=moderate`
+(non-blocking, for awareness) and `pnpm audit --prod --audit-level=critical` (**blocking**: a
+template release can't ship a runtime dependency with a critical advisory).
+
+### Responding to a framework advisory (Next.js, React, Better Auth…)
+
+1. Template: upgrade the affected package to the patched version (exact pin, lockfile), read its
+   release notes, run all gates including `pnpm e2e:prod` and `pnpm e2e:preview`, and release a
+   **patch version** whose CHANGELOG has a Security section with the advisory IDs (e.g. v1.7.2).
+2. Every project built on the template: `git fetch template --tags && git merge vX.Y.Z &&
+pnpm install`, run the checks, and redeploy. Do this before any other work; projects on
+   older template versions merge the patch release on top.
+3. If a project can't merge yet, bump just the affected package to the same version in its
+   `package.json` and redeploy, then merge the release later.
 
 ## Known limitations
 

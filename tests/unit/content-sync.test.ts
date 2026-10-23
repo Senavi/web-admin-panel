@@ -122,6 +122,8 @@ describe('content:sync with seed provenance', () => {
     const before = revisions.find((revision) => revision.authorName === BEFORE_CODE_UPDATE_AUTHOR);
     expect((before?.snapshot.content as ContentRecord).intro?.title).toBe('Old seed title');
     expect(revisions.every((revision) => revision.authorId === null)).toBe(true);
+    const after = revisions.find((revision) => revision.authorName === CODE_UPDATE_AUTHOR);
+    expect(before!.createdAt.getTime()).toBeLessThan(after!.createdAt.getTime());
 
     // One audit entry for the whole sync, no values in it.
     const entries = await db
