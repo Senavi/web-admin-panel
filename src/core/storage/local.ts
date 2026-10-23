@@ -1,11 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DATA_DIR } from '@/core/db/paths';
+import { UPLOADS_DIR } from '@/core/db/paths';
 
 import { assertSafeKey, MEDIA_ROUTE_PREFIX, type StorageAdapter } from './types';
 
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const META_SUFFIX = '.meta.json';
 
 /** Files in `.data/uploads`, served by `/api/media/[...key]`. Development / self-hosting only. */

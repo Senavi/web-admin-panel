@@ -17,6 +17,8 @@ export const AuditAction = {
   UserSessionsRevoke: 'user.sessions.revoke',
   ContentSave: 'content.save',
   ContentRestore: 'content.restore',
+  ContentCodeUpdate: 'content.code_update',
+  ContentReset: 'content.reset',
   ItemCreate: 'collection.item.create',
   ItemPublish: 'collection.item.publish',
   ItemUnpublish: 'collection.item.unpublish',

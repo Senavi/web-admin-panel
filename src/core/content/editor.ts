@@ -47,7 +47,7 @@ interface LoadedValues {
 }
 
 /** Stored values of one document in a locale with the full fallback chain (editor view). */
-async function loadValues(
+export async function loadValues(
   db: Database,
   schema: ContentSchema,
   store: DocumentStore,
@@ -193,6 +193,7 @@ export async function loadEditorData(
     publicUrl: document.publicPath(locale, defaultLocale),
     shared,
     uiTexts,
+    hasCodeDefaults: document.codeSchema !== null,
   };
 }
 

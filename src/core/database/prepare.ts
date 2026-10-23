@@ -10,7 +10,8 @@ import { enableRowLevelSecurity, ensureStorageBucket } from './supabase-connect'
  * Deploy step after migrations (`pnpm db:migrate:deploy`), so a fresh Supabase
  * project works with only DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY (SUPABASE_URL is derived):
  * Row Level Security on every table, the media bucket, then default settings and
- * the demo content (missing data only; edited content is never overwritten).
+ * the content (missing data, and never-edited texts follow seed changes;
+ * edited content is never overwritten).
  * Idempotent; returns what it did for the build log.
  */
 export async function prepareDatabase(db: Database): Promise<string[]> {
@@ -27,6 +28,6 @@ export async function prepareDatabase(db: Database): Promise<string[]> {
     done.push(`storage bucket "${SUPABASE_STORAGE_BUCKET}"`);
   }
   await runSeed(db, { seedDevAdmin: false });
-  done.push('default settings and demo content (missing data only)');
+  done.push('default settings and content (missing data; never-edited texts follow the code)');
   return done;
 }

@@ -58,6 +58,14 @@ export interface EditorData {
   readonly shared: readonly EditorSharedSection[];
   /** Interface texts this document shows (empty when it declares none). */
   readonly uiTexts: readonly UiTextGroup[];
+  /** "Reset to code defaults" is offered (false for collection items people created). */
+  readonly hasCodeDefaults: boolean;
+}
+
+/** One field a reset to code defaults would change (confirmation list). */
+export interface CodeDefaultsChange {
+  readonly section: string;
+  readonly field: string;
 }
 
 export type LocaleStatus = 'complete' | 'incomplete' | 'missing';

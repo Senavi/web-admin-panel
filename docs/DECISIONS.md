@@ -820,3 +820,34 @@ submissions saved before a provider was connected are sent by the retry job once
 warning appears in Settings → Requests and on the Overview when email is connected but nobody
 receives requests; Security lists integration problems (unreadable credentials, a failed
 test email).
+
+## v1.7.1: team-friendly local databases
+
+### D-095 Seed provenance: never-edited content follows the code
+
+`content:sync` used to fill only what was missing, so after a teammate fixed a seed text, every
+database where that page already existed kept the old text, the live site included. Now each
+content row (page, shared section, global, form texts, seed collection item; per language and
+`_shared`) has a `content_seed_state` row: `"section.field"` → hash of the seed value last
+applied. On sync, a field whose stored value still hashes to that value was never edited, so it
+takes the new seed; any other value is an edit and is kept. Hashes ignore list item keys and
+use the same normalization as the editor's save, so saving a page without touching a field
+doesn't make it look edited. The newest seed hash is always recorded, which also makes the
+first sync after upgrading a no-op (fields without a recorded hash are only recorded). Seed
+images carry the SHA-256 of their file (`media.seed_asset_hash`): a changed file is imported
+again (the old image stays in the library without the seed name) and untouched image fields
+move to it through the same rule. Updates are written as system revisions (author "Update from
+code", plus "Before update from code" when the document had no history), so they can be
+restored; the audit log gets one summary entry per sync, not one per field. Interface texts need
+nothing: only edits are stored, the message files are read at runtime (D-091).
+
+"Reset to code defaults" is the manual counterpart: a server action (Zod, `PagesEdit`, audit,
+conflict check) that saves the code defaults (language seed → main language seed → field
+defaults) for one language, for all own sections or one section (a shared section is reset in
+its own document), as a normal revision. Items people created have no seed and no reset.
+
+`pnpm db:reset` restarts a local database from the code. It refuses production and any
+`DATABASE_URL`/`DIRECT_URL` (a remote database is never reset; a local Postgres is not what the
+command manages) and stops while `pnpm dev` holds the PGlite lock. The Connect Supabase wizard
+now says that a team leaves "Copy my local content" off and shows what the online database
+already holds (copying only adds missing rows, D-052).

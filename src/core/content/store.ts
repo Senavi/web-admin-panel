@@ -12,6 +12,9 @@ import type { ContentRecord, StoredRows } from './values';
  * Every method also accepts a transaction (a Drizzle transaction is a `Database`).
  */
 
+/** Revisions kept per (document, locale); older ones are pruned on save. */
+export const MAX_REVISIONS = 20;
+
 /** Content rows of one document: shared + localized values with their versions. */
 export interface DocumentRows {
   readonly shared: ContentRecord | undefined;
@@ -70,7 +73,8 @@ export interface DocumentStore {
     key: string,
     locale: string,
     snapshot: RevisionSnapshot,
-    author: { readonly id: string; readonly name: string },
+    /** `id` is null for system revisions (updates from code). */
+    author: { readonly id: string | null; readonly name: string },
   ): Promise<void>;
   /** Deletes all but the newest `keep` revisions of (key, locale). */
   pruneRevisions(db: Database, key: string, locale: string, keep: number): Promise<void>;

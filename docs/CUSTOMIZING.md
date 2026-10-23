@@ -178,6 +178,11 @@ Directives: `scriptSrc`, `styleSrc`, `imgSrc`, `fontSrc`, `connectSrc`, `frameSr
 `'unsafe-eval'`, `'unsafe-hashes'`, scheme-wide script sources (`https:`, `data:` in
 `scriptSrc`) and malformed values fail at startup with a clear error.
 
+## Working in a team
+
+Several people, each with a local database, one repository: see [TEAM.md](TEAM.md) (branches,
+final texts in seeds, `pnpm db:reset`, which online database each branch uses).
+
 ## Pulling template updates
 
 The template uses semantic versioning (`CHANGELOG.md`, git tags `vX.Y.Z`).

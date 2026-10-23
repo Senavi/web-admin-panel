@@ -1,6 +1,7 @@
 /**
  * Seeds missing pages / fields from the content schema without overwriting
- * edited content, imports seed images, and reports orphaned fields.
+ * edited content, moves never-edited fields to changed seeds ("updated from
+ * code", D-095), imports seed images, and reports orphaned fields.
  *
  *   pnpm content:sync
  */
@@ -22,6 +23,8 @@ runScript(async () => {
     );
     console.info(`  fields filled:    ${report.filled.length}`);
     for (const item of report.filled) console.info(`    + ${item}`);
+    console.info(`  updated from code: ${report.updated.length} (never edited by a person)`);
+    for (const item of report.updated) console.info(`    ~ ${item}`);
     console.info(
       `  images imported:  ${report.assetsImported.length ? report.assetsImported.join(', ') : 'none'}`,
     );

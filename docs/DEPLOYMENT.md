@@ -20,7 +20,8 @@ runs in production.
    ([connection types](#which-connection-string)).
 5. **Redeploy** (Deploys → Trigger deploy). The build runs `pnpm db:migrate:deploy`:
    migrations, then `pnpm db:prepare` (Row Level Security on every table, the `media`
-   bucket, default settings and the demo content). Then create your admin
+   bucket, default settings and the content from the code; later deploys update texts nobody
+   edited when their seed changed, D-095). Then create your admin
    ([§ 5](#5-first-admin-in-production)) and sign in at your admin path.
 
 The site address comes from the platform (`URL` / `DEPLOY_PRIME_URL` on Netlify,
@@ -123,6 +124,10 @@ In developer mode the admin's **Security** page shows where the sign-in secret c
    `/api/cron/maintenance` daily with `CRON_SECRET`.
 
 ## Preview deploys
+
+For a team (`main` live, `dev` for testing, a branch per task) see [TEAM.md](TEAM.md): `dev`
+and pull-request previews normally run in preview mode; an optional staging Supabase project
+for `dev` uses the setup below.
 
 `pnpm db:migrate:deploy` decides whether to migrate from the platform context:
 

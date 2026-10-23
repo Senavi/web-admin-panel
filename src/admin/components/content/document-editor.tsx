@@ -3,8 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangleIcon,
+  EllipsisIcon,
   ExternalLinkIcon,
   Loader2Icon,
+  RotateCcwIcon,
   SaveIcon,
   Undo2Icon,
 } from 'lucide-react';
@@ -20,6 +22,12 @@ import { confirmLeave, useUnsavedGuard } from '@/admin/hooks/use-unsaved-guard';
 import { Alert, AlertDescription, AlertTitle } from '@/admin/ui/alert';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/admin/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import { ActionErrorCode, type ActionResult } from '@/core/actions/result';
 import { saveDocumentAction, type RevisionPreview } from '@/core/content/actions';
@@ -28,6 +36,7 @@ import type { EditorData, EditorVersions } from '@/core/content/editor-types';
 import { pageContentSchema } from '@/core/content/validation';
 import { pageSeoSchema } from '@/core/seo/page-seo';
 
+import { CodeDefaultsDialog, type CodeDefaultsResult } from './code-defaults-dialog';
 import { EditorProvider } from './editor-context';
 import { InterfaceTextsPanel } from './interface-texts-panel';
 import { RevisionsSheet } from './revisions-sheet';
@@ -108,6 +117,8 @@ export function DocumentEditor({
   );
   const [conflict, setConflict] = useState<string | null>(null);
   const [tab, setTab] = useState<string>('content');
+  const [resetOpen, setResetOpen] = useState(false);
+  const localeLabel = locales.find((locale) => locale.code === data.locale)?.label ?? data.locale;
   const { isDirty, isSubmitting } = form.formState;
   const hydrated = useHydrated();
   useUnsavedGuard(isDirty);
@@ -172,6 +183,18 @@ export function DocumentEditor({
     router.refresh();
   };
 
+  /** After "Reset to code defaults": the last saved values with the reset sections replaced. */
+  const onCodeDefaults = (result: CodeDefaultsResult) => {
+    if (result.sharedId) {
+      const id = result.sharedId;
+      setSharedVersions((current) => ({ ...current, [id]: result.versions }));
+    } else setVersions(result.versions);
+    setConflict(null);
+    const saved = form.formState.defaultValues as EditorValues;
+    form.reset({ ...saved, content: { ...saved.content, ...result.content } });
+    router.refresh();
+  };
+
   const switchLocale = (code: string) => {
     if (code === data.locale || !confirmLeave(isDirty)) return;
     router.push(`${basePath}${basePath.includes('?') ? '&' : '?'}locale=${code}`);
@@ -223,6 +246,28 @@ export function DocumentEditor({
               </Button>
             ) : null}
             {actions}
+            {data.hasCodeDefaults ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="More actions"
+                    />
+                  }
+                >
+                  <EllipsisIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem onClick={() => setResetOpen(true)}>
+                    <RotateCcwIcon />
+                    Reset to code defaults…
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             <RevisionsSheet
               data={data}
               versions={versions}
@@ -314,13 +359,22 @@ export function DocumentEditor({
           )}
         </form>
       </FormProvider>
+      {data.hasCodeDefaults ? (
+        <CodeDefaultsDialog
+          open={resetOpen}
+          onOpenChange={setResetOpen}
+          data={data}
+          versions={versions}
+          sharedVersions={sharedVersions}
+          dirty={isDirty}
+          localeLabel={localeLabel}
+          onReset={onCodeDefaults}
+          onConflict={setConflict}
+        />
+      ) : null}
       {/* Outside the form: interface texts save on their own. */}
       <div className="mt-6">
-        <InterfaceTextsPanel
-          groups={data.uiTexts}
-          locale={data.locale}
-          localeLabel={locales.find((locale) => locale.code === data.locale)?.label ?? data.locale}
-        />
+        <InterfaceTextsPanel groups={data.uiTexts} locale={data.locale} localeLabel={localeLabel} />
       </div>
     </EditorProvider>
   );

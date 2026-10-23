@@ -79,3 +79,25 @@ export const pageRevisions = pgTable(
     ),
   ],
 );
+
+/**
+ * Seed provenance (D-095): per document row (`scope` + key + locale) the hash of
+ * the seed value last applied to each field (`"section.field"` → hash). A field
+ * whose stored value still matches it was never edited by a person, so
+ * `content:sync` may move it to a newer seed; edited fields are never touched.
+ */
+export const contentSeedState = pgTable(
+  'content_seed_state',
+  {
+    /** Which store the key belongs to: `page` (pages, globals, forms, shared) or `item`. */
+    scope: text('scope').notNull(),
+    documentKey: text('document_key').notNull(),
+    locale: text('locale').notNull(),
+    hashes: jsonb('hashes')
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.scope, table.documentKey, table.locale] })],
+);

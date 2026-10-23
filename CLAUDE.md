@@ -76,9 +76,10 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 | `pnpm dev`                                                               | Zero-config dev server (local PGlite DB, seeded demo, dev admin in `.data/dev-admin-credentials.txt`) |
 | `pnpm build` / `pnpm start`                                              | Production build (no env → preview mode; with Supabase: 2 variables, docs/DEPLOYMENT.md)              |
 | `pnpm typecheck` · `lint` · `format` · `test` · `e2e`                    | Quality gates                                                                                         |
-| `pnpm content:sync` · `content:check`                                    | Seed missing content / verify routes ↔ registry                                                       |
+| `pnpm content:sync` · `content:check`                                    | Seed missing content, update never-edited texts from changed seeds / verify routes ↔ registry         |
 | `pnpm tokens:generate` · `tokens:check`                                  | Regenerate token TS / enforce the token rule                                                          |
 | `pnpm db:generate` · `db:migrate` · `db:seed` · `db:studio` · `db:serve` | Database                                                                                              |
+| `pnpm db:reset [--yes]`                                                  | Local only: delete `.data` database/uploads/mail, migrate, seed, print the new dev admin              |
 | `pnpm admin:create`                                                      | Create an admin/manager (no public sign-up)                                                           |
 | `pnpm e2e:prod` · `e2e:preview` · `check:bundles`                        | E2E against a production build / without any env (preview mode) / no admin code in site bundles       |
 
@@ -89,6 +90,10 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 2. UI changes are verified in a browser; e2e covers new user-facing behavior.
 3. No `any`, no magic strings (use constants), no copy-pasted logic.
 4. Docs updated when behavior or conventions change; decisions go in `docs/DECISIONS.md`.
+
+Team workflow (docs/TEAM.md): final texts live in seeds (local admin edits stay local);
+`content:sync` updates never-edited fields when a seed changes, so fix default texts in the
+seed, not in a database.
 
 Non-content public routes must be listed in `projectConfig.siteRoutes` (otherwise 404).
 

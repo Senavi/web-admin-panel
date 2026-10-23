@@ -21,6 +21,16 @@ Open http://localhost:3000 (site) and http://localhost:3000/stst-admin (admin; t
 `adminPath` in `project.config.ts`). The development
 admin's credentials are written to `.data/dev-admin-credentials.txt` on the first run.
 
+To start your local database over from the code (deletes local content, users, images and
+emails, then prints a new admin password), stop `pnpm dev` and run:
+
+```bash
+pnpm db:reset
+```
+
+Working with other people? Read [docs/TEAM.md](docs/TEAM.md) (branches, local databases,
+seeds, online databases).
+
 If `pnpm dev` keeps reloading the page right after `pnpm build` (which shares `.next`), stop
 it, delete `.next/dev` and start it again. `pnpm preview` and `pnpm e2e:prod` use their own
 folders and don't affect it.
@@ -81,6 +91,7 @@ pnpm e2e:prod     # Playwright against a production build
 | [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md)       | Starting a new project from this template |
 | [docs/DESIGN_TOKENS.md](docs/DESIGN_TOKENS.md)   | The site's design token system            |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)         | Supabase, Vercel and Netlify setup        |
+| [docs/TEAM.md](docs/TEAM.md)                     | Working as a team: branches and databases |
 | [docs/SECURITY.md](docs/SECURITY.md)             | Threat model and mitigations              |
 | [docs/DECISIONS.md](docs/DECISIONS.md)           | Architecture decision log                 |
 | [CLAUDE.md](CLAUDE.md)                           | Rules for AI agents working in this repo  |

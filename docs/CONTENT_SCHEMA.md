@@ -411,12 +411,35 @@ the main language's edit and file, then English (D-091). Cache tag `ui:{namespac
 like `{date}` must stay in the text. `pnpm content:check` verifies the keys used in site code
 and the declarations.
 
+## Seeds after launch
+
+Seeds are not only for the first start. `content:sync` (every `pnpm dev`, every deploy)
+remembers, per field and language, which seed value it last applied (`content_seed_state`,
+D-095):
+
+- a field whose value is still that seed value (nobody edited it) **follows a changed seed**:
+  fixing a typo in a seed fixes it on every database where that text was never edited, the
+  live site included; a replaced seed image (new file, or new bytes under the same name) is
+  imported again and used wherever the old one was untouched;
+- a field someone edited is **never touched**;
+- every update is a system revision ("Update from code") that can be restored from
+  **History**, and the sync writes one activity-log entry;
+- the first sync after upgrading to 1.7.1 only records the current seeds and changes nothing.
+
+Interface texts (`src/site/messages/*.json`) always follow the code: only edits are stored.
+
+**Reset to code defaults** (editor → ⋯): puts the code's values back in the current language,
+for all sections or one (a shared section changes on every page that uses it). It lists the
+fields that will change, saves a normal revision (undo from History) and is logged. Not offered
+for collection items people created (they have no seed).
+
 ## Commands
 
-| Command              | What it does                                                                                                                                                                                                                                                                                                               |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm content:sync`  | Imports seed images, creates missing rows and fills **missing** fields from seeds/defaults (pages, globals, form texts), and creates seed collection items once (deleted or renamed seed items don't come back). Never overwrites edited content. Reports orphaned fields without deleting them. Runs on every `pnpm dev`. |
-| `pnpm content:check` | Fails when a registered page or collection has no route, a route uses an unregistered page/collection, or paths differ. Globals and forms need no routes. Also checks the interface texts (keys used in site code exist in `en.json`, every used namespace is declared by a page, global, collection or form). Runs in CI.                                                                                                                                                      |
+| Command              | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm content:sync`  | Imports seed images (again when a seed file changed), creates missing rows and fills **missing** fields from seeds/defaults (pages, shared sections, globals, form texts, seed collection items), and creates seed collection items once (deleted or renamed seed items don't come back). A field nobody edited follows a changed seed ("updated from code", see [Seeds after launch](#seeds-after-launch)); edited content is never overwritten. Reports orphaned fields without deleting them. Runs on every `pnpm dev` and deploy. |
+| `pnpm db:reset`      | Local only: deletes the local database, uploads and dev emails, then fills everything again from the code (prints the new dev admin). Refuses when `DATABASE_URL` is set or in production.                                                                                                                                                                                                                                                                                                                                            |
+| `pnpm content:check` | Fails when a registered page or collection has no route, a route uses an unregistered page/collection, or paths differ. Globals and forms need no routes. Also checks the interface texts (keys used in site code exist in `en.json`, every used namespace is declared by a page, global, collection or form). Runs in CI.                                                                                                                                                                                                            |
 
 ## Adding a page (checklist)
 

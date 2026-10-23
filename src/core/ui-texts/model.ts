@@ -2,7 +2,7 @@
  * Interface texts: the small texts of the public site ("Read more", form
  * messages, "Menu"…). Defaults live in the project's message files
  * (`src/site/messages/<locale>.json`); admins override them per language.
- * Pure (client-safe). docs/DECISIONS.md D-090.
+ * Pure (client-safe). docs/DECISIONS.md D-091.
  */
 
 /** Messages as next-intl reads them: `{ namespace: { key: text | { nested: text } } }`. */

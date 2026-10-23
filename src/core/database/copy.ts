@@ -25,6 +25,7 @@ export const COPY_TABLES = [
   schema.collectionItemRevisions,
   schema.collectionSlugRedirects,
   schema.collectionSeedLog,
+  schema.contentSeedState,
   schema.formSubmissions,
   schema.uiTexts,
   schema.uiTextRevisions,

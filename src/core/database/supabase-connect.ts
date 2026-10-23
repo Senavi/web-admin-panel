@@ -4,13 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { createClient } from '@supabase/supabase-js';
-import { sql } from 'drizzle-orm';
+import { getTableName, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { z } from 'zod';
 
 import { getDb } from '@/core/db/client';
 import { migratePostgres, openPostgres } from '@/core/db/drivers/postgres';
-import { media } from '@/core/db/schema';
+import { collectionItems, formSubmissions, media, pageContent, users } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import { FAVICON_FILES, faviconKey } from '@/core/media/favicon';
 import { createLocalStorage } from '@/core/storage/local';
@@ -19,6 +19,7 @@ import { createSupabaseStorage } from '@/core/storage/supabase';
 import { connectionErrorHint, deriveSupabaseUrl, migrationUrl } from '@/core/db/connection-info';
 
 import { appTableNames, copyTables } from './copy';
+import type { RemoteContentSummary } from './remote-summary';
 
 const postgresUrl = z
   .string()
@@ -130,6 +131,52 @@ export async function testSupabaseConnection(input: SupabaseConnection): Promise
 /** Step 3: apply the committed migrations through the direct connection. */
 export async function migrateSupabase(input: SupabaseConnection): Promise<void> {
   await migratePostgres(input.directUrl);
+}
+
+const SUMMARY_TABLES = {
+  users: getTableName(users),
+  contentRows: getTableName(pageContent),
+  items: getTableName(collectionItems),
+  images: getTableName(media),
+  submissions: getTableName(formSubmissions),
+} as const satisfies Record<keyof RemoteContentSummary, string>;
+
+/**
+ * Counts what the target already holds, before "Copy my local content" (tables
+ * that don't exist yet count as 0). Read-only.
+ */
+export async function remoteContentSummary(
+  input: SupabaseConnection,
+): Promise<RemoteContentSummary> {
+  const client = postgres(input.directUrl, {
+    prepare: false,
+    max: 1,
+    connect_timeout: 10,
+    onnotice: () => undefined,
+  });
+  try {
+    const counts: Record<keyof RemoteContentSummary, number> = {
+      users: 0,
+      contentRows: 0,
+      items: 0,
+      images: 0,
+      submissions: 0,
+    };
+    for (const key of Object.keys(SUMMARY_TABLES) as Array<keyof RemoteContentSummary>) {
+      const table = SUMMARY_TABLES[key];
+      const [exists] = await client<
+        Array<{ found: string | null }>
+      >`select to_regclass(${`public.${table}`})::text as found`;
+      if (!exists?.found) continue;
+      const [row] = await client<
+        Array<{ total: number }>
+      >`select count(*)::int as total from ${client(table)}`;
+      counts[key] = row?.total ?? 0;
+    }
+    return counts;
+  } finally {
+    await client.end({ timeout: 5 });
+  }
 }
 
 /** Step 4: copy local data and uploaded files. */

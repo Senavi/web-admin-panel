@@ -18,6 +18,8 @@ export const media = pgTable(
     originalName: text('original_name'),
     /** Set for images imported from `src/content/seed/assets` by `content:sync`. */
     seedAsset: text('seed_asset').unique(),
+    /** SHA-256 of the seed file it was imported from (a changed file is imported again). */
+    seedAssetHash: text('seed_asset_hash'),
     uploadedBy: text('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

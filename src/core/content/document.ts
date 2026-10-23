@@ -10,7 +10,7 @@ import { findItem, itemText, readItemRows } from '@/core/collections/repository'
 import { getDb } from '@/core/db/client';
 import { localizedPath } from '@/core/i18n/routing';
 
-import { collectionItemPath, CollectionItemStatus } from './collection';
+import { collectionItemPath, CollectionItemStatus, itemSeedSchema } from './collection';
 import { type ContentSchema, type SectionList, seoDefaultsFor } from './define';
 import { ownSchema, sharedKey } from './shared-section';
 import { globalKey } from './global';
@@ -41,6 +41,11 @@ export interface ContentDocument {
   readonly label: string;
   /** What this document stores (a page's own sections; shared sections are stored once). */
   readonly schema: ContentSchema;
+  /**
+   * Schema whose seed holds this document's code defaults ("Reset to code
+   * defaults"); null for collection items people created (they have no seed).
+   */
+  readonly codeSchema: ContentSchema | null;
   /** Sections shown in the editor, in site order (a page's own and shared sections). */
   readonly displaySections?: SectionList;
   readonly store: DocumentStore;
@@ -65,6 +70,7 @@ function pageDocument(id: string): ContentDocument | null {
     key: page.id,
     label: page.label,
     schema: ownSchema(page),
+    codeSchema: ownSchema(page),
     displaySections: page.sections,
     store: pageStore,
     hasSeo: true,
@@ -99,11 +105,14 @@ async function itemDocument(collectionId: string, itemId: string): Promise<Conte
     itemText(collection, rows, field, locale, defaultLocale);
   const title = text(collection.titleField, defaultLocale);
   const published = item.status === CollectionItemStatus.Published;
+  // Seed items keep their seed slug; items people created have no code defaults.
+  const seed = collection.seed?.find((entry) => entry.slug === item.slug);
   return {
     target: { kind: DocumentKind.Item, collectionId, itemId },
     key: item.id,
     label: title || untitledItemLabel(collection.itemLabel),
     schema: collection.schema,
+    codeSchema: seed ? itemSeedSchema(collection, seed) : null,
     store: collectionItemStore,
     hasSeo: true,
     seoDefaults: (locale) => ({
@@ -131,6 +140,7 @@ function globalDocument(id: string): ContentDocument | null {
     key: globalKey(global.id),
     label: global.label,
     schema: global,
+    codeSchema: global,
     store: pageStore,
     hasSeo: false,
     seoDefaults: () => NO_SEO_DEFAULTS,
@@ -148,6 +158,7 @@ function formDocument(id: string): ContentDocument | null {
     key: formKey(form.id),
     label: form.label,
     schema: form.texts,
+    codeSchema: form.texts,
     store: pageStore,
     hasSeo: false,
     seoDefaults: () => NO_SEO_DEFAULTS,
@@ -165,6 +176,7 @@ function sharedDocument(id: string): ContentDocument | null {
     key: sharedKey(shared.id),
     label: shared.label,
     schema: shared.schema,
+    codeSchema: shared.schema,
     store: pageStore,
     hasSeo: false,
     seoDefaults: () => NO_SEO_DEFAULTS,

@@ -1,6 +1,6 @@
 {
   "name": "site-starter",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "type": "module",
   "description": "Reusable Next.js site starter with a schema-driven custom admin panel.",
@@ -23,6 +23,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=react-server scripts/db-migrate.ts",
     "db:seed": "tsx --conditions=react-server scripts/db-seed.ts",
+    "db:reset": "tsx --conditions=react-server scripts/db-reset.ts",
     "db:studio": "drizzle-kit studio",
     "admin:create": "tsx --conditions=react-server scripts/admin-create.ts",
     "e2e:prepare": "tsx --conditions=react-server scripts/e2e-prepare.ts",

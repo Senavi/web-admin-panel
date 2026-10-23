@@ -19,6 +19,8 @@ const LABELS: Record<AuditAction, string> = {
   [AuditAction.UserSessionsRevoke]: 'Revoked a user’s sessions',
   [AuditAction.ContentSave]: 'Saved content',
   [AuditAction.ContentRestore]: 'Restored a revision',
+  [AuditAction.ContentCodeUpdate]: 'Updated untouched content from code',
+  [AuditAction.ContentReset]: 'Reset content to code defaults',
   [AuditAction.ItemCreate]: 'Created an item',
   [AuditAction.ItemPublish]: 'Published an item',
   [AuditAction.ItemUnpublish]: 'Unpublished an item',
@@ -56,6 +58,8 @@ const VERBS: Record<AuditAction, string> = {
   [AuditAction.UserSessionsRevoke]: 'signed out every device of',
   [AuditAction.ContentSave]: 'changed',
   [AuditAction.ContentRestore]: 'restored an earlier version of',
+  [AuditAction.ContentCodeUpdate]: 'updated texts nobody had edited',
+  [AuditAction.ContentReset]: 'reset to code defaults',
   [AuditAction.ItemCreate]: 'created',
   [AuditAction.ItemPublish]: 'published',
   [AuditAction.ItemUnpublish]: 'unpublished',
@@ -84,6 +88,7 @@ const NO_TARGET = new Set<string>([
   AuditAction.MediaDelete,
   AuditAction.SettingsSave,
   AuditAction.DatabaseConnect,
+  AuditAction.ContentCodeUpdate,
 ]);
 
 /**
@@ -97,7 +102,8 @@ export function auditSentence(
   self = false,
 ): string {
   const verb = (VERBS as Record<string, string>)[action];
-  const who = actor ?? 'Someone';
+  // `content:sync` has no actor: the update comes from the project's code.
+  const who = actor ?? (action === AuditAction.ContentCodeUpdate ? 'The code' : 'Someone');
   if (self && action === AuditAction.UserUpdate) return `${who} updated their account`;
   if (!verb) return `${who}: ${auditActionLabel(action)}${target ? ` · ${target}` : ''}`;
   return target && !NO_TARGET.has(action) ? `${who} ${verb} ${target}` : `${who} ${verb}`;

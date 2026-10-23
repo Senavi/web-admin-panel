@@ -1,17 +1,25 @@
 import 'server-only';
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { projectConfig } from '@project/config';
 
-import { collectionItems, collectionSeedLog, SHARED_LOCALE } from '@/core/db/schema';
+import {
+  collectionItems,
+  collectionSeedLog,
+  contentSeedState,
+  media,
+  SHARED_LOCALE,
+} from '@/core/db/schema';
 import { SEED_ASSETS_DIR } from '@/core/db/paths';
 import type { Database } from '@/core/db/types';
 import { ingestImage } from '@/core/media/ingest';
-import { seedAssetIds } from '@/core/media/resolve';
+import { parsePageSeo } from '@/core/seo/page-seo';
+import { AuditAction, writeAudit } from '@/core/security/audit';
 import type { StorageAdapter } from '@/core/storage/types';
 
 import { CollectionItemStatus, itemSeedSchema } from './collection';
@@ -20,7 +28,8 @@ import { globalKey } from './global';
 import { type AnySharedSection, ownSchema, sharedKey } from './shared-section';
 import { formKey } from '@/core/forms/define';
 import { contentRegistry as registry } from './project-registry';
-import type { DocumentStore } from './store';
+import { planSeedRow, type SeedHashes } from './seed-provenance';
+import { type DocumentStore, MAX_REVISIONS } from './store';
 import { collectionItemStore, pageStore } from './stores/table-store';
 import {
   type ContentRecord,
@@ -38,6 +47,8 @@ export interface SyncReport {
   readonly created: string[];
   /** `page:locale:section.field` values filled in existing rows. */
   readonly filled: string[];
+  /** `page:locale:section.field` untouched values moved to a changed seed ("updated from code"). */
+  readonly updated: string[];
   /** `page:locale:section.field` stored values no longer in the schema (not deleted). */
   readonly orphans: string[];
   readonly assetsImported: string[];
@@ -53,6 +64,7 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     itemsCreated: [],
     created: [],
     filled: [],
+    updated: [],
     orphans: [],
     assetsImported: [],
   };
@@ -60,7 +72,7 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     await syncDocument(
       db,
       storage,
-      { label: page.id, key: page.id, schema: ownSchema(page), store: pageStore },
+      { label: page.id, key: page.id, schema: ownSchema(page), ...PAGE_STORE },
       report,
     );
   }
@@ -68,7 +80,7 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     await syncDocument(
       db,
       storage,
-      { label: globalKey(global.id), key: globalKey(global.id), schema: global, store: pageStore },
+      { label: globalKey(global.id), key: globalKey(global.id), schema: global, ...PAGE_STORE },
       report,
     );
   }
@@ -76,7 +88,7 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     await syncDocument(
       db,
       storage,
-      { label: formKey(form.id), key: formKey(form.id), schema: form.texts, store: pageStore },
+      { label: formKey(form.id), key: formKey(form.id), schema: form.texts, ...PAGE_STORE },
       report,
     );
   }
@@ -86,7 +98,7 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
     await syncDocument(
       db,
       storage,
-      { label: key, key, schema: shared.schema, store: pageStore },
+      { label: key, key, schema: shared.schema, ...PAGE_STORE },
       report,
     );
   }
@@ -102,14 +114,40 @@ export async function syncContent(db: Database, storage: StorageAdapter): Promis
           label: `${collection.id}/${seed.slug}`,
           key: itemId.id,
           schema: itemSeedSchema(collection, seed),
-          store: collectionItemStore,
+          ...ITEM_STORE,
         },
         report,
       );
     }
   }
+  if (report.updated.length > 0) {
+    // One summary entry per sync (each document also gets a system revision).
+    await writeAudit(db, {
+      action: AuditAction.ContentCodeUpdate,
+      target: 'content:sync',
+      summary: {
+        fields: report.updated.length,
+        documents: updatedDocuments(report),
+      },
+    });
+  }
   return report;
 }
+
+/** Documents with fields updated from code: `about:en:hero.title` → `about`. */
+export function updatedDocuments(report: Pick<SyncReport, 'updated'>): string[] {
+  return [...new Set(report.updated.map((entry) => entry.split(':').slice(0, -2).join(':')))];
+}
+
+/** Name shown in revision history for updates made by `content:sync`. */
+export const CODE_UPDATE_AUTHOR = 'Update from code';
+/** Revision kept before the first code update of a document nobody saved yet. */
+export const BEFORE_CODE_UPDATE_AUTHOR = 'Before update from code';
+
+/** Stores and their provenance scope (`content_seed_state.scope`). */
+export const SeedScope = { Page: 'page', Item: 'item' } as const;
+const PAGE_STORE = { store: pageStore, scope: SeedScope.Page } as const;
+const ITEM_STORE = { store: collectionItemStore, scope: SeedScope.Item } as const;
 
 /**
  * First sync of a shared section: if it has no rows yet, it adopts the values
@@ -155,6 +193,7 @@ interface SyncTarget {
   readonly key: string;
   readonly schema: ContentSchema;
   readonly store: DocumentStore;
+  readonly scope: string;
 }
 
 /**
@@ -196,7 +235,62 @@ async function ensureSeedItem(
   return created ? { id: created.id, created: true } : null;
 }
 
-/** Seeds one document's missing rows and fields; reports orphans. */
+/** Seed content of a document per row (`_shared` + locales with seed), as stored values. */
+function seedRows(schema: ContentSchema, assetIds: ReadonlyMap<string, string>) {
+  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
+  const defaults = defaultContent(schema);
+  const rows = new Map<string, ContentRecord>();
+  // Shared values: default-locale seed, then field defaults.
+  const defaultSeed = seedToStored(schema, seed?.[projectConfig.defaultLocale], assetIds) ?? {};
+  rows.set(
+    SHARED_LOCALE,
+    deepFill(splitContent(schema, defaultSeed).shared, splitContent(schema, defaults).shared),
+  );
+  // Localized values: only locales that have seed content (others fall back at read time).
+  for (const locale of projectConfig.localeCodes) {
+    const localeSeed = seedToStored(schema, seed?.[locale], assetIds);
+    const isDefault = locale === projectConfig.defaultLocale;
+    if (!localeSeed && !isDefault) continue;
+    let localized = splitContent(schema, localeSeed ?? {}).localized;
+    if (isDefault) localized = deepFill(localized, splitContent(schema, defaults).localized);
+    rows.set(locale, localized);
+  }
+  return rows;
+}
+
+async function readSeedState(
+  db: Database,
+  scope: string,
+  key: string,
+): Promise<Map<string, SeedHashes>> {
+  const rows = await db
+    .select({ locale: contentSeedState.locale, hashes: contentSeedState.hashes })
+    .from(contentSeedState)
+    .where(and(eq(contentSeedState.scope, scope), eq(contentSeedState.documentKey, key)));
+  return new Map(rows.map((row) => [row.locale, row.hashes]));
+}
+
+async function writeSeedState(
+  db: Database,
+  target: SyncTarget,
+  locale: string,
+  hashes: SeedHashes,
+): Promise<void> {
+  const values = { scope: target.scope, documentKey: target.key, locale, hashes: { ...hashes } };
+  await db
+    .insert(contentSeedState)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [contentSeedState.scope, contentSeedState.documentKey, contentSeedState.locale],
+      set: { hashes: values.hashes, updatedAt: new Date() },
+    });
+}
+
+/**
+ * Seeds one document's missing rows and fields, moves untouched fields to a
+ * changed seed (seed provenance, D-095), records system revisions for those
+ * updates and reports orphans.
+ */
 async function syncDocument(
   db: Database,
   storage: StorageAdapter,
@@ -205,36 +299,84 @@ async function syncDocument(
 ): Promise<void> {
   const { schema, label } = target;
   const assetIds = await importSeedAssets(db, storage, schema, report);
-  const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
   const rows = await target.store.readRows(db, target.key, projectConfig.localeCodes);
-  const defaults = defaultContent(schema);
-  const fill = (locale: string, existing: ContentRecord | undefined, data: ContentRecord) =>
-    fillRow(db, target, locale, existing, rows.versions.get(locale) ?? 0, data, report);
+  const applied = await readSeedState(db, target.scope, target.key);
+  const context = { userId: null, now: new Date() };
+  const updatedRows = new Set<string>();
 
-  // Shared values: default-locale seed, then field defaults.
-  const defaultSeed = seedToStored(schema, seed?.[projectConfig.defaultLocale], assetIds) ?? {};
-  const sharedTarget = deepFill(
-    splitContent(schema, defaultSeed).shared,
-    splitContent(schema, defaults).shared,
-  );
-  await fill(SHARED_LOCALE, rows.shared, sharedTarget);
-
-  // Localized values: only locales that have seed content (others fall back at read time).
-  for (const locale of projectConfig.localeCodes) {
-    const localeSeed = seedToStored(schema, seed?.[locale], assetIds);
-    const isDefault = locale === projectConfig.defaultLocale;
-    if (!localeSeed && !isDefault) continue;
-    let localized = splitContent(schema, localeSeed ?? {}).localized;
-    if (isDefault) localized = deepFill(localized, splitContent(schema, defaults).localized);
-    await fill(locale, rows.byLocale.get(locale), localized);
+  for (const [locale, data] of seedRows(schema, assetIds)) {
+    const existing = locale === SHARED_LOCALE ? rows.shared : rows.byLocale.get(locale);
+    const plan = planSeedRow(schema, existing, data, applied.get(locale));
+    const contentChanged = !existing || plan.filled.length > 0 || plan.updated.length > 0;
+    if (contentChanged) {
+      const version = await target.store.writeContent(
+        db,
+        target.key,
+        locale,
+        plan.next,
+        existing ? (rows.versions.get(locale) ?? 0) : 0,
+        context,
+      );
+      // Someone saved meanwhile: leave the row (and its provenance) for the next sync.
+      if (version === null) continue;
+      if (!existing) report.created.push(`${label}:${locale}`);
+      report.filled.push(...plan.filled.map((field) => `${label}:${locale}:${field}`));
+      report.updated.push(...plan.updated.map((field) => `${label}:${locale}:${field}`));
+      if (plan.updated.length > 0) updatedRows.add(locale);
+    }
+    if (plan.hashesChanged) await writeSeedState(db, target, locale, plan.hashes);
   }
+  if (updatedRows.size > 0) await recordCodeUpdate(db, target, rows, updatedRows);
 
+  const current = await target.store.readRows(db, target.key, projectConfig.localeCodes);
   for (const [locale, record] of [
-    [SHARED_LOCALE, rows.shared] as const,
-    ...rows.byLocale.entries(),
+    [SHARED_LOCALE, current.shared] as const,
+    ...current.byLocale.entries(),
   ]) {
     for (const orphan of findOrphans(schema, record))
       report.orphans.push(`${label}:${locale}:${orphan}`);
+  }
+}
+
+/**
+ * System revisions for an update from code, so it can be undone from the
+ * revision history: the state before (only when the document has no revision
+ * yet, i.e. nobody ever saved it) and the state after. A `_shared` update is
+ * recorded in the main language's history (shared values belong to every
+ * language).
+ */
+async function recordCodeUpdate(
+  db: Database,
+  target: SyncTarget,
+  before: Awaited<ReturnType<DocumentStore['readRows']>>,
+  updatedRows: ReadonlySet<string>,
+): Promise<void> {
+  const after = await target.store.readRows(db, target.key, projectConfig.localeCodes);
+  const locales = new Set(
+    [...updatedRows].map((locale) =>
+      locale === SHARED_LOCALE ? projectConfig.defaultLocale : locale,
+    ),
+  );
+  for (const locale of locales) {
+    const seo = { ...parsePageSeo((await target.store.readSeo(db, target.key, locale))?.data) };
+    const history = await target.store.listRevisions(db, target.key, locale);
+    if (history.length === 0) {
+      await target.store.addRevision(
+        db,
+        target.key,
+        locale,
+        { content: before.byLocale.get(locale) ?? {}, shared: before.shared ?? {}, seo },
+        { id: null, name: BEFORE_CODE_UPDATE_AUTHOR },
+      );
+    }
+    await target.store.addRevision(
+      db,
+      target.key,
+      locale,
+      { content: after.byLocale.get(locale) ?? {}, shared: after.shared ?? {}, seo },
+      { id: null, name: CODE_UPDATE_AUTHOR },
+    );
+    await target.store.pruneRevisions(db, target.key, locale, MAX_REVISIONS);
   }
 }
 
@@ -257,63 +399,58 @@ function deepFill(base: ContentRecord, fallback: ContentRecord): ContentRecord {
   return result;
 }
 
-async function fillRow(
-  db: Database,
-  target: SyncTarget,
-  locale: string,
-  existing: ContentRecord | undefined,
-  version: number,
-  data: ContentRecord,
-  report: SyncReport,
-): Promise<void> {
-  const context = { userId: null, now: new Date() };
-  if (!existing) {
-    await target.store.writeContent(db, target.key, locale, data, 0, context);
-    report.created.push(`${target.label}:${locale}`);
-    return;
-  }
-  const merged: ContentRecord = { ...existing };
-  const filled: string[] = [];
-  for (const [sectionId, values] of Object.entries(data)) {
-    const current = { ...(existing[sectionId] ?? {}) };
-    for (const [key, value] of Object.entries(values)) {
-      if (!(key in current)) {
-        current[key] = value;
-        filled.push(`${target.label}:${locale}:${sectionId}.${key}`);
-      }
-    }
-    merged[sectionId] = current;
-  }
-  if (filled.length === 0) return;
-  await target.store.writeContent(db, target.key, locale, merged, version, context);
-  report.filled.push(...filled);
-}
-
 /** Longest edge of seed images after import. */
 export const SEED_IMAGE_MAX_DIMENSION = 2400;
 
-async function importSeedAssets(
+/**
+ * Imports seed images once, and again when a seed file changed (its SHA-256
+ * differs from the one recorded at import). The old image stays in the library
+ * (edited content may still use it); untouched fields move to the new one
+ * through seed provenance. Returns seed asset name → media id.
+ */
+export async function importSeedAssets(
   db: Database,
   storage: StorageAdapter,
   page: ContentSchema,
-  report: SyncReport,
+  report: Pick<SyncReport, 'assetsImported'>,
 ): Promise<Map<string, string>> {
   const assets = seedAssets(page);
-  const ids = await seedAssetIds(db, assets);
+  const ids = new Map<string, string>();
+  if (assets.length === 0) return ids;
+  const existing = new Map(
+    (
+      await db
+        .select({ id: media.id, seedAsset: media.seedAsset, hash: media.seedAssetHash })
+        .from(media)
+        .where(inArray(media.seedAsset, assets))
+    ).map((row) => [row.seedAsset, row]),
+  );
   for (const asset of assets) {
-    if (ids.has(asset)) continue;
-    const file = path.join(SEED_ASSETS_DIR, path.basename(asset));
-    const bytes = new Uint8Array(await fs.readFile(file));
-    const row = await ingestImage(db, storage, {
+    const bytes = new Uint8Array(
+      await fs.readFile(path.join(SEED_ASSETS_DIR, path.basename(asset))),
+    );
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    const row = existing.get(asset);
+    if (row && (row.hash === hash || row.hash === null)) {
+      // Imported before seed hashes were recorded: remember the hash, change nothing.
+      if (row.hash === null)
+        await db.update(media).set({ seedAssetHash: hash }).where(eq(media.id, row.id));
+      ids.set(asset, row.id);
+      continue;
+    }
+    // A changed seed file: the old image keeps its place in the library, without the seed name.
+    if (row) await db.update(media).set({ seedAsset: null }).where(eq(media.id, row.id));
+    const imported = await ingestImage(db, storage, {
       bytes,
       originalName: asset,
       uploadedBy: null,
       seedAsset: asset,
+      seedAssetHash: hash,
       // Big seed photos make the image optimizer's first requests slow; 2400 px is plenty.
       maxDimension: SEED_IMAGE_MAX_DIMENSION,
     });
-    ids.set(asset, row.id);
-    report.assetsImported.push(asset);
+    ids.set(asset, imported.id);
+    report.assetsImported.push(row ? `${asset} (changed)` : asset);
   }
   return ids;
 }

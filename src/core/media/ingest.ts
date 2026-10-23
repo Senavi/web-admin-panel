@@ -33,6 +33,8 @@ export interface IngestInput {
   readonly uploadedBy: string | null;
   readonly kind?: 'image' | 'logo' | 'favicon';
   readonly seedAsset?: string;
+  /** SHA-256 of the seed file (`content:sync` re-imports a seed file that changed). */
+  readonly seedAssetHash?: string;
   /** Longest edge (default `IMAGE_LIMITS.maxDimension`); seed images use a smaller cap. */
   readonly maxDimension?: number;
 }
@@ -109,6 +111,7 @@ export async function ingestImage(
       originalName: input.originalName.slice(0, 200),
       uploadedBy: input.uploadedBy,
       seedAsset: input.seedAsset ?? null,
+      seedAssetHash: input.seedAssetHash ?? null,
     })
     .returning();
   if (!row) throw new Error('Failed to save media record.');

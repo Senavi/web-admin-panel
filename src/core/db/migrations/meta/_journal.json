@@ -50,6 +50,13 @@
       "when": 1792153267314,
       "tag": "0006_integration_secrets",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792754317057,
+      "tag": "0007_seed_provenance",
+      "breakpoints": true
     }
   ]
 }

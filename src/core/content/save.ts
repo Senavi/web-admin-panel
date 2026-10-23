@@ -11,9 +11,10 @@ import { parsePageSeo, type PageSeo } from '@/core/seo/page-seo';
 import { type ChangedRows, type ContentDocument, resolveDocument } from './document';
 import { DocumentKind } from './document-target';
 import type { EditorVersions } from './editor-types';
+import { MAX_REVISIONS } from './store';
 import { collectMediaIds, type ContentRecord, type JsonRecord, splitContent } from './values';
 
-export const MAX_REVISIONS = 20;
+export { MAX_REVISIONS };
 
 export const CONFLICT_MESSAGE =
   'Someone else saved this since you opened it. Reload to see their changes (your edits will be lost), or copy them first.';

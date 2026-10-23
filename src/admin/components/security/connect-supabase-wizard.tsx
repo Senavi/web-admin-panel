@@ -5,6 +5,7 @@ import {
   CheckIcon,
   CopyIcon,
   ExternalLinkIcon,
+  InfoIcon,
   Loader2Icon,
   XCircleIcon,
 } from 'lucide-react';
@@ -36,9 +37,15 @@ import {
   migrateSupabaseAction,
   migrateSupabaseDataAction,
   secureSupabaseAction,
+  inspectSupabaseTargetAction,
   testSupabaseAction,
   writeSupabaseEnvAction,
 } from '@/core/database/actions';
+import {
+  describeRemoteContent,
+  hasRemoteContent,
+  type RemoteContentSummary,
+} from '@/core/database/remote-summary';
 import type { CheckResult } from '@/core/database/supabase-connect';
 
 import { GuideSteps as Steps } from './guide-text';
@@ -168,6 +175,8 @@ export function ConnectSupabaseWizard({
   const [checks, setChecks] = useState<readonly CheckResult[] | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [copyData, setCopyData] = useState(true);
+  /** What the online database already holds (null until the connection check passed). */
+  const [online, setOnline] = useState<RemoteContentSummary | null>(null);
   const [tasks, setTasks] = useState<TaskState[]>(PREPARE_TASKS.map(() => 'idle'));
   const [taskError, setTaskError] = useState<string | null>(null);
   const [host, setHost] = useState<HostingPlatform>(HostingPlatform.Vercel);
@@ -197,6 +206,10 @@ export function ConnectSupabaseWizard({
       return;
     }
     setChecks(result.data);
+    if (result.data.every((check) => check.ok)) {
+      const summary = await inspectSupabaseTargetAction(input);
+      setOnline(summary.ok ? summary.data : null);
+    }
   };
 
   const prepare = async () => {
@@ -441,6 +454,21 @@ export function ConnectSupabaseWizard({
                   Copy my local content, images and users
                 </Label>
               </div>
+              <p className="text-sm text-muted-foreground" id="sb-copy-team">
+                Working in a team? Leave this off: the online database fills itself from the code.
+                Copy only if your local content is the real content.
+              </p>
+              {online && hasRemoteContent(online) ? (
+                <Alert>
+                  <InfoIcon />
+                  <AlertTitle>The online database is not empty</AlertTitle>
+                  <AlertDescription>
+                    It already has {describeRemoteContent(online)}. Copying never overwrites
+                    anything there: what exists online stays as it is, and only what is missing is
+                    added from your computer.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               {taskError ? (
                 <Alert variant="destructive">
                   <XCircleIcon />

@@ -6,6 +6,40 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-23
+
+Team-friendly local databases and seeds.
+
+### Added
+
+- **Untouched content follows the code.** `content:sync` (every `pnpm dev`, every deploy)
+  remembers which seed value each field was filled from; when a seed changes, fields nobody
+  edited take the new value ("updated from code" in the output), edited fields are never
+  touched. Works for pages, shared sections, globals, form texts and seed collection items, per
+  language, and for seed images (a changed file is imported again). Each update is a restorable
+  system revision; one activity-log entry per sync.
+- **Reset to code defaults** in the editor (⋯ menu): the current language, all sections or one;
+  lists the fields that will change; saved as a revision (undo from History) and logged. Not
+  shown for collection items people created.
+- **`pnpm db:reset [--yes]`**: deletes the local database, uploads and dev emails after a
+  confirmation, migrates, seeds and prints the new dev admin. Refuses in production, with
+  `DATABASE_URL`/`DIRECT_URL` set, or while `pnpm dev` holds the database.
+- **docs/TEAM.md** (branches, local databases, seeds, online databases) and a pull request
+  template (`.github/pull_request_template.md`).
+
+### Changed
+
+- Connect Supabase: a team hint next to "Copy my local content, images and users", and a note
+  with what the online database already holds when it isn't empty (copying still only adds
+  missing rows).
+
+### Upgrading from 1.7.0
+
+Run the migration (`pnpm db:migrate`; deploys do it). The first `content:sync` after upgrading
+records the seed of every existing field and **changes nothing**; from then on, seed changes
+reach the fields nobody edited. Fields whose value already differed from the seed at upgrade
+time count as edited.
+
 ## [1.7.0] - 2026-10-16
 
 Any language, editable interface texts, Settings → Integrations, `/storybook`.

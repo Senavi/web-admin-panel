@@ -4,26 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '@/core/db/types';
 import { detectImageType, ImageType } from '@/core/media/detect';
 import { IMAGE_LIMITS, ingestImage, ingestLogo, UploadError } from '@/core/media/ingest';
-import type { StorageAdapter } from '@/core/storage/types';
 
 import { createTestDb } from '../support/db';
-
-function memoryStorage(): StorageAdapter & { files: Map<string, Uint8Array> } {
-  const files = new Map<string, Uint8Array>();
-  return {
-    files,
-    driver: 'local',
-    location: 'memory',
-    put: async (key, body) => void files.set(key, body),
-    get: async (key) => {
-      const body = files.get(key);
-      return body ? { body: new Uint8Array(body), contentType: 'image/webp' } : null;
-    },
-    delete: async (key) => void files.delete(key),
-    publicUrl: (key) => `/media/${key}`,
-    check: async () => ({ ok: true }),
-  };
-}
+import { memoryStorage } from '../support/storage';
 
 const input = (bytes: Uint8Array, originalName = 'file.png') => ({
   bytes,

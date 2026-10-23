@@ -12,11 +12,13 @@ import {
   type CheckResult,
   migrateDataToSupabase,
   migrateSupabase,
+  remoteContentSummary,
   secureSupabase,
   supabaseConnectionSchema,
   testSupabaseConnection,
   writeEnvLocal,
 } from './supabase-connect';
+import type { RemoteContentSummary } from './remote-summary';
 
 /**
  * Connect Supabase wizard steps. Development only (production env vars are set
@@ -40,6 +42,20 @@ export async function testSupabaseAction(input: unknown): Promise<ActionResult<C
   return runAction(async () => {
     const { connection } = await guard(input);
     return ok(await testSupabaseConnection(connection));
+  });
+}
+
+/** What the online database already holds (shown before copying local content). */
+export async function inspectSupabaseTargetAction(
+  input: unknown,
+): Promise<ActionResult<RemoteContentSummary>> {
+  return runAction(async () => {
+    const { connection } = await guard(input);
+    try {
+      return ok(await remoteContentSummary(connection));
+    } catch (error) {
+      return failure(error);
+    }
   });
 }
 

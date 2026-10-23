@@ -167,6 +167,7 @@ describe('collection item store', () => {
       label: 'Test',
       schema: blog.schema,
       store: collectionItemStore,
+      codeSchema: null,
       hasSeo: true,
       seoDefaults: () => ({ title: '', description: '' }),
       publicPath: () => null,
