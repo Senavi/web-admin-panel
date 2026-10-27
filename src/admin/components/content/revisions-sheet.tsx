@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
-import { formatDateTime } from '@/admin/lib/format';
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { Button } from '@/admin/ui/button';
 import { ScrollArea } from '@/admin/ui/scroll-area';
 import {
@@ -114,7 +114,9 @@ export function RevisionsSheet({
                       aria-current={selected?.id === revision.id ? 'true' : undefined}
                       className="text-sm hover:bg-muted aria-[current=true]:bg-muted flex w-full flex-col items-start gap-0.5 p-3 text-start"
                     >
-                      <span className="font-medium">{formatDateTime(revision.createdAt)}</span>
+                      <span className="font-medium">
+                        <LocalTime value={revision.createdAt} />
+                      </span>
                       <span className="text-xs text-muted-foreground">
                         {revision.authorName ?? 'Unknown'}
                         {index === 0 ? ' · current' : ''}

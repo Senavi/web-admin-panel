@@ -12,6 +12,25 @@ const sidebar = (page: Page) =>
     .or(page.locator('[data-sidebar="sidebar"]'));
 
 test.describe('admin shell', () => {
+  test('dates render without a hydration mismatch in a non-UTC timezone', async ({ browser }) => {
+    const context = await browser.newContext({ timezoneId: 'Europe/Kyiv' });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await login(page, E2E_ADMIN);
+    for (const path of [admin('/security'), admin('/security/activity'), admin('/managers')]) {
+      await page.goto(path);
+      await expect(page.locator('time').first()).toBeVisible();
+    }
+    // Hydrated: local time, no "UTC" suffix.
+    await expect(page.locator('time', { hasText: 'UTC' })).toHaveCount(0);
+    expect(errors.filter((text) => /hydrat|#418|#425/i.test(text))).toEqual([]);
+    await context.close();
+  });
+
   test('the local DB banner shows only in developer mode', async ({ page }) => {
     // E2E runs on PGlite unless DATABASE_URL is set (CI Postgres), where it must be absent.
     const expectBanner = !process.env.DATABASE_URL;

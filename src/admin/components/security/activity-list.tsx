@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { formatDateTime } from '@/admin/lib/format';
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/admin/ui/card';
 
 export interface ActivityItem {
@@ -36,7 +36,7 @@ export function ActivityList({
               >
                 <span>{item.text}</span>
                 <span className="text-xs whitespace-nowrap text-muted-foreground">
-                  {formatDateTime(item.ts)}
+                  <LocalTime value={item.ts} />
                 </span>
               </li>
             ))}

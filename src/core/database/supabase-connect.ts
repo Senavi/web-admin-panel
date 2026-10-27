@@ -4,19 +4,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { createClient } from '@supabase/supabase-js';
-import { getTableName, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { getDb } from '@/core/db/client';
 import { migratePostgres, openPostgres, openSession } from '@/core/db/drivers/postgres';
-import { collectionItems, formSubmissions, media, pageContent, users } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
+import { DeploymentEnvironment } from '@/core/deployment/environment';
 import { createLocalStorage } from '@/core/storage/local';
 import { createSupabaseStorage } from '@/core/storage/supabase';
 
-import { connectionErrorHint, deriveSupabaseUrl, migrationUrl } from '@/core/db/connection-info';
+import {
+  connectionErrorHint,
+  databaseIdentity,
+  deriveSupabaseUrl,
+  migrationUrl,
+} from '@/core/db/connection-info';
 
-import { copyMediaFiles } from './clone';
+import { contentSummary, copyMediaFiles } from './clone';
+import { markDatabaseEnvironment } from './environment-marker';
 import { appTableNames, copyTables } from './copy';
 import type { RemoteContentSummary } from './remote-summary';
 
@@ -123,18 +129,20 @@ export async function testSupabaseConnection(input: SupabaseConnection): Promise
   ];
 }
 
-/** Step 3: apply the committed migrations through the direct connection. */
+/** Step 3: apply the committed migrations through the direct connection; mark it production (D-098). */
 export async function migrateSupabase(input: SupabaseConnection): Promise<void> {
   await migratePostgres(input.directUrl);
+  const remote = openPostgres(input.directUrl, { max: 1 });
+  try {
+    await markDatabaseEnvironment(
+      remote.db,
+      DeploymentEnvironment.Production,
+      databaseIdentity(input.directUrl),
+    );
+  } finally {
+    await remote.close();
+  }
 }
-
-const SUMMARY_TABLES = {
-  users: getTableName(users),
-  contentRows: getTableName(pageContent),
-  items: getTableName(collectionItems),
-  images: getTableName(media),
-  submissions: getTableName(formSubmissions),
-} as const satisfies Record<keyof RemoteContentSummary, string>;
 
 /**
  * Counts what the target already holds, before "Copy my local content" (tables
@@ -143,29 +151,11 @@ const SUMMARY_TABLES = {
 export async function remoteContentSummary(
   input: Pick<SupabaseConnection, 'directUrl'>,
 ): Promise<RemoteContentSummary> {
-  const client = openSession(input.directUrl);
+  const remote = openPostgres(input.directUrl, { max: 1 });
   try {
-    const counts: Record<keyof RemoteContentSummary, number> = {
-      users: 0,
-      contentRows: 0,
-      items: 0,
-      images: 0,
-      submissions: 0,
-    };
-    for (const key of Object.keys(SUMMARY_TABLES) as Array<keyof RemoteContentSummary>) {
-      const table = SUMMARY_TABLES[key];
-      const [exists] = await client<
-        Array<{ found: string | null }>
-      >`select to_regclass(${`public.${table}`})::text as found`;
-      if (!exists?.found) continue;
-      const [row] = await client<
-        Array<{ total: number }>
-      >`select count(*)::int as total from ${client(table)}`;
-      counts[key] = row?.total ?? 0;
-    }
-    return counts;
+    return await contentSummary(remote.db);
   } finally {
-    await client.end({ timeout: 5 });
+    await remote.close();
   }
 }
 

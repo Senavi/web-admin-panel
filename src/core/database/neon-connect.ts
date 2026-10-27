@@ -3,13 +3,20 @@ import 'server-only';
 import { z } from 'zod';
 
 import { getDb } from '@/core/db/client';
-import { DatabaseProvider, databaseProvider, migrationUrl } from '@/core/db/connection-info';
+import {
+  DatabaseProvider,
+  databaseIdentity,
+  databaseProvider,
+  migrationUrl,
+} from '@/core/db/connection-info';
 import { migratePostgres, openPostgres } from '@/core/db/drivers/postgres';
+import { DeploymentEnvironment } from '@/core/deployment/environment';
 import { createLocalStorage } from '@/core/storage/local';
 import { createS3Storage } from '@/core/storage/s3';
 
 import { copyMediaFiles } from './clone';
 import { copyTables } from './copy';
+import { markDatabaseEnvironment } from './environment-marker';
 import { checkPostgres, type CheckResult } from './supabase-connect';
 
 /**
@@ -79,7 +86,8 @@ export async function testNeonEnvironment(
 }
 
 /**
- * Prepares the production branch now (deploys would do it too): migrations, and
+ * Prepares the production branch now (deploys would do it too): migrations, the
+ * production marker (D-098), and
  * optionally this computer's content, users and images (off by default: in a
  * team the online database fills itself from the code).
  */
@@ -89,9 +97,14 @@ export async function prepareNeonProduction(
 ): Promise<{ rows: Record<string, number>; files: number }> {
   const direct = migrationUrl({ DATABASE_URL: input.databaseUrl }) ?? input.databaseUrl;
   await migratePostgres(direct);
-  if (!copyLocal) return { rows: {}, files: 0 };
   const remote = openPostgres(direct, { max: 1 });
   try {
+    await markDatabaseEnvironment(
+      remote.db,
+      DeploymentEnvironment.Production,
+      databaseIdentity(direct),
+    );
+    if (!copyLocal) return { rows: {}, files: 0 };
     const local = await getDb();
     const rows = await copyTables(local, remote.db);
     const files = await copyMediaFiles(local, createLocalStorage(), storageOf(input));

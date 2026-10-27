@@ -17,6 +17,8 @@ import { requirePermission } from '@/core/auth/server/session';
 import { localeInfo } from '@/core/i18n/locales';
 import { selectedLocales } from '@/core/i18n/language-state';
 import { contentRegistry } from '@/core/content/project-registry';
+import { currentEnvironment } from '@/core/deployment/current';
+import { indexingLabel } from '@/core/deployment/rules';
 import { getDb } from '@/core/db/client';
 import { countNew } from '@/core/forms/inbox';
 import { runMaintenance } from '@/core/maintenance';
@@ -77,7 +79,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
 
   const statusParts = [
     siteStateText(settings.status),
-    settings.status.indexing ? 'Visible in Google' : 'Hidden from Google',
+    indexingLabel(settings.status.indexing, currentEnvironment()),
     localeNames(settings.general),
   ];
 

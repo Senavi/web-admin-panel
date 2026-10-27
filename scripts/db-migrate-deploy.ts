@@ -10,7 +10,7 @@ import './lib/load-env';
 
 import { spawnSync } from 'node:child_process';
 
-import { migrationUrl, maskConnectionString } from '@/core/db/connection-info';
+import { maskConnectionString, migrationUrl, migrationUrlProblem } from '@/core/db/connection-info';
 import { migrationDecision } from '@/core/db/deploy-context';
 import {
   acquireLock,
@@ -27,10 +27,13 @@ async function main(): Promise<number> {
   console.info(`[migrate] ${decision.migrate ? 'running' : 'skipping'}: ${decision.reason}`);
   if (!decision.migrate) return 0;
 
-  const url = migrationUrl({
-    DATABASE_URL: process.env.DATABASE_URL,
-    DIRECT_URL: process.env.DIRECT_URL,
-  });
+  const urls = { DATABASE_URL: process.env.DATABASE_URL, DIRECT_URL: process.env.DIRECT_URL };
+  const problem = migrationUrlProblem(urls);
+  if (problem) {
+    console.error(`[migrate] ${problem}`);
+    return 1;
+  }
+  const url = migrationUrl(urls);
   if (!url) return 0;
   const session = openSession(url);
   try {

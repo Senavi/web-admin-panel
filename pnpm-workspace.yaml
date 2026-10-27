@@ -6,3 +6,14 @@ allowBuilds:
   '@swc/core': false
 minimumReleaseAgeExclude:
   - drizzle-orm@0.45.4
+  - '@better-auth/core@1.7.14'
+  - '@better-auth/drizzle-adapter@1.7.14'
+  - '@better-auth/kysely-adapter@1.7.14'
+  - '@better-auth/memory-adapter@1.7.14'
+  - '@better-auth/mongo-adapter@1.7.14'
+  - '@better-auth/prisma-adapter@1.7.14'
+  - '@better-auth/telemetry@1.7.14'
+  - better-auth@1.7.14
+overrides:
+  # Advisories GHSA-333x-w4r6-6crp et al. (via @hookform/resolvers → ajv); drop once ajv pulls >=3.1.9.
+  'fast-uri@<3.1.9': '^3.1.9'

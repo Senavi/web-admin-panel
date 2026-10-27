@@ -204,6 +204,32 @@ export function migrationUrl(source: {
   return parse(database)?.withPort(SESSION_PORT) ?? database;
 }
 
+/** Ports of transaction-mode poolers: PgBouncer's default and Supabase's dedicated pooler. */
+const TRANSACTION_POOLER_PORTS: ReadonlySet<number> = new Set([6432, TRANSACTION_POOLER_PORT]);
+
+/** Shown when migrations would go through a transaction pooler (docs/DEPLOYMENT.md § Other Postgres). */
+export const DIRECT_URL_REQUIRED_MESSAGE =
+  'DATABASE_URL looks like a transaction pooler (PgBouncer: port 6432/6543 or pgbouncer=true), where migrations and the deploy lock do not work. Set DIRECT_URL to the direct database address (usually port 5432) for this environment. See docs/DEPLOYMENT.md § Other Postgres.';
+
+/**
+ * Why migrations can't run, or null: the migration URL (DIRECT_URL missing, nothing
+ * derivable) still points to a transaction pooler, where session advisory locks
+ * and DDL don't work.
+ */
+export function migrationUrlProblem(source: {
+  readonly DATABASE_URL?: string;
+  readonly DIRECT_URL?: string;
+}): string | null {
+  if (source.DIRECT_URL?.trim()) return null;
+  const url = migrationUrl(source);
+  const parsed = url ? parse(url) : null;
+  if (!parsed) return null;
+  const pgbouncer = new URLSearchParams(parsed.query).get('pgbouncer') === 'true';
+  return pgbouncer || TRANSACTION_POOLER_PORTS.has(parsed.port)
+    ? DIRECT_URL_REQUIRED_MESSAGE
+    : null;
+}
+
 /** `https://<ref>.supabase.co` from a Supabase connection string, or null. */
 export function deriveSupabaseUrl(databaseUrl: string | undefined | null): string | null {
   const ref = describeConnection(databaseUrl)?.projectRef;
@@ -257,8 +283,9 @@ export function connectionErrorHint(error: unknown, url: string | undefined | nu
 
 /**
  * Which database a URL points to, whatever the route (pooled or direct, session or
- * transaction port): `supabase:<ref>/<db>`, `<neon direct host>/<db>`, `<host>:<port>/<db>`.
- * Used to refuse copying a database onto itself (`db:clone`).
+ * transaction port): `supabase:<ref>/<db>`, `<neon direct host>/<db>`, `<host>/<db>`.
+ * The port is ignored: a self-hosted PgBouncer (6432) and the server (5432) are one
+ * database. Used to refuse copying a database onto itself (`db:clone`).
  */
 export function databaseIdentity(url: string): string | null {
   const parsed = parse(url);
@@ -268,7 +295,7 @@ export function databaseIdentity(url: string): string | null {
   if (info.projectRef) return `supabase:${info.projectRef}/${name}`;
   if (info.provider === DatabaseProvider.Neon)
     return `${parse(neonDirectUrl(url))?.host ?? parsed.host}/${name}`;
-  return `${parsed.host}:${parsed.port}/${name}`;
+  return `${parsed.host}/${name}`;
 }
 
 /** A connection string with the password replaced, for logs and messages. */

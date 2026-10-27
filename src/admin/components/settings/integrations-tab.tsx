@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { SimpleSelect } from '@/admin/components/forms/simple-select';
 import { DeveloperSection } from '@/admin/components/layout/developer-mode';
 import { Alert, AlertDescription } from '@/admin/ui/alert';
@@ -410,7 +411,7 @@ function EmailCard({ email, info }: { email: Email; info: IntegrationsInfo }) {
           role="status"
         >
           Last test: {saved.lastCheck.ok ? 'sent' : `failed (${saved.lastCheck.error ?? 'error'})`}{' '}
-          · {new Date(saved.lastCheck.at).toLocaleString()}
+          · <LocalTime value={saved.lastCheck.at} />
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">

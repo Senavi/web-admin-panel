@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { useAction } from '@/admin/hooks/use-action';
-import { formatDateTime } from '@/admin/lib/format';
 import { describeAgent } from '@/admin/lib/user-agent';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
@@ -31,8 +31,8 @@ export function SessionsList({ sessions }: { sessions: SessionRow[] }) {
             <div className="min-w-0">
               <p className="font-medium truncate">{describeAgent(session.userAgent)}</p>
               <p className="text-muted-foreground">
-                Signed in {formatDateTime(session.createdAt)} · expires{' '}
-                {formatDateTime(session.expiresAt)}
+                Signed in <LocalTime value={session.createdAt} /> · expires{' '}
+                <LocalTime value={session.expiresAt} />
               </p>
             </div>
             {session.current ? (

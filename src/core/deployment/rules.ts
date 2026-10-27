@@ -50,6 +50,18 @@ export function destinationsForEnvironment(
   };
 }
 
+export const INDEXING_LABELS = {
+  visible: 'Visible in Google',
+  hidden: 'Hidden from Google',
+  staging: 'Hidden from Google (staging)',
+} as const;
+
+/** How the admin summarizes indexing: staging is never indexed, whatever the stored setting. */
+export function indexingLabel(indexing: boolean, environment: DeploymentEnvironment): string {
+  if (environment === DeploymentEnvironment.Staging) return INDEXING_LABELS.staging;
+  return indexing ? INDEXING_LABELS.visible : INDEXING_LABELS.hidden;
+}
+
 /** Maintenance may delete data (retention) only outside staging. */
 export function maintenanceMayDelete(environment: DeploymentEnvironment): boolean {
   return environment !== DeploymentEnvironment.Staging;

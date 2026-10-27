@@ -57,6 +57,13 @@
       "when": 1792754317057,
       "tag": "0007_seed_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793113764349,
+      "tag": "0008_database_environment",
+      "breakpoints": true
     }
   ]
 }

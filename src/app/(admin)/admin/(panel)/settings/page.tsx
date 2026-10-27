@@ -82,6 +82,7 @@ export default async function SettingsPage() {
           integrations={integrations}
           noRecipientsWarning={noRecipientsWarning}
           stagingMailTo={isStaging() ? (env().STAGING_MAIL_TO ?? []) : null}
+          staging={isStaging()}
         />
       </Suspense>
     </>

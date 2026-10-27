@@ -4,6 +4,7 @@ import { runSeed } from '@/core/db/seed';
 import type { Database } from '@/core/db/types';
 import { env } from '@/core/env';
 
+import { markDatabaseEnvironment } from './environment-marker';
 import { enableRowLevelSecurity, ensureStorageBucket } from './supabase-connect';
 
 /**
@@ -11,10 +12,14 @@ import { enableRowLevelSecurity, ensureStorageBucket } from './supabase-connect'
  * project works with only DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY (SUPABASE_URL is derived):
  * Row Level Security on every table, the media bucket, then default settings and
  * the content (missing data, and never-edited texts follow seed changes;
- * edited content is never overwritten).
+ * edited content is never overwritten), and the environment marker (production /
+ * staging, D-098) that `db:clone` checks.
  * Idempotent; returns what it did for the build log.
  */
-export async function prepareDatabase(db: Database): Promise<string[]> {
+export async function prepareDatabase(
+  db: Database,
+  marker: { readonly environment: string; readonly identity: string | null },
+): Promise<string[]> {
   const done: string[] = [];
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_STORAGE_BUCKET } = env();
   if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
@@ -29,5 +34,7 @@ export async function prepareDatabase(db: Database): Promise<string[]> {
   }
   await runSeed(db, { seedDevAdmin: false });
   done.push('default settings and content (missing data; never-edited texts follow the code)');
+  const marked = await markDatabaseEnvironment(db, marker.environment, marker.identity);
+  if (marked) done.push(marked);
   return done;
 }

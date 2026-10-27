@@ -14,11 +14,14 @@ import { UserMenu } from './user-menu';
 export function AdminHeader({
   user,
   status,
+  staging,
   labels,
   childLabels,
 }: {
   user: CurrentUser;
   status: SiteSettings['status'];
+  /** Staging is never indexed, whatever the stored setting says. */
+  staging: boolean;
   labels: SegmentLabels;
   childLabels: Record<string, string>;
 }) {
@@ -29,7 +32,7 @@ export function AdminHeader({
       <div className="min-w-0 flex-1">
         <Breadcrumbs labels={labels} childLabels={childLabels} />
       </div>
-      <StatusChips status={status} />
+      <StatusChips status={status} staging={staging} />
       <Button
         variant="ghost"
         size="sm"

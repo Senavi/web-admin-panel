@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { formatDate, formatDateTime } from '@/admin/lib/format';
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Input } from '@/admin/ui/input';
@@ -128,13 +128,13 @@ export function ItemTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm whitespace-nowrap">
-                  {row.publishedAt ? formatDate(row.publishedAt) : '—'}
+                  {row.publishedAt ? <LocalTime value={row.publishedAt} dateOnly /> : '—'}
                 </TableCell>
                 <TableCell>
                   <LocaleStatusChips locales={locales} statuses={row.statuses} />
                 </TableCell>
                 <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                  {formatDateTime(row.updatedAt)}
+                  <LocalTime value={row.updatedAt} />
                   {row.updatedBy ? <span className="text-xs block">{row.updatedBy}</span> : null}
                 </TableCell>
               </TableRow>

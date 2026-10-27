@@ -2,10 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { describeAgent } from '@/admin/lib/user-agent';
 import { useConfirm } from '@/admin/hooks/use-confirm';
 import { useAction } from '@/admin/hooks/use-action';
-import { formatDateTime } from '@/admin/lib/format';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/admin/ui/table';
@@ -44,7 +44,9 @@ export function SessionsTable({ rows }: { rows: readonly GlobalSessionRow[] }) {
               <TableRow key={row.id}>
                 <TableCell>{row.email}</TableCell>
                 <TableCell>{describeAgent(row.userAgent)}</TableCell>
-                <TableCell>{formatDateTime(row.createdAt)}</TableCell>
+                <TableCell>
+                  <LocalTime value={row.createdAt} />
+                </TableCell>
                 <TableCell className="text-end">
                   {row.current ? (
                     <Badge variant="secondary">This device</Badge>

@@ -6,6 +6,48 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-27
+
+Patch release: safe `db:clone`, dependency fixes, small staging fixes. No breaking changes.
+
+### Security
+
+- **`db:clone` could empty the production database.** Run in the wrong direction on a
+  developer computer (no `DATABASE_URL` in `.env`), it truncated the target before reading the
+  source and outside a transaction. Now (D-098):
+  - every production and staging deploy marks its database (`database_environment`);
+  - the source must be migrated, hold users and settings and be marked `production` (or
+    `--allow-any-source`);
+  - a target marked `production` is always refused, whatever the local env says; an unmarked
+    target only when empty;
+  - the confirmation names both databases and what will be replaced;
+  - truncate + copy run in one transaction (any failure rolls back); files are copied after
+    the commit;
+  - plain Postgres identity ignores the port (PgBouncer and the server are one database).
+- Dependencies: `zod` 4.6.7 (memory exhaustion on oversized collections, also under
+  `better-auth` 1.7.14), `nodemailer` 10.2.1 (address parser), `fast-uri` ≥ 3.1.9 via a pnpm
+  override; `shadcn` (CLI) moved to `devDependencies`. `pnpm audit --prod`: no known
+  vulnerabilities.
+
+### Fixed
+
+- Staging admin no longer says "Visible in Google": the Overview and the header say "Hidden
+  from Google (staging)", and Settings → Google & sharing shows a note instead of the switch.
+- No hydration mismatch for dates (Security, activity, sessions, requests, revisions, users,
+  blog items): `<LocalTime>` renders UTC on the server and during hydration, then the
+  browser's timezone. Overview chart days no longer shift by timezone.
+- `db:migrate:deploy` refuses with a clear message behind a self-hosted PgBouncer in
+  transaction mode (port 6432/6543 or `pgbouncer=true`) without `DIRECT_URL`
+  (DEPLOYMENT.md § Other Postgres).
+
+### Upgrade notes
+
+- `pnpm install`, then deploy as usual: migration `0008_database_environment` runs on deploy.
+- The first deploy of each environment writes its marker. Until then `db:clone` treats an
+  unmarked database as unknown: refused as a source (unless `--allow-any-source`) and as a
+  target unless it is empty. Deploy production and staging once before the next refresh.
+- Self-hosted PgBouncer (transaction mode): set `DIRECT_URL`.
+
 ## [1.8.0] - 2026-10-27
 
 Neon or Supabase, S3-compatible storage, staging and production.

@@ -14,6 +14,7 @@ import {
   isNetworkError,
   maskConnectionString,
   migrationUrl,
+  migrationUrlProblem,
   resolveSupabaseUrl,
 } from '@/core/db/connection-info';
 
@@ -91,6 +92,25 @@ describe('migrationUrl', () => {
     for (const url of [SHARED_SESSION, DIRECT, DEDICATED, CI])
       expect(migrationUrl({ DATABASE_URL: url })).toBe(url);
     expect(migrationUrl({})).toBeUndefined();
+  });
+});
+
+describe('migrationUrlProblem', () => {
+  const BOUNCER = 'postgres://app:pw@db.example.com:6432/site';
+
+  it('requires DIRECT_URL behind a self-hosted transaction pooler', () => {
+    expect(migrationUrlProblem({ DATABASE_URL: BOUNCER })).toMatch(/Set DIRECT_URL/);
+    expect(migrationUrlProblem({ DATABASE_URL: `${CI}?pgbouncer=true` })).toMatch(/DIRECT_URL/);
+    expect(migrationUrlProblem({ DATABASE_URL: DEDICATED })).toMatch(/DIRECT_URL/);
+    expect(
+      migrationUrlProblem({ DATABASE_URL: BOUNCER, DIRECT_URL: BOUNCER.replace(':6432', ':5432') }),
+    ).toBeNull();
+  });
+
+  it('accepts addresses whose direct URL is known or derived', () => {
+    for (const url of [SHARED_TX, SHARED_SESSION, DIRECT, CI, NEON_POOLED, NEON_DIRECT])
+      expect(migrationUrlProblem({ DATABASE_URL: url })).toBeNull();
+    expect(migrationUrlProblem({})).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
-import { formatDate } from '@/admin/lib/format';
+import { formatDay } from '@/admin/lib/format';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/admin/ui/card';
 import {
   type ChartConfig,
@@ -42,11 +42,11 @@ export function VisitorsChart({
               axisLine={false}
               tickMargin={8}
               minTickGap={24}
-              tickFormatter={(day: string) => formatDate(day).replace(/ \d{4}$/, '')}
+              tickFormatter={(day: string) => formatDay(day).replace(/ \d{4}$/, '')}
             />
             <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={36} />
             <ChartTooltip
-              content={<ChartTooltipContent labelFormatter={(day) => formatDate(String(day))} />}
+              content={<ChartTooltipContent labelFormatter={(day) => formatDay(String(day))} />}
             />
             <Area
               dataKey="views"

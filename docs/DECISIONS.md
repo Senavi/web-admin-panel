@@ -918,3 +918,46 @@ overrides it (self-hosting, tests); the value detected at build time is inlined
   refuses deploys/CI, a target equal to the source (pooled and direct URLs of one database
   count as the same) and this setup's own `DATABASE_URL` unless it is a staging setup. Data
   never moves from staging to production.
+  _Superseded in part by D-098: the URL checks alone let a reversed `db:clone` empty
+  production._
+
+## v1.8.1: safe `db:clone`
+
+### D-098 Databases say which environment they are; `db:clone` trusts that, not `.env`
+
+**Context.** Testing v1.8.0 against a real Postgres, `pnpm db:clone --from <empty staging>
+--to <production> --yes` on a developer computer emptied production: the target was truncated
+before the source was read and outside a transaction, and the only guard compared the target
+with the computer's own `DATABASE_URL`, which a developer computer doesn't have. For plain
+Postgres the identity also included the port, so a PgBouncer address and the server looked
+like two databases.
+
+**Decision.**
+
+- **Environment marker** in every deployed database: table `database_environment` (one row:
+  `environment`, `database_identity`, `marked_at`), written by `db:prepare` from
+  `deploymentEnvironment()` on production and staging deploys, by the Connect Neon/Supabase
+  wizards (`production`) and by `db:clone` on its target (`staging`). Other environments leave
+  a database unmarked. It is not in `COPY_TABLES`, so it never travels with data.
+- **Production is sticky** on its own database: a staging deploy that prepares a database
+  marked production with the same identity (a misconfigured `DATABASE_URL`) keeps the marker
+  and prints a WARNING. A marker written for another database (Neon "Reset from parent", a
+  restored backup) is a copy and is re-marked. Nothing in the app ever writes production over
+  staging except a production deploy or a Connect wizard.
+- **`db:clone` order:** URL checks (deploy/CI, same database) → read the source (all
+  migrations of this code, every copied table, at least one user and the settings row, marked
+  `production` unless `--allow-any-source`) → read the target (refused when marked
+  `production`, with no override; when marked anything but `staging`; when unmarked and not
+  empty) → confirmation naming both markers and what will be replaced → migrate the target →
+  `TRUNCATE` + copy + marker in **one transaction** on the direct connection, re-checking the
+  marker inside it → media files after the commit.
+- **Identity** for plain Postgres is host + database name; the port is ignored (PgBouncer on
+  6432 and the server on 5432 are one database). Refusing two genuinely different local
+  servers on one host is the safe failure.
+- `db:migrate:deploy` refuses when the migration URL still looks like a transaction pooler
+  (port 6432/6543 or `pgbouncer=true`) and `DIRECT_URL` is missing.
+
+**Consequences.** Until an environment's first deploy with v1.8.1, its database is unmarked:
+`db:clone` refuses it as a source (unless `--allow-any-source`) and accepts it as a target only
+when empty. Tested in CI against Postgres 17 (`tests/unit/db-clone-postgres.test.ts`): wrong
+direction refused, unmigrated source refused, mid-copy failure rolled back, happy path.

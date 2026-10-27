@@ -1,20 +1,35 @@
 /**
- * `pnpm db:clone --from <url> --to <url> [--media-from <public url>] [--yes]`:
+ * `pnpm db:clone --from <url> --to <url> [--media-from <public url>] [--allow-any-source] [--yes]`:
  * refresh a STAGING database from production (Supabase / R2 setups; on Neon use
  * "Reset from parent" on the staging branch instead, docs/DEPLOYMENT.md).
  *
- * Migrates the target, replaces its content with the source's (users, settings,
- * content, media rows, requests) and, with `--media-from` (the production bucket's
- * public URL), copies the files into this environment's storage (S3_* / Supabase
- * variables of the staging setup). Without it, set STORAGE_READ_FALLBACK_URL on
- * staging. Refuses in deploys/CI, onto the source itself, or onto this setup's
- * production database; asks for confirmation.
+ * Safety (D-098): reads both databases first and refuses before writing anything
+ * when the source isn't a migrated live site (marked production, or
+ * `--allow-any-source`), when the target is marked production (no flag overrides
+ * that), or when it is unmarked but not empty. Also refuses in deploys/CI, onto the
+ * source itself, or onto this setup's production database. Then asks for
+ * confirmation, migrates the target and replaces its content (users, settings,
+ * content, media rows, requests) in ONE transaction, so a failure leaves it as it
+ * was. With `--media-from` (the production bucket's public URL) it then copies the
+ * files into this environment's storage (S3_* / Supabase variables of the staging
+ * setup). Without it, set STORAGE_READ_FALLBACK_URL on staging.
  */
 import './lib/load-env';
 
-import { cloneDatabase, copyMediaFromUrl } from '@/core/database/clone';
-import { cloneRefusal } from '@/core/database/clone-guard';
-import { maskConnectionString, migrationUrl } from '@/core/db/connection-info';
+import {
+  cloneDatabase,
+  copyMediaFromUrl,
+  expectedMigrations,
+  inspectCloneDatabase,
+} from '@/core/database/clone';
+import {
+  cloneRefusal,
+  describeCloneTarget,
+  sourceRefusal,
+  targetRefusal,
+} from '@/core/database/clone-guard';
+import { describeRemoteContent } from '@/core/database/remote-summary';
+import { databaseIdentity, maskConnectionString, migrationUrl } from '@/core/db/connection-info';
 import { migratePostgres, openPostgres } from '@/core/db/drivers/postgres';
 import { getStorage } from '@/core/storage';
 
@@ -27,30 +42,60 @@ async function main(): Promise<number> {
     console.error(refusal);
     return 1;
   }
-  const from = flags.from ?? '';
-  const to = flags.to ?? '';
-  if (flags.yes !== 'true') {
-    if (!process.stdin.isTTY) {
-      console.error('Not a terminal: add --yes to confirm.');
-      return 1;
-    }
-    const answer = await ask(
-      `Replace ALL content of ${maskConnectionString(to)}\nwith the content of ${maskConnectionString(from)}? Type "clone" to continue`,
-    );
-    if (answer !== 'clone') {
-      console.info('Nothing was changed.');
-      return 1;
-    }
-  }
-  const target = migrationUrl({ DATABASE_URL: to }) ?? to;
-  console.info(`[clone] migrating ${maskConnectionString(target)}…`);
-  await migratePostgres(target);
-  const source = openPostgres(migrationUrl({ DATABASE_URL: from }) ?? from, { max: 1 });
-  const destination = openPostgres(target, { max: 1 });
+  const from = migrationUrl({ DATABASE_URL: flags.from }) ?? flags.from ?? '';
+  const to = migrationUrl({ DATABASE_URL: flags.to }) ?? flags.to ?? '';
+  const source = openPostgres(from, { max: 1 });
+  const destination = openPostgres(to, { max: 1 });
   try {
-    const rows = await cloneDatabase(source.db, destination.db);
+    // 1. Read both databases; refuse before anything is written (D-098).
+    const sourceState = await inspectCloneDatabase(source.db);
+    const sourceProblem = sourceRefusal(sourceState, {
+      expectedMigrations: expectedMigrations(),
+      allowAnySource: flags['allow-any-source'] === 'true',
+    });
+    if (sourceProblem) {
+      console.error(sourceProblem);
+      return 1;
+    }
+    const targetState = await inspectCloneDatabase(destination.db);
+    const targetProblem = targetRefusal(targetState);
+    if (targetProblem) {
+      console.error(targetProblem);
+      return 1;
+    }
+
+    // 2. Confirm with what each database is and what will be lost.
+    const summary = [
+      `From ${sourceState.marker ?? 'unmarked'} ${maskConnectionString(from)}`,
+      `  (${describeRemoteContent(sourceState.summary)})`,
+      `Into ${maskConnectionString(to)}`,
+      `  ${describeCloneTarget(targetState)}.`,
+    ].join('\n');
+    console.info(summary);
+    if (flags.yes !== 'true') {
+      if (!process.stdin.isTTY) {
+        console.error('Not a terminal: add --yes to confirm.');
+        return 1;
+      }
+      const answer = await ask('Type "clone" to continue');
+      if (answer !== 'clone') {
+        console.info('Nothing was changed.');
+        return 1;
+      }
+    }
+
+    // 3. Migrate the target, then truncate + copy in one transaction (rolls back on any error).
+    console.info(`[clone] migrating ${maskConnectionString(to)}…`);
+    await migratePostgres(to);
+    const rows = await cloneDatabase(source.db, destination.db, {
+      targetIdentity: databaseIdentity(to),
+    });
     const total = Object.values(rows).reduce((sum, count) => sum + count, 0);
-    console.info(`[clone] ${total} rows copied (${Object.keys(rows).length} tables).`);
+    console.info(
+      `[clone] ${total} rows copied (${Object.keys(rows).length} tables); target marked staging.`,
+    );
+
+    // 4. Files only after the commit.
     if (flags['media-from']) {
       const files = await copyMediaFromUrl(destination.db, flags['media-from'], getStorage());
       console.info(`[clone] ${files.copied} files copied, ${files.missing} missing at the source.`);

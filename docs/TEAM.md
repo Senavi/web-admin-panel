@@ -78,7 +78,10 @@ Sometimes staging should look like the live site (real content, to test a change
   Storage is reset too in the regions that support it (Neon changelog 2026-09-25: AWS US East
   (Ohio) and Europe (Frankfurt) first); elsewhere set `STORAGE_READ_FALLBACK_URL` as below.
 - **Supabase / R2:** `pnpm db:clone --from <production url> --to <staging url>` on your
-  computer (asks for confirmation; refuses the production database as the target). Then set
+  computer. It refuses before changing anything when the direction is wrong: the target must
+  be marked staging by its deploys (or be empty), and a database marked production is never
+  overwritten. It lists what will be replaced, asks for confirmation and copies in one
+  transaction. Then set
   `STORAGE_READ_FALLBACK_URL` on staging to the production bucket's public URL (staging reads
   missing files from there, never writes) or add `--media-from <that url>` to copy the files.
 - After a refresh, re-enter the integration keys on staging (email, etc.): they were

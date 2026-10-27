@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { formatDateTime } from '@/admin/lib/format';
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Input } from '@/admin/ui/input';
@@ -97,7 +97,9 @@ export function AuditLogTable({
             ) : (
               rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="whitespace-nowrap">{formatDateTime(row.ts)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <LocalTime value={row.ts} />
+                  </TableCell>
                   <TableCell>
                     <span className="flex flex-col gap-1">
                       <span>{auditActionLabel(row.action)}</span>

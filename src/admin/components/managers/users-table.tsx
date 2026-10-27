@@ -2,12 +2,12 @@
 
 import { PlusIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { PageHeader } from '@/admin/components/layout/page-header';
 import { useConfirm } from '@/admin/hooks/use-confirm';
-import { formatDate, formatDateTime } from '@/admin/lib/format';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/admin/ui/card';
@@ -37,7 +37,7 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
   [Role.Manager]: 'Edits pages, blog and form texts, sees statistics and requests.',
 };
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="text-sm flex justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>
@@ -204,7 +204,7 @@ export function UsersTable({
                   </span>
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
-                  {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Never'}
+                  {user.lastLoginAt ? <LocalTime value={user.lastLoginAt} /> : 'Never'}
                 </TableCell>
                 <TableCell className="text-end">
                   <Button
@@ -231,9 +231,9 @@ export function UsersTable({
               <Detail label="Two-factor sign-in" value={editing.twoFactorEnabled ? 'On' : 'Off'} />
               <Detail
                 label="Last signed in"
-                value={editing.lastLoginAt ? formatDateTime(editing.lastLoginAt) : 'Never'}
+                value={editing.lastLoginAt ? <LocalTime value={editing.lastLoginAt} /> : 'Never'}
               />
-              <Detail label="Added" value={formatDate(editing.createdAt)} />
+              <Detail label="Added" value=<LocalTime value={editing.createdAt} dateOnly /> />
             </dl>
           ) : null
         }

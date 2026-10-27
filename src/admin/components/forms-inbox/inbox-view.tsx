@@ -1,7 +1,7 @@
 import { DownloadIcon } from 'lucide-react';
 import Link from 'next/link';
 
-import { formatDateTime } from '@/admin/lib/format';
+import { LocalTime } from '@/admin/components/layout/local-time';
 import { Badge } from '@/admin/ui/badge';
 import { Button } from '@/admin/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/admin/ui/card';
@@ -89,7 +89,9 @@ export function InboxView({
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <CardTitle>
-                <h2>Request from {formatDateTime(open.createdAt)}</h2>
+                <h2>
+                  Request from <LocalTime value={open.createdAt} />
+                </h2>
               </CardTitle>
               <p className="text-xs text-muted-foreground">
                 {STATUS_LABEL[open.status]} · {open.locale.toUpperCase()} · {open.pagePath ?? '—'}
@@ -182,7 +184,7 @@ export function InboxView({
                         : 'hover:underline'
                     }
                   >
-                    {formatDateTime(row.createdAt)}
+                    <LocalTime value={row.createdAt} />
                   </Link>
                 </TableCell>
                 <TableCell className="text-sm max-w-80 truncate">{row.preview || '—'}</TableCell>

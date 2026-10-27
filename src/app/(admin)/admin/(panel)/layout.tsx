@@ -10,6 +10,7 @@ import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
 import { NavigationProgress } from '@/admin/components/layout/navigation-progress';
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from '@/admin/ui/sidebar';
 import { contentRegistry } from '@/core/content/project-registry';
+import { isStaging } from '@/core/deployment/current';
 import { adminHref, AdminRoute, PagesArea } from '@/core/project/paths';
 import { can, Permission } from '@/core/auth/permissions';
 import { requireUser } from '@/core/auth/server/session';
@@ -69,6 +70,7 @@ export default async function AdminPanelLayout({ children }: LayoutProps<'/admin
           <AdminHeader
             user={user}
             status={settings.status}
+            staging={isStaging()}
             labels={BREADCRUMB_LABELS}
             childLabels={BREADCRUMB_CHILD_LABELS}
           />

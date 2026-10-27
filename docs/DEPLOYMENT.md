@@ -82,6 +82,16 @@ optionally prepares production, and copies a variables block per environment wit
 
 Tested setup (record of the manual test): see CHANGELOG 1.8.0.
 
+## Other Postgres
+
+Any Postgres 15+ works with `DATABASE_URL` (+ `AUTH_SECRET`; storage: `S3_*`). Behind a
+**self-hosted PgBouncer in transaction mode**, `DIRECT_URL` is **required**: session advisory
+locks (the deploy lock) and DDL (migrations) don't work through it. Set `DATABASE_URL` to the
+pooler (runtime) and `DIRECT_URL` to the server itself (usually port 5432).
+`db:migrate:deploy` refuses with that message when `DATABASE_URL` looks like a transaction
+pooler (port 6432 or 6543, or `pgbouncer=true`) and `DIRECT_URL` is missing. Neon and the
+Supabase shared pooler don't need it: their direct address is derived.
+
 ## Environments on Netlify and Vercel
 
 `deploymentEnvironment()` (D-097) reads the platform: Vercel `VERCEL_ENV` +
@@ -113,8 +123,13 @@ disallow, empty sitemap, `noindex`), no tracking integrations, form emails only 
 nothing, and the admin shows a "Staging" bar. Previews show "Preview — read only".
 
 **Refreshing staging:** Neon → the staging branch → **Reset from parent**. Supabase/R2:
-`pnpm db:clone --from <production url> --to <staging url>` on your computer (asks to confirm;
-refuses the production database of your setup and deploys/CI), then
+`pnpm db:clone --from <production url> --to <staging url>` on your computer. It reads both
+databases first and changes nothing unless the source is the migrated live site (marked
+`production`) and the target is marked `staging` or is empty; a database marked `production`
+is never overwritten, whatever your `.env` says. It shows what will be replaced, asks to
+confirm, and copies in one transaction (a failure leaves staging as it was). Every production
+and staging deploy marks its database (D-098); a copy of production (restored backup, Neon
+reset) is re-marked by the first staging deploy on it. Then
 `STORAGE_READ_FALLBACK_URL` = the production bucket's public URL on staging (missing files are
 read from there; never written or deleted), or `--media-from <that url>` to copy the files.
 

@@ -24,6 +24,18 @@ test.describe.serial('staging safety', () => {
     );
   });
 
+  test('the admin says staging is hidden from Google, whatever the stored setting', async ({
+    page,
+  }) => {
+    await login(page, E2E_ADMIN);
+    await page.goto(admin());
+    await expect(page.getByText('Hidden from Google (staging)').first()).toBeVisible();
+    await expect(page.getByText('Visible in Google')).toHaveCount(0);
+    const form = await openSettingsTab(page, 'search', 'Google & sharing');
+    await expect(page.getByTestId('staging-indexing-note')).toBeVisible();
+    await expect(form.getByLabel('Show the site in Google')).toHaveCount(0);
+  });
+
   test('never indexed: robots disallow, empty sitemap, noindex header', async ({ request }) => {
     const robots = await (await request.get('/robots.txt')).text();
     expect(robots).toMatch(/Disallow: \/\s*$/m);

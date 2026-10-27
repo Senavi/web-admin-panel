@@ -16,6 +16,7 @@ import { DeveloperSection } from '@/admin/components/layout/developer-mode';
 import { useConfirm } from '@/admin/hooks/use-confirm';
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/admin/ui/field';
 import { Alert, AlertDescription } from '@/admin/ui/alert';
+import { INDEXING_LABELS } from '@/core/deployment/rules';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import { Textarea } from '@/admin/ui/textarea';
 import type { MediaPreview } from '@/core/content/editor-types';
@@ -81,6 +82,8 @@ export interface SettingsScreenProps {
   readonly noRecipientsWarning: boolean;
   /** Staging only: the addresses form emails go to instead (empty: not emailed). */
   readonly stagingMailTo: readonly string[] | null;
+  /** Staging is never indexed: the Google switch is replaced by a note. */
+  readonly staging: boolean;
 }
 
 function visibleTabs(props: Pick<SettingsScreenProps, 'forms' | 'integrations'>): SettingsTab[] {
@@ -235,6 +238,7 @@ function SearchTab({
   locales,
   media,
   onUploaded,
+  staging,
 }: SettingsScreenProps & MediaProps) {
   const { confirm, dialog } = useConfirm();
   const selected = selectedLocales(settings.general);
@@ -287,11 +291,20 @@ function SearchTab({
       }}
     >
       {dialog}
-      <RhfSwitch
-        name="groups.status.indexing"
-        label="Show the site in Google"
-        description="Turn off while the site is being prepared."
-      />
+      {staging ? (
+        <Alert data-testid="staging-indexing-note">
+          <AlertDescription>
+            {INDEXING_LABELS.staging}: staging is never shown in Google, whatever the live site’s
+            setting is. Change it on the live site’s admin.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <RhfSwitch
+          name="groups.status.indexing"
+          label="Show the site in Google"
+          description="Turn off while the site is being prepared."
+        />
+      )}
       {enabled.map((locale) => (
         <RhfTextarea
           key={locale.code}

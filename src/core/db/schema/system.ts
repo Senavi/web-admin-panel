@@ -1,4 +1,15 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { users } from './auth';
 import type { JsonObject } from './content';
@@ -40,3 +51,20 @@ export const systemJobs = pgTable('system_jobs', {
   lastResult: jsonb('last_result').$type<JsonObject>(),
   runs: integer('runs').notNull().default(0),
 });
+
+/**
+ * Which environment this database belongs to (single row, id = 1), written by
+ * `db:prepare` on production and staging deploys (D-098). `db:clone` never copies
+ * it and never overwrites a database marked `production`.
+ */
+export const databaseEnvironment = pgTable(
+  'database_environment',
+  {
+    id: smallint('id').primaryKey().default(1),
+    environment: text('environment').notNull(),
+    /** `databaseIdentity()` of the database it was written for: a copy (Neon reset, backup) differs. */
+    databaseIdentity: text('database_identity'),
+    markedAt: timestamp('marked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('database_environment_singleton', sql`${table.id} = 1`)],
+);
