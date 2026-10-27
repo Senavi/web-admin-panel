@@ -20,7 +20,7 @@ test.describe('Connect Supabase guide', () => {
     // The local-database banner links here too; open the guide from Developer settings.
     await page
       .getByRole('region', { name: 'Developer settings' })
-      .getByRole('button', { name: 'Connect Supabase' })
+      .getByRole('button', { name: 'Supabase', exact: true })
       .click();
     const dialog = page.getByRole('dialog', { name: 'Connect Supabase' });
     await dialog.getByRole('button', { name: 'I have created the project' }).click();

@@ -4,23 +4,37 @@ Several people build one site: each works on their own computer with their own l
 database, and the code (including the content structure and its default texts) travels
 through git. This page is the agreed way of working.
 
-## Branches
+## Three environments
 
-| Branch                          | What it is                                                     |
-| ------------------------------- | -------------------------------------------------------------- |
-| `main`                          | The live site. Only merged from `dev` when a release is ready. |
-| `dev`                           | The test version everyone merges into.                         |
-| `feature/<task>` (one per task) | Your work. Open a pull request into `dev`.                     |
+| Git branch                  | Deploy                         | Database                                                            |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------------- |
+| `main`                      | **Production** (the live site) | production database (Neon branch `production` / Supabase project 1) |
+| `staging`                   | **Staging** (branch deploy)    | staging database (Neon branch `staging` / Supabase project 2)       |
+| `feature/*` (pull requests) | Deploy preview                 | none: **preview mode** (content from the code)                      |
 
-1. `git switch dev && git pull`, then `git switch -c feature/contact-page`.
-2. Work, commit, push, open a pull request **into `dev`** (the template in
-   `.github/pull_request_template.md` asks what changed and what was checked).
-3. Someone reviews it; merge; delete the branch.
-4. When `dev` is ready, a pull request from `dev` into `main` publishes it.
+Everyone develops on their **local** database (`pnpm dev`). Content structure and seed texts
+travel in git; every deploy migrates and syncs **its own** database. **Data never moves from
+staging to production; code does.** What you type in the staging admin stays on staging.
+
+Staging is safe to break: it is never indexed, tracking scripts (GA, GTM, Hotjar, HubSpot,
+Meta Pixel) never load there, form emails go only to the team (`STAGING_MAIL_TO`), and the
+admin shows a purple "Staging" bar (D-097). The branch name is `projectConfig.stagingBranch`
+(default `staging`).
+
+## Branches and pull requests
+
+1. `git switch staging && git pull`, then `git switch -c feature/contact-page`.
+2. Work, commit, push, open a pull request **into `staging`** (the template in
+   `.github/pull_request_template.md` asks what changed and what was checked). The pull
+   request gets a deploy preview in preview mode.
+3. Someone reviews it; merge; delete the branch. Staging deploys it on its own database.
+4. When staging is right, a pull request from `staging` into `main` publishes it.
 
 Keep pull requests small. Files everyone touches (`src/content/index.ts`,
 `src/site/navigation.ts`, `src/site/messages/*.json`, shared components, `tokens.css`) are
-where merge conflicts happen: pull `dev` often and mention them in the pull request.
+where merge conflicts happen: pull `staging` often and mention them in the pull request. In a
+conflict, keep both sides' entries (registry, navigation, message keys) and run
+`pnpm content:check` before pushing.
 
 ## Your local database
 
@@ -43,17 +57,32 @@ Nobody else sees it: what you type in your local admin stays on your computer.
 
 ## Online databases
 
-| Where                           | Database                                                                                                                                            |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main` (the live site)          | The production Supabase project. Fills itself from the code on the first deploy; after that the client edits it in the admin.                       |
-| `dev` and pull-request previews | None: **preview mode** (demo content from the code, hidden from search engines). Nothing to set up.                                                 |
-| `dev` with real data (optional) | A second Supabase project for staging, set for the `dev` branch only, with `PREVIEW_DATABASE_ISOLATED=true` (docs/DEPLOYMENT.md § Preview deploys). |
-
+- **Neon (recommended):** one project, branches `production` and `staging`, Object Storage
+  per branch. **Connect Neon** in Security (developer mode) walks you through it and copies
+  each environment's variables (each with its own `AUTH_SECRET`).
+- **Supabase:** two projects (production, staging). The free plan has 2 active projects per
+  account and pauses a project after a week without activity.
 - Never point a preview or a branch at the production database: a migration from an unmerged
-  branch would change the live site.
-- **Connect Supabase** (the local wizard) has "Copy my local content, images and users". In a
-  team, leave it off: the online database fills itself from the code. Copy only when your
-  local content is the real content (for example a solo project).
+  branch would change the live site. Staging migrates only with
+  `PREVIEW_DATABASE_ISOLATED=true` set for the staging branch only.
+- The Connect wizards have "Copy my local content, images and users". In a team, leave it
+  off: the online database fills itself from the code. Copy only when your local content is
+  the real content (for example a solo project).
+
+### Refreshing staging from production
+
+Sometimes staging should look like the live site (real content, to test a change on it).
+
+- **Neon:** Console → the `staging` branch → **Reset from parent**. The database is
+  production's again in seconds (copy-on-write); staging's own changes are gone. Object
+  Storage is reset too in the regions that support it (Neon changelog 2026-09-25: AWS US East
+  (Ohio) and Europe (Frankfurt) first); elsewhere set `STORAGE_READ_FALLBACK_URL` as below.
+- **Supabase / R2:** `pnpm db:clone --from <production url> --to <staging url>` on your
+  computer (asks for confirmation; refuses the production database as the target). Then set
+  `STORAGE_READ_FALLBACK_URL` on staging to the production bucket's public URL (staging reads
+  missing files from there, never writes) or add `--media-from <that url>` to copy the files.
+- After a refresh, re-enter the integration keys on staging (email, etc.): they were
+  encrypted with production's `AUTH_SECRET` and show "Re-enter the key".
 - Once the client edits the live site, the live database is the source of their texts. Seed
   changes still reach every text the client hasn't edited; for an edited one, change it in the
   live admin (or ask the client to use **Reset to code defaults**).

@@ -80,8 +80,9 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 | `pnpm tokens:generate` · `tokens:check`                                  | Regenerate token TS / enforce the token rule                                                          |
 | `pnpm db:generate` · `db:migrate` · `db:seed` · `db:studio` · `db:serve` | Database                                                                                              |
 | `pnpm db:reset [--yes]`                                                  | Local only: delete `.data` database/uploads/mail, migrate, seed, print the new dev admin              |
+| `pnpm db:clone --from <url> --to <url>`                                  | Refresh a staging database from production (Supabase/R2; Neon: Reset from parent)                     |
 | `pnpm admin:create`                                                      | Create an admin/manager (no public sign-up)                                                           |
-| `pnpm e2e:prod` · `e2e:preview` · `check:bundles`                        | E2E against a production build / without any env (preview mode) / no admin code in site bundles       |
+| `pnpm e2e:prod` · `e2e:preview` · `e2e:staging` · `check:bundles`        | E2E against a production build / preview mode / staging mode; no admin code in site bundles           |
 
 ## Definition of done
 
@@ -90,6 +91,11 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 2. UI changes are verified in a browser; e2e covers new user-facing behavior.
 3. No `any`, no magic strings (use constants), no copy-pasted logic.
 4. Docs updated when behavior or conventions change; decisions go in `docs/DECISIONS.md`.
+
+Environments (D-097): `main` → production, `staging` → staging (own database, never indexed,
+no tracking, emails to the team), pull requests → preview mode. Read the environment with
+`currentEnvironment()` / `isStaging()` from `@/core/deployment/current`, never from
+platform variables directly.
 
 Team workflow (docs/TEAM.md): final texts live in seeds (local admin edits stay local);
 `content:sync` updates never-edited fields when a seed changes, so fix default texts in the

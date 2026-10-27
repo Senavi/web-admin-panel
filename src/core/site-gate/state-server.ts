@@ -13,6 +13,8 @@ import { UserStatus } from '@/core/auth/roles';
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
 import { users } from '@/core/db/schema';
+import { currentEnvironment } from '@/core/deployment/current';
+import { settingsForEnvironment } from '@/core/deployment/rules';
 import { integrationCspSources } from '@/core/integrations/model';
 import { selectedLocales } from '@/core/i18n/language-state';
 import { isPreviewMode } from '@/core/preview/mode';
@@ -33,13 +35,14 @@ export async function loadSiteState(): Promise<SiteState> {
   );
   if (isPreviewMode()) return previewSiteState();
   const db = await getDb();
-  const [settings, staff] = await Promise.all([
+  const [stored, staff] = await Promise.all([
     readSiteSettings(db),
     db
       .select({ id: users.id, version: users.sessionVersion })
       .from(users)
       .where(eq(users.status, UserStatus.Active)),
   ]);
+  const settings = settingsForEnvironment(stored, currentEnvironment());
   return {
     defaultLocale: settings.general.defaultLocale,
     enabledLocales: settings.general.enabledLocales,

@@ -121,7 +121,7 @@ export interface MaintenanceSummary {
  */
 export async function runAnalyticsMaintenance(
   db: Database,
-  options: { force?: boolean; now?: Date } = {},
+  options: { force?: boolean; now?: Date; mayDelete?: boolean } = {},
 ): Promise<MaintenanceSummary> {
   const now = options.now ?? new Date();
   const [job] = await db.select().from(systemJobs).where(eq(systemJobs.name, ANALYTICS_JOB));
@@ -144,10 +144,14 @@ export async function runAnalyticsMaintenance(
   const { analytics } = await readSiteSettings(db);
   const cutoff = new Date(now);
   cutoff.setUTCMonth(cutoff.getUTCMonth() - analytics.retentionMonths);
-  const deleted = await db
-    .delete(analyticsEvents)
-    .where(lt(analyticsEvents.ts, cutoff))
-    .returning({ id: analyticsEvents.id });
+  // Staging deletes nothing (its database is often a copy of production).
+  const deleted =
+    options.mayDelete === false
+      ? []
+      : await db
+          .delete(analyticsEvents)
+          .where(lt(analyticsEvents.ts, cutoff))
+          .returning({ id: analyticsEvents.id });
   await db.delete(analyticsSalts).where(lt(analyticsSalts.day, today));
 
   const summary = { skipped: false, rolledUp: days, deletedEvents: deleted.length };

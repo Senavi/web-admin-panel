@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { resolveSupabaseUrl } from './db/connection-info';
+import { DatabaseProvider, databaseProvider, resolveSupabaseUrl } from './db/connection-info';
 import { isPreviewMode } from './preview/mode';
 import { resolveSiteUrl } from './site-url';
 
@@ -18,9 +18,37 @@ const optionalString = z
 
 const optionalUrl = optionalString.pipe(z.url().optional());
 
+/** Comma-separated email addresses. */
+const optionalEmails = optionalString.pipe(
+  z
+    .string()
+    .transform((value) =>
+      value
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.email()))
+    .optional(),
+);
+
+/** How to create AUTH_SECRET (shown in env errors). */
+export const AUTH_SECRET_HELP =
+  'Generate one with `openssl rand -base64 48` (a different value per environment).';
+
+/** S3 variables that switch storage to the S3 driver. */
+const S3_REQUIRED = [
+  'S3_ENDPOINT',
+  'S3_BUCKET',
+  'S3_ACCESS_KEY_ID',
+  'S3_SECRET_ACCESS_KEY',
+] as const;
+
 export const StorageDriver = {
   Local: 'local',
   Supabase: 'supabase',
+  /** Any S3-compatible store: Neon Object Storage, Cloudflare R2, Hetzner, AWS (D-096). */
+  S3: 's3',
 } as const;
 export type StorageDriver = (typeof StorageDriver)[keyof typeof StorageDriver];
 
@@ -56,7 +84,32 @@ export const envSchema = z
      */
     AUTH_SECRET: optionalString.pipe(z.string().min(32).optional()),
 
-    STORAGE_DRIVER: z.enum([StorageDriver.Local, StorageDriver.Supabase]).optional(),
+    STORAGE_DRIVER: z
+      .enum([StorageDriver.Local, StorageDriver.Supabase, StorageDriver.S3])
+      .optional(),
+    /** S3-compatible storage (Neon Object Storage, R2…): endpoint of the branch / account. */
+    S3_ENDPOINT: optionalUrl,
+    /** Region for request signing (Neon: e.g. `us-east-2`; R2: `auto`). Default `auto`. */
+    S3_REGION: optionalString.default('auto'),
+    S3_BUCKET: optionalString,
+    S3_ACCESS_KEY_ID: optionalString,
+    S3_SECRET_ACCESS_KEY: optionalString,
+    /**
+     * Optional public base URL of the bucket (`public_read` bucket, R2 custom domain…).
+     * Raster images are then loaded from there; SVG logos always go through /api/media.
+     */
+    S3_PUBLIC_URL: optionalUrl,
+    /** Path-style requests (`<endpoint>/<bucket>/<key>`); required by Neon. Default true. */
+    S3_FORCE_PATH_STYLE: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    /**
+     * Staging with a non-branching store: public base URL of the PRODUCTION bucket, read
+     * only. Files missing in this environment's bucket are read from there (never written
+     * or deleted), so a staging copy of the production database shows its images.
+     */
+    STORAGE_READ_FALLBACK_URL: optionalUrl,
     /** Explicitly allow the local filesystem storage driver in production (CI / self-hosting). */
     ALLOW_LOCAL_STORAGE_IN_PRODUCTION: z
       .enum(['true', 'false'])
@@ -66,6 +119,14 @@ export const envSchema = z
     SUPABASE_ANON_KEY: optionalString,
     SUPABASE_SERVICE_ROLE_KEY: optionalString,
     SUPABASE_STORAGE_BUCKET: optionalString.default('media'),
+
+    /**
+     * Overrides the detected environment: production | staging | preview | development
+     * (self-hosted staging, tests). Normally detected from Netlify / Vercel (D-097).
+     */
+    DEPLOYMENT_ENVIRONMENT: z.enum(['production', 'staging', 'preview', 'development']).optional(),
+    /** Staging only: form emails go to these addresses (the team), never to the client's. */
+    STAGING_MAIL_TO: optionalEmails,
 
     /** Protects /api/cron/maintenance. Cron endpoint is disabled when unset. */
     CRON_SECRET: optionalString.pipe(z.string().min(16).optional()),
@@ -124,12 +185,15 @@ export const envSchema = z
     // Without DATABASE_URL production runs in preview mode: nothing else is required.
     if (isPreviewMode({ NODE_ENV: env.NODE_ENV, DATABASE_URL: env.DATABASE_URL })) return;
 
+    const provider = databaseProvider(env.DATABASE_URL);
     if (isProduction && !env.AUTH_SECRET && !env.SUPABASE_SERVICE_ROLE_KEY) {
       ctx.addIssue({
         code: 'custom',
         path: ['AUTH_SECRET'],
         message:
-          'AUTH_SECRET (min 32 chars) is required in production unless SUPABASE_SERVICE_ROLE_KEY is set (the secret is then derived from it).',
+          provider === DatabaseProvider.Supabase
+            ? `AUTH_SECRET (min 32 chars) is required in production unless SUPABASE_SERVICE_ROLE_KEY is set (the secret is then derived from it). ${AUTH_SECRET_HELP}`
+            : `AUTH_SECRET (min 32 chars) is required in production with this database (there is no Supabase key to derive it from). ${AUTH_SECRET_HELP}`,
       });
     }
     const siteUrlSources = {
@@ -152,6 +216,17 @@ export const envSchema = z
     }
 
     const driver = resolveStorageDriver(env);
+    if (driver === StorageDriver.S3) {
+      for (const key of S3_REQUIRED) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required for S3 storage (${S3_REQUIRED.join(', ')}; docs/DEPLOYMENT.md § Storage).`,
+          });
+        }
+      }
+    }
     if (driver === StorageDriver.Supabase) {
       if (!resolveSupabaseUrl(env)) {
         ctx.addIssue({
@@ -188,7 +263,9 @@ export const envSchema = z
         code: 'custom',
         path: ['STORAGE_DRIVER'],
         message:
-          'Local file storage is not persistent on serverless platforms. Configure Supabase storage or set ALLOW_LOCAL_STORAGE_IN_PRODUCTION=true.',
+          provider === DatabaseProvider.Neon
+            ? 'Neon has no file storage configured. In Neon → your branch → Object storage, create a bucket and a credential, then set S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY (docs/DEPLOYMENT.md § Neon).'
+            : 'Local file storage is not persistent on serverless platforms. Configure S3-compatible or Supabase storage, or set ALLOW_LOCAL_STORAGE_IN_PRODUCTION=true.',
       });
     }
   })
@@ -199,15 +276,19 @@ export type EnvInput = z.input<typeof envSchema>;
 export type Env = z.output<typeof envSchema>;
 
 /**
- * Storage driver: explicit setting, otherwise Supabase when a Supabase project is
- * known (SUPABASE_URL, or derived from a Supabase DATABASE_URL), otherwise local.
+ * Storage driver: the explicit setting; otherwise S3 when S3 variables are set (an
+ * explicit opt-in, also for Supabase databases); otherwise Supabase when a Supabase
+ * project is known (SUPABASE_URL, or derived from a Supabase DATABASE_URL); else local.
  */
 export function resolveStorageDriver(env: {
   readonly STORAGE_DRIVER?: StorageDriver;
   readonly SUPABASE_URL?: string;
   readonly DATABASE_URL?: string;
+  readonly S3_ENDPOINT?: string;
+  readonly S3_BUCKET?: string;
 }): StorageDriver {
   if (env.STORAGE_DRIVER) return env.STORAGE_DRIVER;
+  if (env.S3_ENDPOINT || env.S3_BUCKET) return StorageDriver.S3;
   return resolveSupabaseUrl(env) ? StorageDriver.Supabase : StorageDriver.Local;
 }
 

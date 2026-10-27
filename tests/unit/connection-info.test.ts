@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ConnectionKind,
   connectionErrorHint,
+  DatabaseProvider,
+  databaseProvider,
+  isTransactionPooler,
+  neonDirectUrl,
+  requiresTls,
   deriveSupabaseUrl,
   describeConnection,
   IPV6_ONLY_MESSAGE,
@@ -19,33 +24,44 @@ const DIRECT = `postgresql://postgres:s3cret@db.${REF}.supabase.co:5432/postgres
 const DEDICATED = `postgresql://postgres:s3cret@db.${REF}.supabase.co:6543/postgres`;
 const CI = 'postgres://postgres:postgres@localhost:5432/app';
 const PGLITE = 'postgres://postgres:postgres@127.0.0.1:54329/postgres';
+const NEON_POOLED =
+  'postgresql://neondb_owner:npg_s3cret@ep-cool-darkness-a1b2c3d4-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const NEON_DIRECT = NEON_POOLED.replace('-pooler.', '.');
 
 describe('describeConnection', () => {
   it('recognizes the four Supabase connection types', () => {
     expect(describeConnection(SHARED_TX)).toEqual({
       kind: ConnectionKind.SharedTransaction,
+      provider: DatabaseProvider.Supabase,
       projectRef: REF,
       ipv4: true,
     });
     expect(describeConnection(SHARED_SESSION)).toEqual({
       kind: ConnectionKind.SharedSession,
+      provider: DatabaseProvider.Supabase,
       projectRef: REF,
       ipv4: true,
     });
     expect(describeConnection(DIRECT)).toEqual({
       kind: ConnectionKind.Direct,
+      provider: DatabaseProvider.Supabase,
       projectRef: REF,
       ipv4: false,
     });
     expect(describeConnection(DEDICATED)).toEqual({
       kind: ConnectionKind.Dedicated,
+      provider: DatabaseProvider.Supabase,
       projectRef: REF,
       ipv4: false,
     });
   });
 
   it('treats other Postgres servers (CI, local PGlite server) as reachable', () => {
-    expect(describeConnection(CI)).toEqual({ kind: ConnectionKind.OtherPostgres, ipv4: true });
+    expect(describeConnection(CI)).toEqual({
+      kind: ConnectionKind.OtherPostgres,
+      provider: DatabaseProvider.Postgres,
+      ipv4: true,
+    });
     expect(describeConnection(PGLITE)?.kind).toBe(ConnectionKind.OtherPostgres);
   });
 
@@ -114,5 +130,41 @@ describe('connection errors', () => {
     expect(maskConnectionString(SHARED_TX)).not.toContain('s3cret');
     expect(maskConnectionString(SHARED_TX)).toContain('****@aws-0-eu-central-1');
     expect(IPV6_ONLY_MESSAGE).toContain('pooler.supabase.com:5432');
+  });
+});
+
+describe('Neon', () => {
+  it('recognizes pooled and direct hosts', () => {
+    expect(describeConnection(NEON_POOLED)).toEqual({
+      kind: ConnectionKind.NeonPooled,
+      provider: DatabaseProvider.Neon,
+      ipv4: true,
+    });
+    expect(describeConnection(NEON_DIRECT)?.kind).toBe(ConnectionKind.NeonDirect);
+    expect(databaseProvider(NEON_DIRECT)).toBe(DatabaseProvider.Neon);
+    expect(databaseProvider(SHARED_SESSION)).toBe(DatabaseProvider.Supabase);
+    expect(databaseProvider(CI)).toBe(DatabaseProvider.Postgres);
+    expect(databaseProvider('nope')).toBeNull();
+    // Azure regions use another domain suffix.
+    expect(databaseProvider('postgres://u:p@ep-x-123-pooler.eastus2.azure.neon.tech/neondb')).toBe(
+      DatabaseProvider.Neon,
+    );
+  });
+
+  it('derives the direct URL by removing -pooler, keeping user, password and query', () => {
+    expect(neonDirectUrl(NEON_POOLED)).toBe(NEON_DIRECT);
+    expect(neonDirectUrl(NEON_DIRECT)).toBe(NEON_DIRECT);
+    expect(neonDirectUrl(SHARED_TX)).toBe(SHARED_TX);
+    expect(migrationUrl({ DATABASE_URL: NEON_POOLED })).toBe(NEON_DIRECT);
+    expect(migrationUrl({ DATABASE_URL: NEON_POOLED, DIRECT_URL: CI })).toBe(CI);
+  });
+
+  it('knows transaction poolers and TLS requirements', () => {
+    expect(isTransactionPooler(NEON_POOLED)).toBe(true);
+    expect(isTransactionPooler(SHARED_TX)).toBe(true);
+    expect(isTransactionPooler(NEON_DIRECT)).toBe(false);
+    expect(isTransactionPooler(SHARED_SESSION)).toBe(false);
+    expect(requiresTls(NEON_POOLED)).toBe(true);
+    expect(requiresTls(CI)).toBe(false);
   });
 });

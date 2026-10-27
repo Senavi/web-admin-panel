@@ -3,6 +3,7 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 import { projectConfig } from './project.config';
 import { resolveSupabaseUrl } from './src/core/db/connection-info';
+import { detectDeploymentEnvironment } from './src/core/deployment/environment';
 import { baseSecurityHeaders, CSP_HEADER, staticPageCsp } from './src/core/security/headers';
 
 // Site UI strings: project-owned request config (src/site/i18n/request.ts).
@@ -25,7 +26,25 @@ function supabaseImagePatterns(): NonNullable<NonNullable<NextConfig['images']>[
   ];
 }
 
+/** A public S3 bucket (S3_PUBLIC_URL) serves raster images directly (SVG stays on /api/media). */
+function s3ImagePatterns(): NonNullable<NonNullable<NextConfig['images']>['remotePatterns']> {
+  const value = process.env.S3_PUBLIC_URL?.trim();
+  if (!value) return [];
+  const { protocol, hostname, pathname } = new URL(value);
+  return [
+    {
+      protocol: protocol === 'http:' ? 'http' : 'https',
+      hostname,
+      pathname: `${pathname.replace(/\/$/, '')}/**`,
+    },
+  ];
+}
+
 const nextConfig: NextConfig = {
+  // The environment seen at build time (platform variables can be missing in functions).
+  env: {
+    SITE_BUILD_ENVIRONMENT: detectDeploymentEnvironment(process.env, projectConfig.stagingBranch),
+  },
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
@@ -36,7 +55,7 @@ const nextConfig: NextConfig = {
     // Local storage driver serves uploads from this route; Supabase hosts are added from env.
     // Preview mode (no database) serves the seed images from /api/seed-assets.
     localPatterns: [{ pathname: '/api/media/**' }, { pathname: '/api/seed-assets/**' }],
-    remotePatterns: supabaseImagePatterns(),
+    remotePatterns: [...supabaseImagePatterns(), ...s3ImagePatterns()],
   },
   async headers() {
     const admin = projectConfig.adminPath.slice(1);

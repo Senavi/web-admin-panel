@@ -17,7 +17,7 @@ import {
   DeliveryStatus,
   deliverSubmission,
   enabledDestinations,
-  withDefaultRecipients,
+  formDestinations,
 } from './delivery';
 import { FormHiddenField } from './fields';
 import {
@@ -109,10 +109,7 @@ export async function processSubmission(
   if (!result.ok) return done({ status: FormSubmitStatus.Invalid, errors: result.errors, values });
 
   const pagePath = safeRedirectPath(data.get(FormHiddenField.Page), '').slice(0, PAGE_PATH_MAX);
-  const config = withDefaultRecipients(
-    settings.forms.destinations[form.id],
-    settings.forms.defaultRecipients,
-  );
+  const config = formDestinations(settings.forms, form.id);
   const destinations = enabledDestinations(config);
   const now = new Date();
   const [stored] = await db

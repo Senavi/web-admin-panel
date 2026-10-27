@@ -6,6 +6,7 @@ import { DeveloperSection } from '@/admin/components/layout/developer-mode';
 import { PageHeader } from '@/admin/components/layout/page-header';
 import { SectionCard } from '@/admin/components/layout/section-card';
 import { ActivityList } from '@/admin/components/security/activity-list';
+import { ConnectNeonWizard } from '@/admin/components/security/connect-neon-wizard';
 import { ConnectSupabaseWizard } from '@/admin/components/security/connect-supabase-wizard';
 import { SessionsTable } from '@/admin/components/security/sessions-table';
 import { StatusCard } from '@/admin/components/security/status-card';
@@ -16,12 +17,18 @@ import { requirePermission } from '@/core/auth/server/session';
 import { getDb } from '@/core/db/client';
 import { sessions, users } from '@/core/db/schema';
 import { DbMode } from '@/core/db/types';
-import { isProduction } from '@/core/env';
+import { describeUsage } from '@/core/database/usage';
+import { DATABASE_PROVIDER_LABELS, databaseProvider } from '@/core/db/connection-info';
+import { currentEnvironment } from '@/core/deployment/current';
+import { ENVIRONMENT_LABELS } from '@/core/deployment/environment';
+import { env, isProduction } from '@/core/env';
+import { projectConfig } from '@project/config';
 import { resolveSiteUrl } from '@/core/site-url';
 import { adminHref, AdminRoute } from '@/core/project/paths';
 import { recentActivity } from '@/core/security/activity';
 import { checkSiteHealth } from '@/core/security/status';
 import { timed } from '@/core/perf/timing';
+import { STORAGE_DRIVER_LABELS } from '@/core/storage/types';
 
 export const metadata: Metadata = { title: 'Security' };
 export const instant = false;
@@ -73,6 +80,9 @@ export default async function SecurityPage() {
   ]);
   const { database, storage } = health;
   const local = database.mode === DbMode.Local;
+  const provider = databaseProvider(env().DATABASE_URL);
+  const providerLabel = provider ? DATABASE_PROVIDER_LABELS[provider] : 'Postgres';
+  const environment = currentEnvironment();
 
   return (
     <>
@@ -100,14 +110,33 @@ export default async function SecurityPage() {
             label="Database"
             value={
               database.ok
-                ? `${local ? 'Local database (this computer)' : 'Postgres'} · OK · ${database.latencyMs} ms`
-                : `${local ? 'Local database' : 'Postgres'} · ${database.error ?? 'Failed'}`
+                ? `${local ? 'Local database (this computer)' : providerLabel} · OK · ${database.latencyMs} ms`
+                : `${local ? 'Local database' : providerLabel} · ${database.error ?? 'Failed'}`
             }
             sub={local ? 'Not used on the live site' : database.host}
           />
           <Line
+            label="Environment"
+            value={ENVIRONMENT_LABELS[environment]}
+            sub={`Staging branch: ${projectConfig.stagingBranch}`}
+          />
+          {health.usage ? (
+            <>
+              <Line
+                label="Database size"
+                value={describeUsage(health.usage.database)}
+                sub={health.usage.plan}
+              />
+              <Line
+                label="Images"
+                value={describeUsage(health.usage.storage)}
+                sub={health.usage.plan}
+              />
+            </>
+          ) : null}
+          <Line
             label="File storage"
-            value={`${storage.driver === 'local' ? 'Local folder' : 'Supabase Storage'} · ${
+            value={`${STORAGE_DRIVER_LABELS[storage.driver]} · ${
               storage.ok ? 'OK' : (storage.error ?? 'Failed')
             }`}
             sub={storage.location}
@@ -116,18 +145,31 @@ export default async function SecurityPage() {
           <Line label="Sign-in secret" value={AUTH_SECRET_SOURCE_LABELS[authSecretSource()]} />
         </div>
         {!production && local ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <ConnectSupabaseWizard
-              siteUrl={productionSiteUrl()}
-              trigger={
-                <Button>
-                  <DatabaseIcon />
-                  Connect Supabase
-                </Button>
-              }
-            />
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">Connect an online database</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <ConnectNeonWizard
+                staffEmail={me.email}
+                trigger={
+                  <Button>
+                    <DatabaseIcon />
+                    Neon (recommended)
+                  </Button>
+                }
+              />
+              <ConnectSupabaseWizard
+                siteUrl={productionSiteUrl()}
+                trigger={
+                  <Button variant="outline">
+                    <DatabaseIcon />
+                    Supabase
+                  </Button>
+                }
+              />
+            </div>
             <span className="text-sm text-muted-foreground">
-              Step-by-step guide for Vercel or Netlify
+              Neon: database and file storage with production and staging branches. Step-by-step
+              guides for Netlify and Vercel.
             </span>
           </div>
         ) : null}

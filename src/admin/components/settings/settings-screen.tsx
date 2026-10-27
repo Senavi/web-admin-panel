@@ -79,6 +79,8 @@ export interface SettingsScreenProps {
   readonly integrations: IntegrationsInfo | null;
   /** Email is connected but no form has recipients: requests are saved, not emailed. */
   readonly noRecipientsWarning: boolean;
+  /** Staging only: the addresses form emails go to instead (empty: not emailed). */
+  readonly stagingMailTo: readonly string[] | null;
 }
 
 function visibleTabs(props: Pick<SettingsScreenProps, 'forms' | 'integrations'>): SettingsTab[] {
@@ -429,6 +431,7 @@ function RequestsTab({
   telegramAvailable,
   emailProvider,
   noRecipientsWarning,
+  stagingMailTo,
 }: SettingsScreenProps) {
   const destinations = Object.fromEntries(
     forms.map((form) => [
@@ -465,6 +468,15 @@ function RequestsTab({
       <p className="text-sm text-muted-foreground">
         Every request is saved in Pages → Forms. Here you choose who also gets it by email.
       </p>
+      {stagingMailTo ? (
+        <Alert data-testid="staging-mail-note">
+          <AlertDescription>
+            {stagingMailTo.length > 0
+              ? `Staging: emails go to ${stagingMailTo.join(', ')} only (the recipients below get nothing from staging).`
+              : 'Staging: requests are saved but not emailed. Set STAGING_MAIL_TO to receive them.'}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {noRecipientsWarning ? (
         <Alert role="alert" data-testid="no-recipients-warning">
           <AlertDescription>

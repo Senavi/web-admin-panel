@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import { connectionErrorHint } from '@/core/db/connection-info';
 import { getDb, getDbInfo } from '@/core/db/client';
 import type { DbInfo } from '@/core/db/types';
+import type { StorageDriverName } from '@/core/storage/types';
 import { getStorage } from '@/core/storage';
 
 export interface DatabaseHealth extends DbInfo {
@@ -41,7 +42,7 @@ export async function checkDatabase(): Promise<DatabaseHealth> {
 }
 
 export interface StorageHealth {
-  readonly driver: string;
+  readonly driver: StorageDriverName;
   readonly location: string;
   readonly ok: boolean;
   readonly error: string | null;

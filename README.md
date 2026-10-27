@@ -6,7 +6,8 @@ working admin (content, SEO, settings, users, analytics, security) for free.
 
 - **Stack:** Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind 4,
   shadcn/ui, Drizzle ORM, Better Auth, next-intl, Zod.
-- **Database:** embedded PGlite in development (zero config) → Supabase Postgres in production.
+- **Database:** embedded PGlite in development (zero config) → Neon (recommended) or
+  Supabase Postgres online, with production, staging and preview environments.
 - **Hosting:** Vercel or Netlify.
 
 ## Quick start
@@ -28,8 +29,8 @@ emails, then prints a new admin password), stop `pnpm dev` and run:
 pnpm db:reset
 ```
 
-Working with other people? Read [docs/TEAM.md](docs/TEAM.md) (branches, local databases,
-seeds, online databases).
+Working with other people? Read [docs/TEAM.md](docs/TEAM.md) (`main` / `staging` / pull
+requests, local databases, seeds, online databases, refreshing staging).
 
 If `pnpm dev` keeps reloading the page right after `pnpm build` (which shares `.next`), stop
 it, delete `.next/dev` and start it again. `pnpm preview` and `pnpm e2e:prod` use their own
@@ -39,9 +40,10 @@ folders and don't affect it.
 
 Import the repository into Netlify or Vercel and deploy: it works with **zero variables**
 (preview mode: demo content, hidden from search engines, the admin shows a setup guide).
-Then add `DATABASE_URL` (the Supabase shared pooler address) and `SUPABASE_SERVICE_ROLE_KEY`
-and redeploy. See
-docs/DEPLOYMENT.md § Deploy in 5 minutes.
+Then connect a database (Neon: `DATABASE_URL`, `AUTH_SECRET` and the `S3_*` storage values;
+Supabase: `DATABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`) and redeploy. See
+docs/DEPLOYMENT.md § Deploy in 5 minutes. Three environments: `main` → production,
+`staging` → staging with its own database, pull requests → previews (docs/TEAM.md).
 
 ## Test the speed
 
@@ -71,7 +73,8 @@ prints click → feedback / content times for the main site and admin pages.
 - SEO: metadata, hreflang, sitemap, robots, JSON-LD, generated OG images, localized 404.
 - Cookieless analytics with an Overview dashboard.
 - Design tokens as the single source of the site's look (`pnpm tokens:check`).
-- Local PGlite → Supabase with a guided Connect Supabase wizard.
+- Local PGlite → Neon or Supabase with guided Connect wizards; production, staging (never
+  indexed, no tracking, emails to the team) and preview environments.
 
 ## Quality gates
 

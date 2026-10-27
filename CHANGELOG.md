@@ -6,6 +6,56 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-27
+
+Neon or Supabase, S3-compatible storage, staging and production.
+
+### Added
+
+- **Any Postgres, Neon recommended.** `DATABASE_URL` accepts Supabase, Neon (pooled or
+  direct) or any Postgres; the provider is detected from the host and shown in Security →
+  Database. Neon runs on the pooled URL (transaction mode) and derives the direct URL for
+  migrations, `db:prepare` and the deploy lock; TLS is forced. With a non-Supabase database
+  `AUTH_SECRET` is required in production (the error says how to generate it).
+- **S3-compatible storage** (`STORAGE_DRIVER=s3`, `S3_*` variables): Neon Object Storage
+  (per-branch, copy-on-write), Cloudflare R2, Hetzner, AWS. Files are served by `/api/media`
+  (immutable cache, `nosniff`, sandbox CSP for SVG); optional `S3_PUBLIC_URL`. Staging on a
+  non-branching store can read missing files from production with `STORAGE_READ_FALLBACK_URL`
+  (read only).
+- **Three environments** (`deploymentEnvironment()`): `main` → production, `staging` →
+  staging (`projectConfig.stagingBranch`), pull requests → preview. Staging is never indexed,
+  never loads tracking integrations, sends form emails only to `STAGING_MAIL_TO`, deletes
+  nothing in maintenance and shows a "Staging" bar in the admin; previews show "Preview —
+  read only".
+- **Deploy lock:** `db:migrate:deploy` migrates and prepares under a Postgres advisory lock,
+  so two deploys of one database never overlap.
+- **`pnpm db:clone --from <url> --to <url>`** refreshes a staging database from production
+  (Supabase/R2 setups; Neon: Reset from parent), with safety refusals and a confirmation.
+- **Connect Neon** wizard (Security, developer mode) next to Connect Supabase: guide,
+  connection check for both branches (pooled, direct, storage), optional "Copy my local
+  content" (off by default), and a "Copy all" block per environment with its own
+  `AUTH_SECRET`, with Netlify and Vercel instructions.
+- Security → Database: environment, database size and images against the free-plan limit,
+  with a warning from 80 %.
+- `pnpm e2e:staging` (the production build started as staging) and a deploy-lock test on real
+  Postgres in CI.
+
+### Changed
+
+- Migrations run on production, and on staging/previews only with
+  `PREVIEW_DATABASE_ISOLATED=true` (unchanged flag; now documented for the staging branch).
+- docs/TEAM.md uses `staging` instead of `dev`; DEPLOYMENT.md has Neon, environment and
+  storage sections; the local-database banner says "Connect a database".
+
+### Upgrading from 1.7.x
+
+- **Supabase projects: nothing is required.** Storage stays Supabase unless you set `S3_*`.
+- Optional: rename your test branch `dev` → `staging`, or keep it and set
+  `stagingBranch: 'dev'` in `project.config.ts`; give it its own database with
+  `PREVIEW_DATABASE_ISOLATED=true` for that branch only, and `STAGING_MAIL_TO`.
+- Moving to Neon: follow DEPLOYMENT.md § Neon (new variables per environment; set
+  `AUTH_SECRET`, otherwise everyone is signed out once).
+
 ## [1.7.2] - 2026-10-23
 
 Security release: Next.js 16.4.1. No behavior changes.

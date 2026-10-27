@@ -1,3 +1,4 @@
+import { isStaging } from '@/core/deployment/current';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -80,6 +81,7 @@ export default async function SettingsPage() {
           emailProvider={mail.line}
           integrations={integrations}
           noRecipientsWarning={noRecipientsWarning}
+          stagingMailTo={isStaging() ? (env().STAGING_MAIL_TO ?? []) : null}
         />
       </Suspense>
     </>

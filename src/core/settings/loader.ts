@@ -4,6 +4,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 
 import { CacheTag } from '@/core/cache/tags';
 import { getDb } from '@/core/db/client';
+import { currentEnvironment } from '@/core/deployment/current';
+import { settingsForEnvironment } from '@/core/deployment/rules';
 import { isPreviewMode } from '@/core/preview/mode';
 import { previewLocalizedSettings, previewSiteSettings } from '@/core/preview/seed-data';
 
@@ -16,7 +18,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   cacheLife('max');
   cacheTag(CacheTag.Settings);
   if (isPreviewMode()) return previewSiteSettings();
-  return readSiteSettings(await getDb());
+  // Staging never indexes or loads tracking, whatever the copied settings say (D-097).
+  return settingsForEnvironment(await readSiteSettings(await getDb()), currentEnvironment());
 }
 
 export async function getLocalizedSettings(locale: string): Promise<LocalizedSettings> {

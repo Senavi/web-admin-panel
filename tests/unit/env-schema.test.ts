@@ -178,3 +178,67 @@ describe('derived AUTH_SECRET', () => {
     expect(AUTH_SECRET_HKDF_INFO).toMatch(/auth-secret/);
   });
 });
+
+describe('env per database provider', () => {
+  const NEON =
+    'postgresql://u:p@ep-cool-1-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require';
+  const S3 = {
+    S3_ENDPOINT: 'https://br-cool-1.storage.c-1.eu-central-1.aws.neon.tech',
+    S3_REGION: 'eu-central-1',
+    S3_BUCKET: 'media',
+    S3_ACCESS_KEY_ID: 'nak_live_x',
+    S3_SECRET_ACCESS_KEY: 'nsk_live_x',
+  };
+  const neonProduction = {
+    NODE_ENV: 'production',
+    NEXT_PUBLIC_SITE_URL: 'https://example.com',
+    DATABASE_URL: NEON,
+  };
+
+  it('Neon needs AUTH_SECRET (nothing to derive it from) and says how to make one', () => {
+    expect(() => parseEnv({ ...neonProduction, ...S3 })).toThrowError(
+      /AUTH_SECRET.*no Supabase key.*openssl rand -base64 48/s,
+    );
+  });
+
+  it('Neon without storage variables explains how to add Neon storage', () => {
+    expect(() => parseEnv({ ...neonProduction, AUTH_SECRET: 'x'.repeat(32) })).toThrowError(
+      /Neon has no file storage.*S3_ENDPOINT/s,
+    );
+  });
+
+  it('Neon with AUTH_SECRET and S3 storage is complete', () => {
+    const env = parseEnv({ ...neonProduction, ...S3, AUTH_SECRET: 'x'.repeat(32) });
+    expect(resolveStorageDriver(env)).toBe(StorageDriver.S3);
+    expect(env.S3_FORCE_PATH_STYLE).toBe(true);
+  });
+
+  it('S3 storage needs all four of its variables', () => {
+    expect(() =>
+      parseEnv({ ...neonProduction, AUTH_SECRET: 'x'.repeat(32), S3_BUCKET: 'media' }),
+    ).toThrowError(/S3_ENDPOINT is required for S3 storage/);
+  });
+
+  it('Supabase deploys need nothing new', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        NEXT_PUBLIC_SITE_URL: 'https://example.com',
+        DATABASE_URL:
+          'postgresql://postgres.abcdefghijklmnopqrst:pw@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      }),
+    ).not.toThrow();
+  });
+
+  it('parses the staging mail list and the environment override', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      STAGING_MAIL_TO: 'a@example.com, b@example.com',
+      DEPLOYMENT_ENVIRONMENT: 'staging',
+    });
+    expect(env.STAGING_MAIL_TO).toEqual(['a@example.com', 'b@example.com']);
+    expect(() => parseEnv({ NODE_ENV: 'development', STAGING_MAIL_TO: 'nope' })).toThrow();
+    expect(() => parseEnv({ NODE_ENV: 'development', DEPLOYMENT_ENVIRONMENT: 'qa' })).toThrow();
+  });
+});

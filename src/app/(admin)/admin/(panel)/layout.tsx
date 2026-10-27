@@ -5,6 +5,7 @@ import { AdminHeader } from '@/admin/components/layout/admin-header';
 import { AppSidebar } from '@/admin/components/layout/app-sidebar';
 import { DeveloperModeProvider } from '@/admin/components/layout/developer-mode';
 import { GateRefresher } from '@/admin/components/layout/gate-refresher';
+import { EnvironmentBar } from '@/admin/components/layout/environment-bar';
 import { LocalDbBanner } from '@/admin/components/layout/local-db-banner';
 import { NavigationProgress } from '@/admin/components/layout/navigation-progress';
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from '@/admin/ui/sidebar';
@@ -63,6 +64,7 @@ export default async function AdminPanelLayout({ children }: LayoutProps<'/admin
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar role={user.role} siteName={settings.general.siteName} badges={badges} />
         <SidebarInset>
+          <EnvironmentBar />
           <LocalDbBanner developerMode={user.developerMode} />
           <AdminHeader
             user={user}

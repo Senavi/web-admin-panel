@@ -1,16 +1,21 @@
 import { createServer, type Server, type Socket } from 'node:net';
 
-import { type Browser, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 
 import { admin } from './support/admin';
 import { login } from './support/auth';
+import {
+  GA_ID,
+  openIntegrations,
+  setGoogleAnalytics,
+  submitContact,
+  visitor,
+} from './support/integrations';
 import { openSettingsTab, saveSettingsTab, VISITOR_HEADERS } from './support/settings';
 import { expect, test } from './support/test';
 import { E2E_ADMIN } from './support/users';
 
-const GA_ID = 'G-E2ETEST123';
 const SMTP_PASSWORD = 'smtp-secret-e2e';
-const FILL_DELAY_MS = 3200;
 
 // ── A tiny SMTP server: records every message and the credentials used ───────
 
@@ -76,48 +81,9 @@ async function startSmtp(): Promise<{ server: Server; port: number; mails: Mail[
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function openIntegrations(page: Page) {
-  await page.goto(admin('/settings?tab=integrations'));
-  await expect(page.getByRole('heading', { name: 'Email for forms' })).toBeVisible();
-}
-
 async function chooseOption(page: Page, label: string, option: string | RegExp) {
   await page.getByRole('combobox', { name: label }).click();
   await page.getByRole('option', { name: option }).click();
-}
-
-async function setGoogleAnalytics(page: Page, on: boolean) {
-  await openIntegrations(page);
-  const card = page.getByRole('group', { name: 'Google Analytics 4' });
-  const toggle = card.getByRole('switch');
-  if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click();
-  if (on) await card.getByLabel('Measurement ID').fill(GA_ID);
-  await card.getByRole('button', { name: 'Save Google Analytics 4' }).click();
-  await expect(page.getByText('Google Analytics 4 saved.')).toBeVisible();
-}
-
-let ipCounter = 0;
-async function visitor(browser: Browser) {
-  ipCounter += 1;
-  const context = await browser.newContext({
-    extraHTTPHeaders: {
-      ...VISITOR_HEADERS,
-      'x-forwarded-for': `198.51.100.${(Date.now() % 150) + ipCounter}`,
-    },
-  });
-  return { context, page: await context.newPage() };
-}
-
-async function submitContact(page: Page, name: string) {
-  await page.goto('/contact');
-  await expect(page.locator('form#form-contact input[name="_t"]')).toBeAttached();
-  await page.locator('#contact-consent').check();
-  await page.locator('#contact-name').fill(name);
-  await page.locator('#contact-email').fill('visitor@example.test');
-  await page.locator('#contact-message').fill('Hello from the integrations test.');
-  await page.waitForTimeout(FILL_DELAY_MS);
-  await page.locator('form#form-contact button[type="submit"]').click();
-  await expect(page.getByRole('heading', { name: 'Thank you!' })).toBeVisible();
 }
 
 // ── Analytics and the cookie banner ──────────────────────────────────────────

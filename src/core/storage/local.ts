@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { UPLOADS_DIR } from '@/core/db/paths';
 
-import { assertSafeKey, MEDIA_ROUTE_PREFIX, type StorageAdapter } from './types';
+import { assertSafeKey, mediaRouteUrl, type StorageAdapter } from './types';
 
 const META_SUFFIX = '.meta.json';
 
@@ -16,6 +16,7 @@ export function createLocalStorage(): StorageAdapter {
   return {
     driver: 'local',
     location: '.data/uploads',
+    servedByRoute: true,
     async put(key, body, contentType) {
       const file = fileFor(key);
       await fs.mkdir(path.dirname(file), { recursive: true });
@@ -40,7 +41,19 @@ export function createLocalStorage(): StorageAdapter {
       await fs.rm(file, { force: true });
       await fs.rm(`${file}${META_SUFFIX}`, { force: true });
     },
-    publicUrl: (key) => `${MEDIA_ROUTE_PREFIX}/${key}`,
+    async list(prefix = '') {
+      try {
+        const files = await fs.readdir(UPLOADS_DIR, { recursive: true, withFileTypes: true });
+        return files
+          .filter((entry) => entry.isFile() && !entry.name.endsWith(META_SUFFIX))
+          .map((entry) => path.relative(UPLOADS_DIR, path.join(entry.parentPath, entry.name)))
+          .map((key) => key.split(path.sep).join('/'))
+          .filter((key) => key.startsWith(prefix));
+      } catch {
+        return [];
+      }
+    },
+    publicUrl: (key) => mediaRouteUrl(key),
     async check() {
       try {
         await fs.mkdir(UPLOADS_DIR, { recursive: true });

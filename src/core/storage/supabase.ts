@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 import { assertSafeKey, type StorageAdapter } from './types';
 
+const SUPABASE_LIST_PAGE = 1000;
+
 export interface SupabaseStorageConfig {
   readonly url: string;
   readonly serviceRoleKey: string;
@@ -22,6 +24,7 @@ export function createSupabaseStorage(config: SupabaseStorageConfig): StorageAda
   return {
     driver: 'supabase',
     location: `bucket "${config.bucket}"`,
+    servedByRoute: false,
     async put(key, body, contentType) {
       assertSafeKey(key);
       const { error } = await bucket().upload(key, body, {
@@ -41,6 +44,28 @@ export function createSupabaseStorage(config: SupabaseStorageConfig): StorageAda
       assertSafeKey(key);
       const { error } = await bucket().remove([key]);
       if (error) throw new Error(`Supabase delete failed: ${error.message}`);
+    },
+    async list(prefix = '') {
+      const keys: string[] = [];
+      // Supabase lists one folder level at a time.
+      const walk = async (folder: string): Promise<void> => {
+        for (let offset = 0; ; offset += SUPABASE_LIST_PAGE) {
+          const { data, error } = await bucket().list(folder, {
+            limit: SUPABASE_LIST_PAGE,
+            offset,
+          });
+          if (error) throw new Error(`Supabase list failed: ${error.message}`);
+          for (const item of data) {
+            const key = folder ? `${folder}/${item.name}` : item.name;
+            // Folders have no id.
+            if (item.id) keys.push(key);
+            else await walk(key);
+          }
+          if (data.length < SUPABASE_LIST_PAGE) break;
+        }
+      };
+      await walk('');
+      return keys.filter((key) => key.startsWith(prefix));
     },
     publicUrl: (key) => `${publicBase}/${key}`,
     async check() {

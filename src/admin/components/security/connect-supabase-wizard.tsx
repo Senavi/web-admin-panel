@@ -2,7 +2,6 @@
 
 import {
   CheckCircle2Icon,
-  CheckIcon,
   CopyIcon,
   ExternalLinkIcon,
   InfoIcon,
@@ -32,7 +31,12 @@ import { Input } from '@/admin/ui/input';
 import { Label } from '@/admin/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/admin/ui/tabs';
 import type { ActionResult } from '@/core/actions/result';
-import { ConnectionKind, describeConnection, IPV6_ONLY_MESSAGE } from '@/core/db/connection-info';
+import {
+  ConnectionKind,
+  DatabaseProvider,
+  describeConnection,
+  IPV6_ONLY_MESSAGE,
+} from '@/core/db/connection-info';
 import {
   migrateSupabaseAction,
   migrateSupabaseDataAction,
@@ -49,6 +53,7 @@ import {
 import type { CheckResult } from '@/core/database/supabase-connect';
 
 import { GuideSteps as Steps } from './guide-text';
+import { mask, randomSecret, TaskIcon, type TaskState } from './wizard-parts';
 import {
   CREATE_PROJECT_STEPS,
   HOSTING_GUIDES,
@@ -72,48 +77,8 @@ const STEP_LABELS = [
   'Done',
 ] as const;
 const LAST_STEP = STEP_LABELS.length;
-const SECRET_BYTES = 32;
 
 type Keys = Record<KeyField['name'], string>;
-type TaskState = 'idle' | 'running' | 'done' | 'failed';
-
-/** A random secret (base64url), generated in the browser for the hosting variables. */
-function randomSecret(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(SECRET_BYTES));
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-function mask(value: string): string {
-  try {
-    const url = new URL(value);
-    if (url.password) {
-      url.password = '****';
-      return url.toString();
-    }
-  } catch {
-    // Not a URL.
-  }
-  return value.length <= 8 ? '••••' : `••••${value.slice(-4)}`;
-}
-
-function TaskIcon({ state, index }: { state: TaskState; index: number }) {
-  if (state === 'running')
-    return <Loader2Icon className="size-4 animate-spin" aria-label="In progress" />;
-  if (state === 'done')
-    return (
-      <CheckIcon className="text-emerald-600 dark:text-emerald-400 size-4" aria-label="Done" />
-    );
-  if (state === 'failed')
-    return <XCircleIcon className="text-destructive size-4" aria-label="Failed" />;
-  return (
-    <span className="text-xs w-4 text-center text-muted-foreground" aria-hidden>
-      {index + 1}
-    </span>
-  );
-}
 
 /** The transaction pooler is accepted, but the session pooler is what works reliably on Netlify. */
 const TRANSACTION_POOLER_NOTE =
@@ -124,6 +89,8 @@ const CONNECTION_LABELS: Record<ConnectionKind, string> = {
   [ConnectionKind.SharedSession]: 'Shared pooler, session mode',
   [ConnectionKind.Direct]: 'Direct connection',
   [ConnectionKind.Dedicated]: 'Dedicated pooler',
+  [ConnectionKind.NeonPooled]: 'Neon, pooled (not a Supabase address)',
+  [ConnectionKind.NeonDirect]: 'Neon, direct (not a Supabase address)',
   [ConnectionKind.OtherPostgres]: 'Not a Supabase address',
 };
 
@@ -131,7 +98,7 @@ const CONNECTION_LABELS: Record<ConnectionKind, string> = {
 function ConnectionTypeBadge({ url }: { url: string }) {
   const info = describeConnection(url);
   if (!url.trim() || !info) return null;
-  const supabase = info.kind !== ConnectionKind.OtherPostgres;
+  const supabase = info.provider === DatabaseProvider.Supabase;
   return (
     <div role="status" aria-label="Connection type" className="flex flex-col gap-1.5">
       <div className="text-sm flex flex-wrap items-center gap-2">

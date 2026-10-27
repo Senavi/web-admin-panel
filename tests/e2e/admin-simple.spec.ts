@@ -53,8 +53,9 @@ test.describe('simpler admin', () => {
     const developer = page.getByRole('region', { name: 'Developer settings' });
     await expect(developer).toContainText('Database');
     await expect(developer).toContainText('File storage');
-    // Connect Supabase is a development-only tool.
-    await expect(page.getByRole('button', { name: 'Connect Supabase' })).toHaveCount(0);
+    // Connecting a database is a development-only tool.
+    await expect(page.getByRole('button', { name: 'Neon (recommended)' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Supabase', exact: true })).toHaveCount(0);
     await setDeveloperMode(page, false);
     await page.goto(admin('/security'));
     await expect(page.getByRole('region', { name: 'Developer settings' })).toHaveCount(0);

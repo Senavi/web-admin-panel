@@ -8,14 +8,12 @@ import { expect, test } from './support/test';
 
 import { login } from './support/auth';
 import { setDeveloperMode } from './support/developer';
-import { E2E_ENV } from './support/env';
+import { E2E_DATA_DIR, E2E_ENV } from './support/env';
 import { openSettingsTab, saveSettingsTab } from './support/settings';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
 import { admin, ADMIN } from './support/admin';
 
-/** Same data dir as the server under test (dev e2e: .data/e2e; prod e2e: SITE_DATA_DIR). */
-const DATA_DIR = process.env.SITE_DATA_DIR ?? (process.env.E2E_BASE_URL ? '.data' : '.data/e2e');
-const MAIL_DIR = path.join(DATA_DIR, 'mail');
+const MAIL_DIR = path.join(E2E_DATA_DIR, 'mail');
 /** Signed timing token: humans need ≥ 3 s. */
 const FILL_DELAY_MS = 3200;
 const WEBHOOK_PORT = 4590;

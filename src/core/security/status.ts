@@ -5,6 +5,8 @@ import { mailStatus, type MailStatus } from '@/core/forms/mail-status';
 import { integrationProblems } from '@/core/integrations/health';
 import { MailSource } from '@/core/mail/config';
 import { getDb } from '@/core/db/client';
+import { usageProblems } from '@/core/database/usage';
+import { readUsage, type SiteUsage } from '@/core/database/usage-server';
 
 import { checkDatabase, checkStorage, type DatabaseHealth, type StorageHealth } from './health';
 
@@ -12,6 +14,8 @@ export interface SiteHealth {
   readonly database: DatabaseHealth;
   readonly storage: StorageHealth;
   readonly mail: MailStatus;
+  /** Database size and images vs the plan limit (null while the database doesn't answer). */
+  readonly usage: SiteUsage | null;
   /** Plain-language problems for the Security status card; empty when everything works. */
   readonly problems: readonly string[];
   /** What "everything works" covers, e.g. "Database, file storage and email are connected." */
@@ -32,9 +36,11 @@ const UNKNOWN_MAIL: MailStatus = {
 export async function checkSiteHealth(): Promise<SiteHealth> {
   const [database, storage] = await Promise.all([checkDatabase(), checkStorage()]);
   // Mail and integration checks read the database: skip them while it is down.
-  const [mail, integrations] = database.ok
-    ? await getDb().then((db) => Promise.all([mailStatus(db), integrationProblems(db)]))
-    : [UNKNOWN_MAIL, [] as string[]];
+  const [mail, integrations, usage] = database.ok
+    ? await getDb().then((db) =>
+        Promise.all([mailStatus(db), integrationProblems(db), readUsage().catch(() => null)]),
+      )
+    : [UNKNOWN_MAIL, [] as string[], null];
   const usesEmail = contentRegistry.forms.length > 0;
 
   const problems: string[] = [];
@@ -50,11 +56,13 @@ export async function checkSiteHealth(): Promise<SiteHealth> {
       'Email is not connected. New requests are saved here but not sent by email (Settings → Integrations).',
     );
   problems.push(...integrations);
+  if (usage?.plan) problems.push(...usageProblems(usage, usage.plan));
 
   return {
     database,
     storage,
     mail,
+    usage,
     problems,
     okText: usesEmail
       ? 'Database, file storage and email are connected.'

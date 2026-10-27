@@ -5,19 +5,18 @@ import path from 'node:path';
 
 import { createClient } from '@supabase/supabase-js';
 import { getTableName, sql } from 'drizzle-orm';
-import postgres from 'postgres';
 import { z } from 'zod';
 
 import { getDb } from '@/core/db/client';
-import { migratePostgres, openPostgres } from '@/core/db/drivers/postgres';
+import { migratePostgres, openPostgres, openSession } from '@/core/db/drivers/postgres';
 import { collectionItems, formSubmissions, media, pageContent, users } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
-import { FAVICON_FILES, faviconKey } from '@/core/media/favicon';
 import { createLocalStorage } from '@/core/storage/local';
 import { createSupabaseStorage } from '@/core/storage/supabase';
 
 import { connectionErrorHint, deriveSupabaseUrl, migrationUrl } from '@/core/db/connection-info';
 
+import { copyMediaFiles } from './clone';
 import { appTableNames, copyTables } from './copy';
 import type { RemoteContentSummary } from './remote-summary';
 
@@ -64,13 +63,9 @@ export interface CheckResult {
   readonly message: string;
 }
 
-async function checkPostgres(name: string, url: string): Promise<CheckResult> {
-  const client = postgres(url, {
-    prepare: false,
-    max: 1,
-    connect_timeout: 10,
-    onnotice: () => undefined,
-  });
+/** `select version()` over one connection (TLS for Neon), as a check line. */
+export async function checkPostgres(name: string, url: string): Promise<CheckResult> {
+  const client = openSession(url);
   try {
     const [row] = await client<{ version: string }[]>`select version()`;
     return {
@@ -146,14 +141,9 @@ const SUMMARY_TABLES = {
  * that don't exist yet count as 0). Read-only.
  */
 export async function remoteContentSummary(
-  input: SupabaseConnection,
+  input: Pick<SupabaseConnection, 'directUrl'>,
 ): Promise<RemoteContentSummary> {
-  const client = postgres(input.directUrl, {
-    prepare: false,
-    max: 1,
-    connect_timeout: 10,
-    onnotice: () => undefined,
-  });
+  const client = openSession(input.directUrl);
   try {
     const counts: Record<keyof RemoteContentSummary, number> = {
       users: 0,
@@ -187,30 +177,16 @@ export async function migrateDataToSupabase(
   const remote = openPostgres(input.directUrl, { max: 1 });
   try {
     const rows = await copyTables(local, remote.db);
-    const source = createLocalStorage();
-    const target = createSupabaseStorage({
-      url: input.supabaseUrl,
-      serviceRoleKey: input.serviceRoleKey,
-      bucket: input.bucket,
-    });
     await ensureBucket(input);
-    let files = 0;
-    for (const item of await local.select().from(media)) {
-      const keys = [
-        item.storageKey,
-        ...(item.kind === 'favicon'
-          ? [...Object.keys(FAVICON_FILES), 'favicon.ico'].map((file) =>
-              faviconKey(item.id, file as keyof typeof FAVICON_FILES),
-            )
-          : []),
-      ];
-      for (const key of keys) {
-        const file = await source.get(key);
-        if (!file) continue;
-        await target.put(key, file.body, file.contentType);
-        files += 1;
-      }
-    }
+    const files = await copyMediaFiles(
+      local,
+      createLocalStorage(),
+      createSupabaseStorage({
+        url: input.supabaseUrl,
+        serviceRoleKey: input.serviceRoleKey,
+        bucket: input.bucket,
+      }),
+    );
     return { rows, files };
   } finally {
     await remote.close();

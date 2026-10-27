@@ -12,8 +12,8 @@ import {
   type Destination,
   deliverSubmission,
   enabledDestinations,
+  formDestinations,
   MAX_DELIVERY_ATTEMPTS,
-  withDefaultRecipients,
 } from './delivery';
 
 export const FORMS_JOB = 'forms-maintenance';
@@ -29,10 +29,10 @@ export interface FormsMaintenanceSummary {
   readonly deletedSubmissions: number;
 }
 
-/** Retries failed deliveries (up to MAX_DELIVERY_ATTEMPTS) and enforces retention. */
+/** Retries failed deliveries (up to MAX_DELIVERY_ATTEMPTS) and enforces retention (unless `mayDelete: false`). */
 export async function runFormsMaintenance(
   db: Database,
-  options: { force?: boolean; now?: Date } = {},
+  options: { force?: boolean; now?: Date; mayDelete?: boolean } = {},
 ): Promise<FormsMaintenanceSummary> {
   const now = options.now ?? new Date();
   const [job] = await db.select().from(systemJobs).where(eq(systemJobs.name, FORMS_JOB));
@@ -50,10 +50,14 @@ export async function runFormsMaintenance(
   const { forms } = await readSiteSettings(db);
   const cutoff = new Date(now);
   cutoff.setUTCMonth(cutoff.getUTCMonth() - forms.retentionMonths);
-  const deleted = await db
-    .delete(formSubmissions)
-    .where(lt(formSubmissions.createdAt, cutoff))
-    .returning({ id: formSubmissions.id });
+  // Staging deletes nothing (its database is often a copy of production).
+  const deleted =
+    options.mayDelete === false
+      ? []
+      : await db
+          .delete(formSubmissions)
+          .where(lt(formSubmissions.createdAt, cutoff))
+          .returning({ id: formSubmissions.id });
 
   const candidates = await db
     .select()
@@ -68,7 +72,7 @@ export async function runFormsMaintenance(
   let delivered = 0;
   for (const row of candidates) {
     const form = contentRegistry.formById(row.formId);
-    const config = withDefaultRecipients(forms.destinations[row.formId], forms.defaultRecipients);
+    const config = formDestinations(forms, row.formId);
     if (!form || !config) continue;
     const enabled = new Set(enabledDestinations(config));
     const failed = Object.entries(row.delivery)

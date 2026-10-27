@@ -1,10 +1,12 @@
 import { getStorage } from '@/core/storage';
-import { assertSafeKey } from '@/core/storage/types';
+import { assertSafeKey, IMMUTABLE_CACHE_CONTROL } from '@/core/storage/types';
 
 /**
- * Serves files from the local storage driver (development / self-hosting).
- * With Supabase Storage, images are loaded from the public bucket URL instead.
- * Keys are random and immutable, so responses are cached for a year.
+ * Serves stored files for drivers whose public URL is this route: local files,
+ * S3-compatible storage (Neon, R2…) and the staging read fallback. With Supabase
+ * Storage, images load from the public bucket URL instead. Keys are random and
+ * immutable, so responses are cached for a year (the CDN answers repeat requests).
+ * SVG logos keep their sandboxing CSP (next.config leaves this route alone).
  */
 export async function GET(
   _request: Request,
@@ -18,13 +20,13 @@ export async function GET(
     return new Response('Not found', { status: 404 });
   }
   const storage = getStorage();
-  if (storage.driver !== 'local') return new Response('Not found', { status: 404 });
+  if (!storage.servedByRoute) return new Response('Not found', { status: 404 });
   const file = await storage.get(key);
   if (!file) return new Response('Not found', { status: 404 });
   return new Response(new Blob([file.body]), {
     headers: {
       'Content-Type': file.contentType,
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cache-Control': IMMUTABLE_CACHE_CONTROL,
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
     },

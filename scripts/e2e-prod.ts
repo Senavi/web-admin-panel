@@ -9,12 +9,20 @@
  * 4. runs Playwright with E2E_BASE_URL, then stops everything.
  *
  * CI runs the same flow against a real Postgres service container.
+ *
+ *   pnpm e2e:staging   (= e2e-prod.ts --staging) starts the same build as STAGING
+ *   (DEPLOYMENT_ENVIRONMENT=staging, STAGING_MAIL_TO) and runs tests/e2e-staging.
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 
 import { waitForPort } from './lib/process';
-import { E2E_ENV } from '../tests/e2e/support/env';
+import { E2E_ENV, E2E_STAGING_MAIL_TO } from '../tests/e2e/support/env';
+
+const STAGING = process.argv.includes('--staging');
+const PLAYWRIGHT_ARGS = process.argv.slice(2).filter((arg) => arg !== '--staging');
+/** Runtime-only: the build is the same as production; staging is chosen when the server starts. */
+const STAGING_RUNTIME = { DEPLOYMENT_ENVIRONMENT: 'staging', STAGING_MAIL_TO: E2E_STAGING_MAIL_TO };
 
 const DB_PORT = Number(process.env.E2E_DB_PORT ?? 54339);
 const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3400);
@@ -61,9 +69,10 @@ async function main(): Promise<number> {
   await waitForPort(DB_PORT);
   run('pnpm', ['e2e:prepare']);
   run('pnpm', ['build']);
-  start('pnpm', ['start', '--port', String(APP_PORT)]);
+  start('pnpm', ['start', '--port', String(APP_PORT)], STAGING ? STAGING_RUNTIME : {});
   await waitForPort(APP_PORT);
-  const tests = spawnSync('pnpm', ['exec', 'playwright', 'test', ...process.argv.slice(2)], {
+  const config = STAGING ? ['-c', 'playwright.staging.config.ts'] : [];
+  const tests = spawnSync('pnpm', ['exec', 'playwright', 'test', ...config, ...PLAYWRIGHT_ARGS], {
     stdio: 'inherit',
     env: childEnv({ E2E_BASE_URL: `http://localhost:${APP_PORT}` }),
   });

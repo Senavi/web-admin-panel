@@ -9,7 +9,13 @@ import type { Database } from '@/core/db/types';
 import { env } from '@/core/env';
 import { resolveMailConfig } from '@/core/mail/config';
 import { MailNotConfiguredError, sendMail } from '@/core/mail/send';
-import { type FormDestinations, formDestinationsSchema } from '@/core/settings/schema';
+import { currentEnvironment } from '@/core/deployment/current';
+import { destinationsForEnvironment } from '@/core/deployment/rules';
+import {
+  type FormDestinations,
+  formDestinationsSchema,
+  type SiteSettings,
+} from '@/core/settings/schema';
 
 import { type AnyForm, FormFieldType } from './define';
 
@@ -57,6 +63,21 @@ export function withDefaultRecipients(
   if (destinations?.email.enabled || defaultRecipients.length === 0) return destinations;
   const base = destinations ?? formDestinationsSchema.parse({});
   return { ...base, email: { enabled: true, recipients: [...defaultRecipients] } };
+}
+
+/**
+ * A form's destinations as delivered here: default recipients applied, then the
+ * environment's routing (staging emails only the team, D-097).
+ */
+export function formDestinations(
+  forms: SiteSettings['forms'],
+  formId: string,
+): FormDestinations | undefined {
+  return destinationsForEnvironment(
+    withDefaultRecipients(forms.destinations[formId], forms.defaultRecipients),
+    currentEnvironment(),
+    env().STAGING_MAIL_TO ?? [],
+  );
 }
 
 /** Destinations enabled for a form. */

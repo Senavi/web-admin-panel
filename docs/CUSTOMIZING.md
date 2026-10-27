@@ -29,6 +29,7 @@ The dev admin's credentials are in `.data/dev-admin-credentials.txt` (or set
   adding a language outside this set or a right-to-left one shows "Check with your developer".
   Keep it in sync with `src/site/theme/fonts.ts`.
 - `privacyPath`: the privacy page (a `siteRoutes` path or a page) linked from the cookie banner.
+- `stagingBranch`: the git branch deployed as staging (default `staging`; D-097).
 - `adminPath`: admin URL. Use a custom path per project: `/<4 consonants of the domain>-admin`
   (e.g. `example.com` → `/xmpl-admin`; the demo uses `/stst-admin`). The proxy rewrites it to
   the internal `/admin` routes, and the internal path answers 404 (D-082).
@@ -180,8 +181,9 @@ Directives: `scriptSrc`, `styleSrc`, `imgSrc`, `fontSrc`, `connectSrc`, `frameSr
 
 ## Working in a team
 
-Several people, each with a local database, one repository: see [TEAM.md](TEAM.md) (branches,
-final texts in seeds, `pnpm db:reset`, which online database each branch uses).
+Several people, each with a local database, one repository: see [TEAM.md](TEAM.md) (`main`,
+`staging` and pull requests, final texts in seeds, `pnpm db:reset`, refreshing staging) and
+[DEPLOYMENT.md](DEPLOYMENT.md) (Neon or Supabase, variables per environment).
 
 ## Pulling template updates
 

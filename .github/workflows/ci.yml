@@ -95,6 +95,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
+      # Session advisory locks need a real Postgres (PGlite has one session).
+      - name: Deploy lock on Postgres
+        run: pnpm exec vitest run tests/unit/deploy-lock-postgres.test.ts
+        env:
+          TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/app
       - run: pnpm e2e:prepare
       - run: pnpm build
       - run: pnpm check:bundles
@@ -103,8 +108,16 @@ jobs:
         run: pnpm start --port 3100 > server.log 2>&1 &
       - run: npx --yes wait-on@8 http://localhost:3100 --timeout 120000
       - run: pnpm e2e
+      # The same build started as STAGING (runtime switch): never indexed, no tracking,
+      # form emails to the team only, staging bar (tests/e2e-staging).
+      - name: Restart as staging
+        run: |
+          pkill -f "next start" || true
+          DEPLOYMENT_ENVIRONMENT=staging STAGING_MAIL_TO=staging-team@example.test pnpm start --port 3100 > server-staging.log 2>&1 &
+      - run: npx --yes wait-on@8 http://localhost:3100 --timeout 120000
+      - run: pnpm exec playwright test -c playwright.staging.config.ts
       - if: failure()
-        run: cat server.log
+        run: cat server.log server-staging.log 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

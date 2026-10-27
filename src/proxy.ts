@@ -20,6 +20,13 @@ import {
 import { isKnownRoute } from '@/core/i18n/route-match';
 import { isPreviewMode } from '@/core/preview/mode';
 import { STORYBOOK_PATH } from '@/core/storybook/slot';
+import { isStaging } from '@/core/deployment/current';
+import {
+  EMPTY_SITEMAP_XML,
+  ROBOTS_PATH,
+  SITEMAP_PATH,
+  STAGING_ROBOTS_TXT,
+} from '@/core/seo/crawlers';
 import { decideLocaleRoute, LOCALE_COOKIE, splitLocale } from '@/core/i18n/routing';
 import {
   ACCESS_PATH,
@@ -70,6 +77,14 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     const preview = previewModeResponse(request, pathname);
     if (preview) return preview;
   }
+
+  // Staging is never indexed, even where robots.txt / sitemap.xml were prerendered (D-097).
+  if (isStaging()) {
+    const staging = stagingCrawlerResponse(pathname);
+    if (staging) return staging;
+  }
+  // Everywhere else they are the normal metadata routes.
+  if (pathname === ROBOTS_PATH || pathname === SITEMAP_PATH) return next(request, pathname);
 
   if (isAdminPath(pathname)) {
     // Optimistic check only; pages still verify the session on the server.
@@ -125,6 +140,20 @@ async function storybookResponse(request: NextRequest): Promise<NextResponse> {
  * setup guide (no login, no data), database-backed API routes answer 404 and
  * the visitor sign-in page goes home. Null: continue with normal routing.
  */
+/** robots.txt that blocks everything and an empty sitemap, for staging. */
+function stagingCrawlerResponse(pathname: string): NextResponse | null {
+  const headers = { [HeaderName.CacheControl]: NO_STORE, [HeaderName.RobotsTag]: ROBOTS_NOINDEX };
+  if (pathname === ROBOTS_PATH)
+    return new NextResponse(STAGING_ROBOTS_TXT, {
+      headers: { ...headers, 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  if (pathname === SITEMAP_PATH)
+    return new NextResponse(EMPTY_SITEMAP_XML, {
+      headers: { ...headers, 'Content-Type': 'application/xml; charset=utf-8' },
+    });
+  return null;
+}
+
 function previewModeResponse(request: NextRequest, pathname: string): NextResponse | null {
   if (isAdminPath(pathname)) {
     const setup = adminHref(AdminRoute.Setup);
@@ -419,5 +448,8 @@ export const config = {
   matcher: [
     // Everything except Next.js internals and static files with an extension.
     '/((?!_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)',
+    // Crawler files: answered by the proxy on staging (never indexed).
+    '/robots.txt',
+    '/sitemap.xml',
   ],
 };

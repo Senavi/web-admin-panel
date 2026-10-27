@@ -33,6 +33,11 @@ export interface ProjectConfigInput<TLocale extends string = string> {
    * admin. Defaults to Latin + Cyrillic. Keep it in sync with `src/site/theme/fonts.ts`.
    */
   readonly fontScripts?: readonly ScriptCode[];
+  /**
+   * Git branch deployed as **staging** (test database, never indexed, no tracking, form
+   * emails to the team only). Defaults to `staging` (docs/TEAM.md).
+   */
+  readonly stagingBranch?: string;
   /** URL path of the admin panel. Must start with `/`. Defaults to `/admin`. */
   readonly adminPath?: `/${string}`;
   /**
@@ -107,6 +112,8 @@ export interface ProjectConfig<TLocale extends string = string> extends Required
 }
 
 const DEFAULT_ADMIN_PATH = '/admin';
+/** Git branch deployed as staging unless `stagingBranch` says otherwise. */
+export const STAGING_BRANCH = 'staging';
 const DEFAULT_THEME_COLOR = '#0a0a0a';
 const DEFAULT_BACKGROUND_COLOR = '#ffffff';
 
@@ -136,6 +143,7 @@ export function defineProjectConfig<const TLocale extends string>(
     supportedLocales: input.supportedLocales,
     defaultLocale: input.defaultLocale,
     adminPath,
+    stagingBranch: input.stagingBranch?.trim() || STAGING_BRANCH,
     siteRoutes: input.siteRoutes ?? [],
     onUserInvited: input.onUserInvited,
     csp: withTurnstile(validateCsp(input.csp ?? {}), input.forms),

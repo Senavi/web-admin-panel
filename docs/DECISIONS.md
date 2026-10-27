@@ -851,3 +851,70 @@ its own document), as a normal revision. Items people created have no seed and n
 command manages) and stops while `pnpm dev` holds the PGlite lock. The Connect Supabase wizard
 now says that a team leaves "Copy my local content" off and shows what the online database
 already holds (copying only adds missing rows, D-052).
+
+## v1.8: Neon or Supabase, S3 storage, staging and production
+
+### D-096 Any Postgres, Neon first; S3-compatible storage
+
+Supabase's free plan (2 active projects per account, paused after a week) doesn't fit an
+agency with many sites and a staging copy of each. Neon's free plan has 100 projects with
+database branches and S3-compatible Object Storage that branches with them (copy-on-write: a
+staging branch sees production's files, its writes and deletes stay on staging), so it is the
+recommended provider; Supabase keeps working unchanged.
+
+- `connection-info.ts` detects the provider from the host (`DatabaseProvider`: Supabase,
+  Neon, other Postgres). Neon's pooled host (`-pooler`, PgBouncer transaction mode) is the
+  runtime URL: `prepare: false`, no session settings, no session advisory locks. The direct
+  host (without `-pooler`) is derived for migrations, `db:prepare`, `db:clone` and the deploy
+  lock unless `DIRECT_URL` is set, so one variable is enough. TLS is forced for Neon
+  (`ssl: 'require'`), whatever `sslmode` says.
+- Without a Supabase service key there is nothing to derive `AUTH_SECRET` from: with any other
+  database it is required in production, and the env error says how to generate it. Each
+  environment has its own secret; integration credentials copied between environments become
+  unreadable and show "Re-enter the key" (D-092), which is intended.
+- Storage drivers: `s3` (new), `supabase`, `local`. `s3` signs with SigV4 through `aws4fetch`
+  (fetch-based, a few KB; the AWS SDK would add megabytes to every function for four calls)
+  and is chosen when `S3_*` variables are set (an explicit opt-in that also beats a Supabase
+  database), else Supabase for a Supabase database, else local (refused in production). Files
+  are served by `/api/media/<key>` (immutable one-year cache, so the CDN answers repeat
+  requests; `nosniff`; sandbox CSP for SVG logos); `S3_PUBLIC_URL` lets raster images load
+  straight from a public bucket. Neon requires path-style requests (`S3_FORCE_PATH_STYLE`,
+  default true).
+- Staging on a non-branching store (R2, Supabase) after a copy of production: a read-only
+  fallback (`STORAGE_READ_FALLBACK_URL`, the production bucket's public URL) serves files
+  missing from staging's bucket; it only ever does GET without credentials, so it can't
+  write or delete production files.
+- Security → Database shows the provider, the environment, database size and image total
+  against the provider's free-plan limits, with a warning from 80 % (status card).
+
+### D-097 Environments: production, staging, preview
+
+`deploymentEnvironment()` (`src/core/deployment/environment.ts`) is the only place that reads
+platform variables: Vercel `VERCEL_ENV` + `VERCEL_GIT_COMMIT_REF`, Netlify `CONTEXT` +
+`BRANCH`, with `projectConfig.stagingBranch` (default `staging`). `DEPLOYMENT_ENVIRONMENT`
+overrides it (self-hosting, tests); the value detected at build time is inlined
+(`SITE_BUILD_ENVIRONMENT`) because functions don't always see the platform's build variables.
+
+- **Migrations** (`migrationDecision`): production always; staging and previews only with
+  `PREVIEW_DATABASE_ISOLATED=true` (set for the staging branch only, so a missing staging
+  database can never mean "migrate production from an unmerged branch"); pull-request
+  previews have no database (preview mode). The 1.7 behavior of the flag is kept.
+- **Deploy lock:** `db:migrate:deploy` holds a session advisory lock (`pg_try_advisory_lock`,
+  polled, 10 minutes max) over the direct connection while it migrates and runs `db:prepare`,
+  so two deploys of one database never overlap; ending the session releases it, so a
+  crashed build never blocks the next. Tested on real Postgres in CI (PGlite has one session).
+- **Staging safety** (its database is often a copy of production), applied at the source so
+  every consumer follows: `settingsForEnvironment()` turns indexing and tracking integrations
+  off in the settings the site reads (robots, sitemap, metadata, `X-Robots-Tag`, consent
+  scripts, the site CSP); the proxy answers `robots.txt` (disallow) and `sitemap.xml` (empty)
+  itself on staging, because those are prerendered at build time;
+  `destinationsForEnvironment()` sends form emails only to `STAGING_MAIL_TO` and turns
+  webhooks and Telegram off (without `STAGING_MAIL_TO` nothing is emailed: the spec's
+  "signed-in staff" would include the client's accounts on a copy of production, so the team
+  lists its addresses explicitly); maintenance deletes nothing. The admin shows the stored
+  settings unchanged and a "Staging" bar; previews show "Preview — read only".
+- **Refreshing staging:** Neon's "Reset from parent"; elsewhere `pnpm db:clone` (truncates and
+  copies the same tables as Connect Supabase: no sessions, analytics or audit log), which
+  refuses deploys/CI, a target equal to the source (pooled and direct URLs of one database
+  count as the same) and this setup's own `DATABASE_URL` unless it is a staging setup. Data
+  never moves from staging to production.
