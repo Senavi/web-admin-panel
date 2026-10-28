@@ -23,7 +23,7 @@ const COPY: Record<string, { title: string; body: string }> = {
 export function DefaultMaintenance({ locale, siteName, message }: MaintenanceViewProps) {
   const copy = COPY[locale] ?? COPY.en ?? { title: '', body: '' };
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background px-gutter py-section">
+    <main className="px-gutter py-section flex min-h-svh items-center justify-center bg-background">
       <div className="flex max-w-prose flex-col gap-4 text-center">
         <p className="text-overline text-primary">{siteName}</p>
         <h1 className="text-h1 text-foreground">{copy.title}</h1>

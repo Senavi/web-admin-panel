@@ -1,9 +1,9 @@
 import { type Page } from '@playwright/test';
 
-import { admin } from './support/admin';
-import { login } from './support/auth';
-import { expect, test } from './support/test';
-import { E2E_ADMIN } from './support/users';
+import { admin } from '../support/admin';
+import { login } from '../support/auth';
+import { expect, test } from '../support/test';
+import { E2E_ADMIN } from '../support/users';
 
 const BUTTON_LABEL = 'Button on blog cards';
 

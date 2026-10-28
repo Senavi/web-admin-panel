@@ -982,3 +982,42 @@ differs: Neon reset, restored backup), preview mode and local PGlite show nothin
 **Not blocking.** Saving stays possible: locking everyone out of the admin during the fix is
 worse than a loud warning. The marker changes only with a deploy, which starts new instances,
 so the once-per-instance read is current.
+
+## v1.8.3: CI that stays green in real projects
+
+### D-100 Core specs read the project; demo specs run only with the demo
+
+**Context.** A team building a real project on v1.8.x had red CI on its first PR: many e2e
+and unit tests asserted the demo content (team page, blog posts, the `uk` language, demo
+texts and theme values); `tests/unit/db-clone.test.ts` built its env from `process.env`, so
+`CI=true` on GitHub Actions triggered a different refusal; changing site tokens reordered
+Tailwind classes in admin files (Prettier sorted every file by the site theme); Windows
+checkouts with CRLF failed `format:check`.
+
+**Decision.**
+
+- **Core vs demo specs.** Core specs (admin, auth, managers, security headers, site gate,
+  storybook, integrations, languages, seed sync, staging, preview) take what they need from
+  the project's registry and config (`tests/e2e/support/site.ts`, `tests/support/project.ts`):
+  the home page, another page if any, the first page's id, the first form, the second
+  language, the theme's tokens. Tests that need a feature the project may not have (a form,
+  a collection) skip without it. Specs of the demo content (pages editor, blog, forms, SEO,
+  shared sections, globals, interface texts, lists, navigation speed, design tokens, CSP tour
+  of the demo pages; unit tests of content saving, reset and sync built on the Team page)
+  live in `tests/e2e/demo/` and `tests/unit/demo/` and run only while `src/content/DEMO.md`
+  exists. The template's own CI runs both, plus a job that runs `pnpm demo:remove` and then
+  the gates and `e2e:prod`.
+- **No e2e-only fixture content.** Registering test pages only in e2e builds would make the
+  tested build differ from the shipped one and add routes to every project; core behaviour of
+  content features stays covered by the template's CI on the demo.
+- **`pnpm demo:remove`** deletes the demo, keeps the infrastructure and the `site` global
+  (header/footer), writes a minimal home page, an empty menu and the registry, then runs
+  format, typecheck and `content:check`.
+- **Script tests** start from `scriptEnv()` (no `CI`, deploy variables or database URLs);
+  a test that needs one passes it explicitly.
+- **Prettier:** template files (`src/admin`, `src/core`, `src/app/(admin)`, `src/app/(access)`)
+  sort classes by the admin stylesheet, project files by the site theme. **Line endings:**
+  `.gitattributes` `* text=auto eol=lf`, binary types listed; Prettier `endOfLine: "lf"`.
+- **`ERR_SWC_NATIVE_CACHE`** (Windows): documented in README with the reported fix
+  (`SWC_NATIVE_BINDING_CACHE`). No script default: the variable isn't read anywhere in the
+  installed Next.js 16.4.1 or its packages on macOS, so a default couldn't be verified.

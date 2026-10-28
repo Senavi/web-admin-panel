@@ -101,7 +101,7 @@ function ConnectionTypeBadge({ url }: { url: string }) {
   const supabase = info.provider === DatabaseProvider.Supabase;
   return (
     <div role="status" aria-label="Connection type" className="flex flex-col gap-1.5">
-      <div className="text-sm flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <span>{CONNECTION_LABELS[info.kind]}</span>
         {info.kind === ConnectionKind.SharedSession ? <Badge>Recommended</Badge> : null}
         {supabase ? (
@@ -298,7 +298,7 @@ export function ConnectSupabaseWizard({
               />
               <span
                 className={cn(
-                  'text-xs hidden sm:block',
+                  'hidden text-xs sm:block',
                   step === index + 1 ? 'font-medium' : 'text-muted-foreground',
                 )}
               >
@@ -399,7 +399,7 @@ export function ConnectSupabaseWizard({
               </p>
               <ol aria-label="Preparation" className="flex flex-col gap-2">
                 {PREPARE_TASKS.map((task, index) => (
-                  <li key={task} className="text-sm flex items-center gap-3">
+                  <li key={task} className="flex items-center gap-3 text-sm">
                     <TaskIcon state={tasks[index] ?? 'idle'} index={index} />
                     <span
                       className={cn(tasks[index] === 'idle' && 'text-muted-foreground')}
@@ -450,7 +450,7 @@ export function ConnectSupabaseWizard({
             <>
               <h3 className="font-medium">Add the keys to your hosting</h3>
               <Tabs value={host} onValueChange={(value) => setHost(value as HostingPlatform)}>
-                <p className="text-sm mb-2 text-muted-foreground">Where is the site published?</p>
+                <p className="mb-2 text-sm text-muted-foreground">Where is the site published?</p>
                 <TabsList>
                   {HOSTING_GUIDES.map((guide) => (
                     <TabsTrigger key={guide.id} value={guide.id}>
@@ -465,7 +465,7 @@ export function ConnectSupabaseWizard({
                 ))}
               </Tabs>
               <fieldset className="flex flex-col gap-3">
-                <legend className="text-sm font-medium mb-2">Optional extras</legend>
+                <legend className="mb-2 text-sm font-medium">Optional extras</legend>
                 {OPTIONAL_HOSTING_VARIABLES.map((option) => (
                   <div key={option.name} className="flex items-start gap-2">
                     <Checkbox
@@ -508,7 +508,7 @@ export function ConnectSupabaseWizard({
                     Copy all
                   </Button>
                 </div>
-                <dl aria-label="Variables" className="text-xs flex flex-col divide-y font-mono">
+                <dl aria-label="Variables" className="flex flex-col divide-y font-mono text-xs">
                   {variables(secrets).map(([name, value]) => (
                     <div key={name} className="flex flex-wrap justify-between gap-x-4 px-3 py-2">
                       <dt>{name}</dt>
@@ -538,10 +538,10 @@ export function ConnectSupabaseWizard({
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <CheckCircle2Icon
                 aria-hidden
-                className="text-emerald-600 dark:text-emerald-400 size-8"
+                className="size-8 text-emerald-600 dark:text-emerald-400"
               />
               <h3 className="font-medium">Supabase is connected</h3>
-              <p className="text-sm max-w-md text-muted-foreground">
+              <p className="max-w-md text-sm text-muted-foreground">
                 Restart the local server (stop <code>pnpm dev</code> and start it again). After the
                 redeploy finishes, the live site uses the same database.
               </p>

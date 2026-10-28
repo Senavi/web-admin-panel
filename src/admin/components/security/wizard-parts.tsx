@@ -36,12 +36,12 @@ export function TaskIcon({ state, index }: { state: TaskState; index: number }) 
     return <Loader2Icon className="size-4 animate-spin" aria-label="In progress" />;
   if (state === 'done')
     return (
-      <CheckIcon className="text-emerald-600 dark:text-emerald-400 size-4" aria-label="Done" />
+      <CheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" aria-label="Done" />
     );
   if (state === 'failed')
-    return <XCircleIcon className="text-destructive size-4" aria-label="Failed" />;
+    return <XCircleIcon className="size-4 text-destructive" aria-label="Failed" />;
   return (
-    <span className="text-xs w-4 text-center text-muted-foreground" aria-hidden>
+    <span className="w-4 text-center text-xs text-muted-foreground" aria-hidden>
       {index + 1}
     </span>
   );

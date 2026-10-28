@@ -157,7 +157,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
       </CollapsibleSection>
       <p
         aria-label="Site status"
-        className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
       >
         {statusParts.map((part, index) => (
           <span key={part} className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { DEMO_PRESENT, DEMO_SPECS } from './tests/e2e/support/demo';
 import { E2E_ENV } from './tests/e2e/support/env';
 
 /**
@@ -11,6 +12,8 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Demo specs assert the demo site; they run only while it is there (pnpm demo:remove).
+  testIgnore: DEMO_PRESENT ? [] : [DEMO_SPECS],
   globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,

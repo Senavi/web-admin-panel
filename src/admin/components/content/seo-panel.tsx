@@ -35,11 +35,11 @@ function SearchPreview({
   const description = useText('seo.description') || fallbackDescription;
   return (
     <div className="rounded-md border bg-background p-4" aria-label="Google preview">
-      <p className="text-xs truncate text-muted-foreground">{url}</p>
-      <p className="text-lg text-blue-700 dark:text-blue-400 truncate">
+      <p className="truncate text-xs text-muted-foreground">{url}</p>
+      <p className="truncate text-lg text-blue-700 dark:text-blue-400">
         {title.slice(0, 70) || 'Untitled'}
       </p>
-      <p className="text-sm line-clamp-2 text-muted-foreground">
+      <p className="line-clamp-2 text-sm text-muted-foreground">
         {description.slice(0, 160) || 'No description.'}
       </p>
     </div>

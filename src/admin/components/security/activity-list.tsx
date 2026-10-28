@@ -32,7 +32,7 @@ export function ActivityList({
             {items.map((item) => (
               <li
                 key={item.id}
-                className="text-sm flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2"
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 text-sm"
               >
                 <span>{item.text}</span>
                 <span className="text-xs whitespace-nowrap text-muted-foreground">

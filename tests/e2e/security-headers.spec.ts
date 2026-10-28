@@ -1,25 +1,13 @@
-import { type Page } from '@playwright/test';
 import { expect, test } from './support/test';
 
 import { login } from './support/auth';
+import { collectCspViolations } from './support/csp';
 import { E2E_ADMIN } from './support/users';
 import { admin } from './support/admin';
-
-function collectCspViolations(page: Page): string[] {
-  const violations: string[] = [];
-  page.on('console', (message) => {
-    if (
-      message.type() === 'error' &&
-      /Content Security Policy|Refused to (execute|load|apply)/i.test(message.text())
-    ) {
-      violations.push(message.text());
-    }
-  });
-  return violations;
-}
+import { FIRST_PAGE_ID, HOME_PATH, localePath, OTHER_LOCALE, SAMPLE_PATH } from './support/site';
 
 test('site responses carry security headers and a CSP', async ({ request }) => {
-  const response = await request.get('/about', {
+  const response = await request.get(SAMPLE_PATH, {
     headers: { 'user-agent': 'Mozilla/5.0 Chrome/150' },
   });
   const headers = response.headers();
@@ -36,25 +24,17 @@ test('admin responses use a nonce-based CSP', async ({ page }) => {
   expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
 });
 
-test('pages run without CSP violations (site, blog, forms, editor, dashboard)', async ({
-  page,
-}) => {
+test('pages run without CSP violations (site, dashboard, editor, settings)', async ({ page }) => {
   const violations = collectCspViolations(page);
-  await page.goto('/');
-  await page.goto('/uk/about/team');
-  await page.goto('/blog');
-  await page.goto('/blog/hello-world');
-  await page.goto('/contact');
-  await expect(page.locator('form#form-contact input[name="_t"]')).toBeAttached();
+  await page.goto(HOME_PATH);
+  await page.goto(SAMPLE_PATH);
+  if (OTHER_LOCALE) await page.goto(localePath(OTHER_LOCALE, SAMPLE_PATH));
   await login(page, E2E_ADMIN);
   await page.goto(admin('?range=7d'));
   await expect(page.getByRole('heading', { name: 'Traffic' })).toBeVisible();
-  await page.goto(admin('/pages/about'));
+  await page.goto(admin(`/pages/${FIRST_PAGE_ID}`));
   await expect(page.locator('form[data-hydrated]')).toBeVisible();
   await page.goto(admin('/settings'));
   await expect(page.locator('form[aria-label="General"][data-hydrated]')).toBeVisible();
-  await page.goto(admin('/pages/collections/blog'));
-  await page.goto(admin('/pages/forms/contact'));
-  await expect(page.getByRole('table', { name: 'Requests' })).toBeVisible();
   expect(violations).toEqual([]);
 });

@@ -1,5 +1,6 @@
 import { request, type FullConfig } from '@playwright/test';
 import { admin } from './support/admin';
+import { HOME_PATH, localePath, OTHER_LOCALE, SAMPLE_PATH } from './support/site';
 
 /**
  * Warms up the server (first compilation in `next dev` can take many seconds)
@@ -12,9 +13,9 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     extraHTTPHeaders: { 'user-agent': 'Mozilla/5.0 Chrome/150' },
   });
   for (const path of [
-    '/',
-    '/about',
-    '/uk/about/team',
+    HOME_PATH,
+    SAMPLE_PATH,
+    ...(OTHER_LOCALE ? [localePath(OTHER_LOCALE, SAMPLE_PATH)] : []),
     admin('/login'),
     admin('/account'),
     '/access',

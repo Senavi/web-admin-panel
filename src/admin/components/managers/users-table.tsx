@@ -39,7 +39,7 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
 
 function Detail({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="text-sm flex justify-between gap-4">
+    <div className="flex justify-between gap-4 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
       <dd>{value}</dd>
     </div>

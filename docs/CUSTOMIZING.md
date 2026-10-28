@@ -42,30 +42,39 @@ Rename `name` in `package.json` too.
 
 ### 3. Remove the demo site
 
-Delete or replace:
+```bash
+pnpm demo:remove
+```
 
-- `src/content/pages/*`, `src/content/seed/assets/*` and the entries in `src/content/index.ts`
-- `src/site/pages/*`, `src/site/sections/*`, `src/site/components/feature-icon.tsx`
-- `src/site/navigation.ts`, and the demo strings in `src/site/messages/*.json`
-- the route files under `src/app/(site)/[locale]/(pages)/` (keep `layout.tsx`, `not-found.tsx`,
-  `[...rest]`, `error-404`)
+It deletes the demo in one go and checks the result (format, `typecheck`, `content:check`):
 
-Keep the infrastructure in `src/site`: `components/ui/*` (typography, layout, button,
-image, rich text), `layout/*` (adapt the header/footer), `maintenance/`, `i18n/request.ts`.
+- pages About, Team, Blog, Contact: schemas, views, routes; the demo blog (collection), the
+  contact form, the "Call to action" shared section, all of `src/site/sections/`,
+  `components/contact-form.tsx`, `components/feature-icon.tsx`, the seed images;
+- the demo texts (`blog`, `contact`, `forms` namespaces; the `nav` labels are emptied) in
+  `src/site/messages/*.json` and `src/content/ui-texts.ts`;
+- the demo specs (`tests/e2e/demo/`, `tests/unit/demo/`) and `src/content/DEMO.md`, the
+  marker that runs them.
 
-**Remove the demo blog** (if the project has no collection):
+It keeps the infrastructure: `components/ui/*`, `layout/*` (header, footer, cookie banner:
+adapt them), the `site` global they read (contacts, social links, legal line), `maintenance/`,
+`i18n/`, the theme and `storybook.tsx`; and it writes a minimal home page
+(`src/content/pages/home.ts`, `src/site/pages/home.tsx`), an empty menu
+(`src/site/navigation.ts`) and the registry. Review with `git diff`; commit before going on.
 
-1. Delete `src/content/collections/blog.ts`, `src/content/pages/blog.ts` and remove both from
-   the registry (`collections: [blog]`, `blogPage`).
-2. Delete `src/app/(site)/[locale]/(pages)/blog/`, `src/site/pages/blog.tsx`,
-   `src/site/pages/blog-post.tsx`, `src/site/sections/post-list.tsx`,
-   `src/site/sections/latest-posts.tsx` (and `<LatestPosts>` on Home), the `blog` nav item
-   and the `blog` / `nav.blog` strings.
-3. Seeded posts already in a database stay until deleted in the admin (or drop the rows).
+**After removing the demo, CI must stay green.** The core specs (admin, auth, managers,
+security headers, site gate, storybook, integrations, languages, seed sync, staging,
+preview) read the project's registry and config instead of demo content, so they pass on
+any project. Add e2e specs for the project's own pages, blog and forms as you build them
+(`tests/e2e/`).
 
-**Remove the demo global / form** the same way: `src/content/globals/site.ts` (and its use in
-`site-header.tsx`, `site-footer.tsx`, `sections/contact.tsx`), `src/content/forms/contact.ts`
-(and `sections/contact-form.tsx`, `components/contact-form.tsx`, the `forms` strings).
+Removing the demo by hand also works (the list above); delete `src/content/DEMO.md` and the
+demo spec folders too, or the demo specs run and fail.
+
+**Formatting:** Prettier sorts Tailwind classes of template files (`src/admin`, `src/core`,
+`src/app/(admin)`, `src/app/(access)`) by the admin stylesheet and project files by the site
+theme (`.prettierrc.json` overrides), so changing tokens never reformats template files.
+Don't add `src/admin` to `.prettierignore`: `pnpm format:check` covers it.
 
 ### 4. Map the design to tokens
 

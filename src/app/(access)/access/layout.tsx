@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function AccessRootLayout({ children }: LayoutProps<'/access'>) {
   return (
     <html lang="en" className={`${adminSans.variable} ${adminMono.variable}`}>
-      <body className="bg-muted/40 flex min-h-svh flex-col antialiased">{children}</body>
+      <body className="flex min-h-svh flex-col bg-muted/40 antialiased">{children}</body>
     </html>
   );
 }

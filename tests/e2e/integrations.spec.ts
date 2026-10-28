@@ -12,6 +12,7 @@ import {
   visitor,
 } from './support/integrations';
 import { openSettingsTab, saveSettingsTab, VISITOR_HEADERS } from './support/settings';
+import { DEMO_PRESENT, HAS_FORMS, SAMPLE_PATH } from './support/site';
 import { expect, test } from './support/test';
 import { E2E_ADMIN } from './support/users';
 
@@ -130,7 +131,7 @@ test.describe.serial('integrations: analytics and cookie consent', () => {
     await expect(banner).toBeHidden();
     await expect.poll(() => loaded.some((url) => url.includes(GA_ID))).toBe(true);
     // The choice is remembered: no banner on the next page, and the link reopens it.
-    await accepting.page.goto('/about');
+    await accepting.page.goto(SAMPLE_PATH);
     await expect(accepting.page.getByRole('region', { name: 'Cookies' })).toHaveCount(0);
     await accepting.page.getByRole('button', { name: 'Cookie settings' }).click();
     await expect(accepting.page.getByRole('region', { name: 'Cookies' })).toBeVisible();
@@ -145,7 +146,7 @@ test.describe.serial('integrations: analytics and cookie consent', () => {
       .getByRole('region', { name: 'Cookies' })
       .getByRole('button', { name: 'Decline' })
       .click();
-    await declining.page.goto('/about');
+    await declining.page.goto(SAMPLE_PATH);
     await declining.page.waitForTimeout(2000);
     expect(loaded).toEqual([]);
     await expect(declining.page.getByRole('region', { name: 'Cookies' })).toHaveCount(0);
@@ -191,11 +192,13 @@ test.describe.serial('integrations: email for forms', () => {
     await chooseOption(page, 'Email service', 'Not connected');
     await page.getByRole('button', { name: 'Save email' }).click();
     await expect(page.getByText('Email saved.')).toBeVisible();
-    const form = await openSettingsTab(page, 'requests', 'Requests');
-    await form.getByLabel('Default recipients').fill('');
-    await form.getByLabel('Send requests to').fill('');
-    if (await page.getByRole('region', { name: 'Unsaved changes' }).isVisible())
-      await saveSettingsTab(page);
+    if (HAS_FORMS) {
+      const form = await openSettingsTab(page, 'requests', 'Requests');
+      await form.getByLabel('Default recipients').fill('');
+      await form.getByLabel('Send requests to').fill('');
+      if (await page.getByRole('region', { name: 'Unsaved changes' }).isVisible())
+        await saveSettingsTab(page);
+    }
     await page.close();
   });
 
@@ -231,6 +234,7 @@ test.describe.serial('integrations: email for forms', () => {
   });
 
   test('warns when email is connected but nobody receives requests', async ({ page }) => {
+    test.skip(!HAS_FORMS, 'The project has no forms (no Requests tab).');
     await login(page, E2E_ADMIN);
     const form = await openSettingsTab(page, 'requests', 'Requests');
     await form.getByLabel('Default recipients').fill('');
@@ -247,6 +251,7 @@ test.describe.serial('integrations: email for forms', () => {
     page,
     browser,
   }) => {
+    test.skip(!DEMO_PRESENT, 'Submits the demo contact form.');
     await login(page, E2E_ADMIN);
     const form = await openSettingsTab(page, 'requests', 'Requests');
     await form.getByLabel('Default recipients').fill('team@example.test');

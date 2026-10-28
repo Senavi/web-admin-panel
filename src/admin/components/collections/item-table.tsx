@@ -105,7 +105,7 @@ export function ItemTable({
         <TableBody>
           {table.rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-sm py-8 text-center text-muted-foreground">
+              <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
                 Nothing here yet.
               </TableCell>
             </TableRow>
@@ -116,7 +116,7 @@ export function ItemTable({
                   <Link href={`${basePath}/${row.id}`} className="font-medium hover:underline">
                     {row.title || untitled}
                   </Link>
-                  <p className="text-xs truncate font-mono text-muted-foreground">{row.slug}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{row.slug}</p>
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -135,7 +135,7 @@ export function ItemTable({
                 </TableCell>
                 <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                   <LocalTime value={row.updatedAt} />
-                  {row.updatedBy ? <span className="text-xs block">{row.updatedBy}</span> : null}
+                  {row.updatedBy ? <span className="block text-xs">{row.updatedBy}</span> : null}
                 </TableCell>
               </TableRow>
             ))

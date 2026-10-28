@@ -81,6 +81,7 @@ visual styles. `pnpm tokens:check` fails otherwise. After editing tokens.css run
 | `pnpm db:generate` · `db:migrate` · `db:seed` · `db:studio` · `db:serve` | Database                                                                                              |
 | `pnpm db:reset [--yes]`                                                  | Local only: delete `.data` database/uploads/mail, migrate, seed, print the new dev admin              |
 | `pnpm db:clone --from <url> --to <url>`                                  | Refresh a staging database from production (Supabase/R2; Neon: Reset from parent)                     |
+| `pnpm demo:remove`                                                       | First step of a project: delete the demo, keep a minimal home and the infrastructure                  |
 | `pnpm admin:create`                                                      | Create an admin/manager (no public sign-up)                                                           |
 | `pnpm e2e:prod` · `e2e:preview` · `e2e:staging` · `check:bundles`        | E2E against a production build / preview mode / staging mode; no admin code in site bundles           |
 
@@ -100,6 +101,11 @@ platform variables directly.
 Team workflow (docs/TEAM.md): final texts live in seeds (local admin edits stay local);
 `content:sync` updates never-edited fields when a seed changes, so fix default texts in the
 seed, not in a database.
+
+New project: `pnpm demo:remove` first (docs/CUSTOMIZING.md § 3). After removing the demo, CI
+must stay green; add e2e specs for the project's own pages (`tests/e2e/`). Core specs read the
+registry (`tests/e2e/support/site.ts`), never demo content; specs of the demo content live in
+`tests/e2e/demo/` and `tests/unit/demo/` and run only while `src/content/DEMO.md` exists.
 
 Non-content public routes must be listed in `projectConfig.siteRoutes` (otherwise 404).
 

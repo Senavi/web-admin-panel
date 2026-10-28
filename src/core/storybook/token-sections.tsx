@@ -53,9 +53,9 @@ function ratioLabel(ratio: number | null): string {
 
 function Swatch({ swatch, detailed }: { swatch: ColorSwatch; detailed: boolean }) {
   return (
-    <li className="flex flex-col overflow-hidden rounded-lg border-thin border-border">
+    <li className="border-thin flex flex-col overflow-hidden rounded-lg border-border">
       <div
-        className="h-16 border-thin border-b border-border"
+        className="border-thin h-16 border-b border-border"
         style={{ backgroundColor: swatch.value }}
         role="img"
         aria-label={`${swatch.name} ${swatch.value}`}
@@ -64,7 +64,7 @@ function Swatch({ swatch, detailed }: { swatch: ColorSwatch; detailed: boolean }
         <span className="text-label">{swatch.name}</span>
         <code className="text-caption text-muted-foreground">{swatch.value}</code>
         {detailed ? (
-          <dl className="flex flex-col text-caption text-muted-foreground">
+          <dl className="text-caption flex flex-col text-muted-foreground">
             <div className="flex justify-between gap-2">
               <dt>On background</dt>
               <dd>{ratioLabel(swatch.onBackground)}</dd>
@@ -109,7 +109,7 @@ export function FontSection({ tokens }: { tokens: StorybookTokens }) {
     <StorybookSectionShell id="fonts" title="Fonts" description="Font families of the site.">
       <ul className="grid gap-4 md:grid-cols-3">
         {Object.entries(tokens.font).map(([name, stack]) => (
-          <li key={name} className="flex flex-col gap-2 rounded-lg border-thin border-border p-4">
+          <li key={name} className="border-thin flex flex-col gap-2 rounded-lg border-border p-4">
             <span className="text-label">{name}</span>
             <span className="text-h2" style={{ fontFamily: `var(--font-${name})` }}>
               Aa Bb Cc 123
@@ -130,11 +130,11 @@ export function FontSection({ tokens }: { tokens: StorybookTokens }) {
 function TextStyleRow({ style }: { style: ResolvedTextStyle }) {
   const variable = (property: string) => `var(--type-${kebab(style.name)}-${property})`;
   return (
-    <li className="flex flex-col gap-3 border-thin border-b border-border py-6 last:border-b-0 lg:flex-row lg:gap-8">
+    <li className="border-thin flex flex-col gap-3 border-b border-border py-6 last:border-b-0 lg:flex-row lg:gap-8">
       <div className="flex shrink-0 flex-col gap-1 lg:w-72">
         <span className="text-label">{style.name}</span>
         <code className="text-caption text-muted-foreground">{utilityName(style.name)}</code>
-        <table className="mt-2 w-full text-caption text-muted-foreground">
+        <table className="text-caption mt-2 w-full text-muted-foreground">
           <caption className="sr-only">Metrics of {style.name}</caption>
           <thead>
             <tr>
@@ -222,7 +222,7 @@ export function SpacingSection({ tokens }: { tokens: StorybookTokens }) {
       <ul className="flex flex-col gap-3">
         {Object.entries(tokens.spacing).map(([name, value]) => (
           <li key={name} className="flex flex-wrap items-center gap-4">
-            <span className="w-32 shrink-0 text-label">{name}</span>
+            <span className="text-label w-32 shrink-0">{name}</span>
             <span
               className="h-4 rounded-sm bg-primary"
               style={{ width: `min(${value}, 100%)` }}
@@ -234,7 +234,7 @@ export function SpacingSection({ tokens }: { tokens: StorybookTokens }) {
         ))}
         {Object.entries(tokens.container ?? {}).map(([name, value]) => (
           <li key={`container-${name}`} className="flex flex-wrap items-center gap-4">
-            <span className="w-32 shrink-0 text-label">container {name}</span>
+            <span className="text-label w-32 shrink-0">container {name}</span>
             <span
               className="h-4 rounded-sm bg-accent"
               style={{ width: `min(${value}, 100%)` }}
@@ -256,7 +256,7 @@ export function RadiusSection({ tokens }: { tokens: StorybookTokens }) {
         {Object.entries(tokens.radius).map(([name, value]) => (
           <li key={name} className="flex flex-col items-center gap-2">
             <span
-              className="size-20 border-thin border-border bg-accent"
+              className="border-thin size-20 border-border bg-accent"
               style={{ borderRadius: value }}
               role="img"
               aria-label={`${name}: ${value}`}

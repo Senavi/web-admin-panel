@@ -168,7 +168,7 @@ export function CodeDefaultsDialog({
           {error ? (
             <p className="text-sm text-destructive">{error}</p>
           ) : !current ? (
-            <p className="text-sm flex items-center gap-2 text-muted-foreground">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2Icon className="size-4 animate-spin" /> Comparing with the code…
             </p>
           ) : changes.length === 0 ? (
@@ -184,7 +184,7 @@ export function CodeDefaultsDialog({
               </p>
               <ul
                 aria-label="Fields that will change"
-                className="text-sm max-h-56 list-disc overflow-y-auto pl-5"
+                className="max-h-56 list-disc overflow-y-auto pl-5 text-sm"
               >
                 {changes.map((change) => (
                   <li key={`${change.section}/${change.field}`}>

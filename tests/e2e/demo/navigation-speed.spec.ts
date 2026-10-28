@@ -1,9 +1,9 @@
-import { expect, test } from './support/test';
+import { expect, test } from '../support/test';
 
-import { admin } from './support/admin';
-import { login } from './support/auth';
-import { ADMIN_ROUTE_SEQUENCE, SITE_ROUTE_SEQUENCE, timeNavigation } from './support/navigation';
-import { E2E_ADMIN } from './support/users';
+import { admin } from '../support/admin';
+import { login } from '../support/auth';
+import { ADMIN_ROUTE_SEQUENCE, SITE_ROUTE_SEQUENCE, timeNavigation } from '../support/navigation';
+import { E2E_ADMIN } from '../support/users';
 
 /** Warm client navigations on a production build must stay fast (docs/DECISIONS.md D-085). */
 const BUDGET_MS = 500;

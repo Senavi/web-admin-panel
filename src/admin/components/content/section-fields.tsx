@@ -74,7 +74,7 @@ function SharedNote({
     </Fragment>
   ));
   return (
-    <p className="text-sm rounded-md border border-dashed p-3 text-muted-foreground">
+    <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
       {currentPageId ? (
         others.length > 0 ? (
           <>

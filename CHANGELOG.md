@@ -6,6 +6,43 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-28
+
+Patch release: CI that stays green in real projects. No behaviour changes for the site or the
+admin.
+
+### Added
+
+- **`pnpm demo:remove`**: the first step of a project. Deletes the demo pages, blog, contact
+  form, shared section, sections, routes, texts, seed images and demo specs; keeps the
+  infrastructure; writes a minimal home page; runs format, typecheck and `content:check`.
+- CI job "A project after pnpm demo:remove": the gates and `e2e:prod` without the demo.
+- README § Windows: line endings and `ERR_SWC_NATIVE_CACHE`.
+
+### Changed
+
+- **Core vs demo specs** (D-100). Core e2e and unit tests read the project's registry and
+  config instead of demo content (the home page, another page, the first form, the second
+  language, the theme's tokens) and skip what the project doesn't have. Demo specs moved to
+  `tests/e2e/demo/` and `tests/unit/demo/`; they run while `src/content/DEMO.md` exists.
+- **Prettier:** template files sort Tailwind classes by the admin stylesheet, project files
+  by the site theme, so token changes never reformat template files; `endOfLine: "lf"`
+  explicit. The repo was formatted once with the new rules (class order in admin files).
+- **`.gitattributes`**: LF for text files, binary types marked.
+- Script tests (`db:clone`, `db:reset`) no longer depend on `CI=true`; a new test asserts the
+  CI refusal on purpose.
+
+### Upgrade notes
+
+- Pull the change, then once: `git add --renormalize .` if the working tree still shows CRLF
+  (Windows).
+- Don't add `src/admin` to `.prettierignore`; run `pnpm format` once if `format:check` lists
+  template files after updating.
+- Demo specs moved to `tests/e2e/demo/` and `tests/unit/demo/`. A project that already
+  removed the demo by hand: delete those folders (and `src/content/DEMO.md` if present). A
+  project that adapted demo specs to its own pages: keep them in `tests/e2e/` (outside
+  `demo/`).
+
 ## [1.8.2] - 2026-10-28
 
 Patch release: warn when an environment uses the wrong database. No breaking changes.

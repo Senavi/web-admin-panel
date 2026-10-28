@@ -26,6 +26,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check
+      # GitHub Actions sets CI=true: script tests must not depend on it (tests/support/script.ts).
       - run: pnpm test
       - run: pnpm content:check
       - run: pnpm tokens:check
@@ -56,6 +57,35 @@ jobs:
         if: failure()
         with:
           name: playwright-report-preview
+          path: playwright-report
+
+  without-demo:
+    name: A project after pnpm demo:remove
+    runs-on: ubuntu-latest
+    needs: checks
+    # What every new project starts from: no demo pages, blog or form. The core specs
+    # must stay green (demo specs are deleted with the demo).
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Also runs format, typecheck and content:check.
+      - run: pnpm demo:remove
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
+      - run: pnpm tokens:check
+      - run: pnpm exec playwright install --with-deps chromium
+      # Local PGlite over the Postgres protocol + a production build (scripts/e2e-prod.ts).
+      - run: pnpm e2e:prod
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-without-demo
           path: playwright-report
 
   build-e2e:

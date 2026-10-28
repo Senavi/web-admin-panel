@@ -9,8 +9,8 @@ import type { Database } from '@/core/db/types';
 
 type SessionModule = typeof Session;
 
-import { createTestDb } from '../support/db';
-import { memoryStorage } from '../support/storage';
+import { createTestDb } from '../../support/db';
+import { memoryStorage } from '../../support/storage';
 
 /** Who is signed in for the action under test (null = nobody). */
 const session = vi.hoisted(() => ({

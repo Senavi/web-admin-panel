@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url';
 
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
+
+import { DEMO_PRESENT } from './tests/e2e/support/demo';
 
 const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -15,6 +17,10 @@ export default defineConfig({
   },
   test: {
     include: ['tests/unit/**/*.test.ts', 'src/**/*.test.ts'],
+    // Tests of the demo content run only while it is there (pnpm demo:remove deletes both).
+    exclude: DEMO_PRESENT
+      ? configDefaults.exclude
+      : [...configDefaults.exclude, 'tests/unit/demo/**'],
     environment: 'node',
     restoreMocks: true,
     // Suites set up migrated in-memory PGlite databases; under parallel load that can exceed 10 s.

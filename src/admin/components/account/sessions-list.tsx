@@ -27,9 +27,9 @@ export function SessionsList({ sessions }: { sessions: SessionRow[] }) {
     <div className="flex flex-col gap-3">
       <ul className="divide-y rounded-md border">
         {sessions.map((session) => (
-          <li key={session.id} className="text-sm flex items-center justify-between gap-4 p-3">
+          <li key={session.id} className="flex items-center justify-between gap-4 p-3 text-sm">
             <div className="min-w-0">
-              <p className="font-medium truncate">{describeAgent(session.userAgent)}</p>
+              <p className="truncate font-medium">{describeAgent(session.userAgent)}</p>
               <p className="text-muted-foreground">
                 Signed in <LocalTime value={session.createdAt} /> · expires{' '}
                 <LocalTime value={session.expiresAt} />

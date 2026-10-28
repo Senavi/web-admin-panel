@@ -101,9 +101,9 @@ export function RevisionsSheet({
         <div className="grid min-h-0 flex-1 gap-4 px-4 pb-4 md:grid-cols-[14rem_1fr]">
           <ScrollArea className="max-h-[70vh] rounded-md border">
             {revisions === null ? (
-              <p className="text-sm p-3 text-muted-foreground">Loading…</p>
+              <p className="p-3 text-sm text-muted-foreground">Loading…</p>
             ) : revisions.length === 0 ? (
-              <p className="text-sm p-3 text-muted-foreground">No saved versions yet.</p>
+              <p className="p-3 text-sm text-muted-foreground">No saved versions yet.</p>
             ) : (
               <ul className="divide-y" aria-label="Revisions">
                 {revisions.map((revision, index) => (
@@ -112,7 +112,7 @@ export function RevisionsSheet({
                       type="button"
                       onClick={() => void preview(revision.id)}
                       aria-current={selected?.id === revision.id ? 'true' : undefined}
-                      className="text-sm hover:bg-muted aria-[current=true]:bg-muted flex w-full flex-col items-start gap-0.5 p-3 text-start"
+                      className="flex w-full flex-col items-start gap-0.5 p-3 text-start text-sm hover:bg-muted aria-[current=true]:bg-muted"
                     >
                       <span className="font-medium">
                         <LocalTime value={revision.createdAt} />

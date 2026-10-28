@@ -1,10 +1,10 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test } from '../support/test';
 
-import { login } from './support/auth';
-import { testPng } from './support/images';
-import { E2E_ADMIN, E2E_MANAGER } from './support/users';
-import { admin } from './support/admin';
+import { login } from '../support/auth';
+import { testPng } from '../support/images';
+import { E2E_ADMIN, E2E_MANAGER } from '../support/users';
+import { admin } from '../support/admin';
 
 const heroTitle = (page: Page) => page.getByRole('textbox', { name: 'Title' }).first();
 

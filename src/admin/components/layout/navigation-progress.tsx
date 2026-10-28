@@ -47,7 +47,7 @@ export function NavigationProgress() {
       aria-label="Loading page"
       className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden"
     >
-      <div className="animate-nav-progress h-full w-1/3 bg-primary" />
+      <div className="h-full w-1/3 animate-nav-progress bg-primary" />
     </div>
   );
 }

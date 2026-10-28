@@ -15,8 +15,8 @@ import { auditLog, contentSeedState, media, pageContent, pageRevisions } from '@
 import type { Database } from '@/core/db/types';
 import { AuditAction } from '@/core/security/audit';
 
-import { createTestDb } from '../support/db';
-import { memoryStorage } from '../support/storage';
+import { createTestDb } from '../../support/db';
+import { memoryStorage } from '../../support/storage';
 
 const PAGE = 'team';
 const page = registry.byId(PAGE);

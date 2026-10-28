@@ -200,7 +200,7 @@ export function ConnectNeonWizard({
               />
               <span
                 className={cn(
-                  'text-xs hidden sm:block',
+                  'hidden text-xs sm:block',
                   step === index + 1 ? 'font-medium' : 'text-muted-foreground',
                 )}
               >
@@ -239,7 +239,7 @@ export function ConnectNeonWizard({
               </p>
               {ENVIRONMENTS.map((environment) => (
                 <fieldset key={environment} className="flex flex-col gap-3 rounded-lg border p-4">
-                  <legend className="text-sm font-medium px-1">
+                  <legend className="px-1 text-sm font-medium">
                     {NEON_ENVIRONMENT_LABELS[environment]}
                   </legend>
                   <FieldGroup>
@@ -277,13 +277,13 @@ export function ConnectNeonWizard({
                 </Alert>
               ) : null}
               {checks ? (
-                <ul aria-label="Connection checks" className="text-sm flex flex-col gap-1.5">
+                <ul aria-label="Connection checks" className="flex flex-col gap-1.5 text-sm">
                   {checks.map((item) => (
                     <li key={item.name} className="flex items-start gap-2">
                       {item.ok ? (
-                        <CheckCircle2Icon className="text-emerald-600 mt-0.5 size-4 shrink-0" />
+                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                       ) : (
-                        <XCircleIcon className="text-destructive mt-0.5 size-4 shrink-0" />
+                        <XCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
                       )}
                       <span>
                         <span className="font-medium">{item.name}</span> · {item.message}
@@ -302,7 +302,7 @@ export function ConnectNeonWizard({
                 Creates the tables now (every deploy does it too). Staging is prepared by its first
                 deploy.
               </p>
-              <div className="text-sm flex items-center gap-3">
+              <div className="flex items-center gap-3 text-sm">
                 <TaskIcon state={prepare} index={0} />
                 <span>Create the tables{copyLocal ? ', copy content, images and users' : ''}</span>
               </div>
@@ -389,7 +389,7 @@ export function ConnectNeonWizard({
                           </Button>
                         </div>
                         <Steps items={ENVIRONMENT_HOSTING_STEPS[guide.id][environment]} />
-                        <ul className="text-xs bg-muted flex flex-col gap-1 rounded-md p-3 font-mono">
+                        <ul className="flex flex-col gap-1 rounded-md bg-muted p-3 font-mono text-xs">
                           {neonVariables(
                             environment,
                             values[environment],

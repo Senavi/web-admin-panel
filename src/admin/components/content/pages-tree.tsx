@@ -87,7 +87,7 @@ export function PagesTree({
           href={href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'text-sm hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5',
+            'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted',
             active && 'bg-muted font-medium',
           )}
           style={{ paddingInlineStart: `${0.5 + depth * 1}rem` }}
@@ -120,7 +120,7 @@ export function PagesTree({
         />
       </div>
       {visible.length === 0 && visibleGroups.length === 0 ? (
-        <p className="text-sm px-2 text-muted-foreground">Nothing matches.</p>
+        <p className="px-2 text-sm text-muted-foreground">Nothing matches.</p>
       ) : null}
       {groups.length > 0 && visible.length > 0 ? <GroupTitle>Pages</GroupTitle> : null}
       <ul className="flex flex-col gap-0.5">{tree.map((node) => renderNode(node, 0))}</ul>
@@ -136,19 +136,19 @@ export function PagesTree({
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'text-sm hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5',
+                      'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted',
                       active && 'bg-muted font-medium',
                     )}
                   >
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate">{item.label}</span>
                       {item.note ? (
-                        <span className="text-xs truncate text-muted-foreground">{item.note}</span>
+                        <span className="truncate text-xs text-muted-foreground">{item.note}</span>
                       ) : null}
                     </span>
                     {item.count !== undefined ? (
                       <span
-                        className="text-xs bg-muted rounded-full px-1.5 text-muted-foreground tabular-nums"
+                        className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums"
                         aria-label={item.countLabel ?? `${item.count}`}
                       >
                         {item.count}
@@ -167,7 +167,7 @@ export function PagesTree({
 
 function GroupTitle({ children }: { children: string }) {
   return (
-    <h2 className="text-xs font-medium tracking-wide px-2 pt-2 text-muted-foreground uppercase">
+    <h2 className="px-2 pt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
       {children}
     </h2>
   );

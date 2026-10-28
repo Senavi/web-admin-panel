@@ -4,18 +4,25 @@ import { login } from './support/auth';
 import { setDeveloperMode } from './support/developer';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
 import { admin, adminRe } from './support/admin';
+import { FIRST_PAGE_ID, FIRST_PAGE_SECTIONS, HAS_COLLECTIONS, HAS_FORMS } from './support/site';
 
 test.describe('simpler admin', () => {
   test('Pages sidebar groups and the Google & sharing tab', async ({ page }) => {
     await login(page, E2E_MANAGER);
-    await page.goto(admin('/pages/about'));
+    await page.goto(admin(`/pages/${FIRST_PAGE_ID}`));
     const pagesNav = page.getByRole('navigation', { name: 'Pages' });
-    for (const group of ['Blog & lists', 'Every page', 'Forms']) {
+    const groups = [
+      ...(HAS_COLLECTIONS ? ['Blog & lists'] : []),
+      'Every page',
+      ...(HAS_FORMS ? ['Forms'] : []),
+    ];
+    for (const group of groups) {
       await expect(pagesNav.getByRole('region', { name: group })).toBeVisible();
     }
     await expect(page.locator('form[data-hydrated]')).toBeVisible();
     // The editor follows the accordion rule: first section open, the others closed.
-    await expect(page.getByRole('button', { name: 'Expand all' })).toBeVisible();
+    if (FIRST_PAGE_SECTIONS > 1)
+      await expect(page.getByRole('button', { name: 'Expand all' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Google & sharing' }).click();
     await expect(page.getByLabel('Google preview')).toBeVisible();
@@ -33,11 +40,13 @@ test.describe('simpler admin', () => {
     const kpis = page.getByRole('region', { name: 'Key metrics' });
     await expect(kpis.getByRole('heading', { name: 'Visitors' })).toBeVisible();
     await expect(kpis.getByRole('heading', { name: 'Page views' })).toBeVisible();
-    await expect(kpis.getByRole('heading', { name: 'New requests' })).toBeVisible();
-    await expect(kpis.getByRole('link', { name: 'Open the inbox' })).toHaveAttribute(
-      'href',
-      adminRe(String.raw`\/pages\/forms\/`),
-    );
+    if (HAS_FORMS) {
+      await expect(kpis.getByRole('heading', { name: 'New requests' })).toBeVisible();
+      await expect(kpis.getByRole('link', { name: 'Open the inbox' })).toHaveAttribute(
+        'href',
+        adminRe(String.raw`\/pages\/forms\/`),
+      );
+    }
     await expect(page.getByRole('heading', { name: 'Browsers' })).toHaveCount(0);
     await page.getByRole('button', { name: /More statistics/ }).click();
     await expect(page.getByRole('heading', { name: 'Browsers' })).toBeVisible();

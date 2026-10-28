@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { registry } from '@/content';
-import { type homePage } from '@/content/pages/home';
+import type { AnyPage } from '@/core/content/define';
 import {
   definePage,
   defineSection,
@@ -9,7 +9,7 @@ import {
   type ResolvedPageContent,
 } from '@/core/content/define';
 import { f } from '@/core/content/fields';
-import { createRegistry } from '@/core/content/registry';
+import { createRegistry, type PageTreeNode } from '@/core/content/registry';
 import { checkRoutes } from '@/core/content/route-check';
 import { richTextFromParagraphs } from '@/core/content/rich-text';
 import { pageContentSchema } from '@/core/content/validation';
@@ -22,7 +22,7 @@ import {
   splitContent,
   type ContentRecord,
 } from '@/core/content/values';
-import { ownSchema } from '@/core/content/shared-section';
+import { type AnySharedSection, ownSchema } from '@/core/content/shared-section';
 
 const testPage = definePage({
   id: 'test',
@@ -55,7 +55,51 @@ const testPage = definePage({
 
 describe('content types', () => {
   it('infers resolved content from the schema', () => {
-    type Home = ResolvedPageContent<typeof homePage.sections>;
+    const page = definePage({
+      id: 'home',
+      path: '/',
+      label: 'Home',
+      parent: null,
+      seo: { title: 'Home' },
+      sections: [
+        defineSection({
+          id: 'hero',
+          label: 'Hero',
+          fields: { title: f.text({ label: 'Title' }), image: f.image({ label: 'Image' }) },
+        }),
+        defineSection({
+          id: 'features',
+          label: 'Features',
+          fields: {
+            items: f.list({
+              label: 'Items',
+              of: {
+                icon: f.select({
+                  label: 'Icon',
+                  options: [
+                    { value: 'layout', label: 'Layout' },
+                    { value: 'shield', label: 'Shield' },
+                    { value: 'globe', label: 'Globe' },
+                    { value: 'chart', label: 'Chart' },
+                    { value: 'zap', label: 'Lightning' },
+                    { value: 'image', label: 'Image' },
+                  ] as const,
+                }),
+              },
+            }),
+          },
+        }),
+        defineSection({
+          id: 'stats',
+          label: 'Stats',
+          fields: {
+            items: f.list({ label: 'Items', of: { value: f.number({ label: 'Value' }) } }),
+          },
+        }),
+      ],
+    });
+    expect(page.sections.map((section) => section.id)).toEqual(['hero', 'features', 'stats']);
+    type Home = ResolvedPageContent<typeof page.sections>;
     expectTypeOf<Home['hero']['title']>().toEqualTypeOf<string>();
     expectTypeOf<Home['hero']['image']>().toEqualTypeOf<ResolvedImage | null>();
     expectTypeOf<Home['features']['items'][number]['icon']>().toEqualTypeOf<
@@ -117,10 +161,11 @@ describe('content validation', () => {
     ).toBe(true);
   });
 
-  it('validates every demo page and shared section seed against its schema', () => {
+  it('validates every page and shared section seed against its schema', () => {
+    const sharedSections: readonly AnySharedSection[] = registry.sharedSections;
     const schemas = [
       ...registry.pages.map((page) => ({ id: page.id, schema: ownSchema(page) })),
-      ...registry.sharedSections.map((shared) => ({ id: shared.id, schema: shared.schema })),
+      ...sharedSections.map((shared) => ({ id: shared.id, schema: shared.schema })),
     ];
     for (const { id, schema } of schemas) {
       const seed = schema.seed as Partial<Record<string, ContentRecord>> | undefined;
@@ -208,14 +253,19 @@ describe('content storage', () => {
 });
 
 describe('registry', () => {
-  it('builds the demo page tree', () => {
+  it('builds the page tree of this project', () => {
+    const pages: readonly AnyPage[] = registry.pages;
     const tree = registry.tree();
     expect(tree.map((node) => node.page.id)).toEqual(
-      registry.pages.filter((page) => page.parent === null).map((page) => page.id),
+      pages.filter((page) => page.parent === null).map((page) => page.id),
     );
-    expect(tree.find((node) => node.page.id === 'about')?.children.map((n) => n.page.id)).toEqual([
-      'team',
-    ]);
+    const flat = (nodes: readonly PageTreeNode[]): PageTreeNode[] =>
+      nodes.flatMap((node) => [node, ...flat(node.children)]);
+    for (const node of flat(tree)) {
+      expect(node.children.map((child) => child.page.id)).toEqual(
+        pages.filter((page) => page.parent === node.page.id).map((page) => page.id),
+      );
+    }
   });
 
   it('rejects duplicate ids, unknown parents and cycles', () => {

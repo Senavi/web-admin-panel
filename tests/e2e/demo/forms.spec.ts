@@ -4,14 +4,14 @@ import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import path from 'node:path';
 
 import { type Browser, type Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test } from '../support/test';
 
-import { login } from './support/auth';
-import { setDeveloperMode } from './support/developer';
-import { E2E_DATA_DIR, E2E_ENV } from './support/env';
-import { openSettingsTab, saveSettingsTab } from './support/settings';
-import { E2E_ADMIN, E2E_MANAGER } from './support/users';
-import { admin, ADMIN } from './support/admin';
+import { login } from '../support/auth';
+import { setDeveloperMode } from '../support/developer';
+import { E2E_DATA_DIR, E2E_ENV } from '../support/env';
+import { openSettingsTab, saveSettingsTab } from '../support/settings';
+import { E2E_ADMIN, E2E_MANAGER } from '../support/users';
+import { admin, ADMIN } from '../support/admin';
 
 const MAIL_DIR = path.join(E2E_DATA_DIR, 'mail');
 /** Signed timing token: humans need ≥ 3 s. */

@@ -10,7 +10,7 @@ import { pageContent, pageRevisions, SHARED_LOCALE } from '@/core/db/schema';
 import type { Database } from '@/core/db/types';
 import { parsePageSeo } from '@/core/seo/page-seo';
 
-import { createTestDb } from '../support/db';
+import { createTestDb } from '../../support/db';
 
 describe('savePageContent', () => {
   let db: Database;

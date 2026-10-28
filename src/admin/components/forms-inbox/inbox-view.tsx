@@ -130,7 +130,7 @@ export function InboxView({
             name="status"
             defaultValue={filter}
             aria-label="Show"
-            className="text-sm h-9 rounded-md border bg-transparent px-2"
+            className="h-9 rounded-md border bg-transparent px-2 text-sm"
           >
             {Object.entries(FILTER_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
@@ -168,7 +168,7 @@ export function InboxView({
         <TableBody>
           {inbox.rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-sm py-8 text-center text-muted-foreground">
+              <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                 No requests here.
               </TableCell>
             </TableRow>
@@ -187,7 +187,7 @@ export function InboxView({
                     <LocalTime value={row.createdAt} />
                   </Link>
                 </TableCell>
-                <TableCell className="text-sm max-w-80 truncate">{row.preview || '—'}</TableCell>
+                <TableCell className="max-w-80 truncate text-sm">{row.preview || '—'}</TableCell>
                 <TableCell>
                   <Badge variant={row.status === SubmissionStatus.New ? 'default' : 'secondary'}>
                     {STATUS_LABEL[row.status]}

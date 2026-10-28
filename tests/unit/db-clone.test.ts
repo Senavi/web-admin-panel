@@ -1,6 +1,3 @@
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { Role } from '@/core/auth/roles';
@@ -26,6 +23,7 @@ import { runSeed } from '@/core/db/seed';
 import type { Database } from '@/core/db/types';
 
 import { createTestDb } from '../support/db';
+import { runScriptFile, SCRIPT_TIMEOUT_MS } from '../support/script';
 import { memoryStorage } from '../support/storage';
 
 const PROD = 'postgresql://u:p@ep-prod-1-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require';
@@ -68,26 +66,35 @@ describe('db:clone refusals', () => {
     expect(cloneRefusal({ from: PROD, to: PROD_DIRECT, env: {} })).not.toContain(':p@');
   });
 
-  it('the script refuses before connecting anywhere', () => {
-    const env: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: PROD };
-    delete env.NODE_OPTIONS;
-    const result = spawnSync(
-      process.execPath,
-      [
-        path.resolve('node_modules/tsx/dist/cli.mjs'),
-        '--conditions=react-server',
+  it(
+    'the script refuses before connecting anywhere',
+    () => {
+      const result = runScriptFile(
         'scripts/db-clone.ts',
-        '--from',
-        STAGING,
-        '--to',
-        PROD_DIRECT,
-        '--yes',
-      ],
-      { env, encoding: 'utf8', timeout: 60_000 },
-    );
-    expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/Refusing to overwrite/);
-  }, 60_000);
+        ['--from', STAGING, '--to', PROD_DIRECT, '--yes'],
+        { DATABASE_URL: PROD },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/Refusing to overwrite/);
+    },
+    SCRIPT_TIMEOUT_MS,
+  );
+
+  it(
+    'the script refuses in CI (CI=true), whatever the URLs',
+    () => {
+      const result = runScriptFile(
+        'scripts/db-clone.ts',
+        ['--from', PROD, '--to', STAGING, '--yes'],
+        {
+          CI: 'true',
+        },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/during a deploy or in CI/);
+    },
+    SCRIPT_TIMEOUT_MS,
+  );
 });
 
 /** PGlite-based tests: creating and migrating databases takes seconds on a small CI machine. */
@@ -261,6 +268,11 @@ describe('cloneDatabase', DB_TEST, () => {
 
   it('copies media files from the source URL into the target storage', async () => {
     const storage = memoryStorage();
+    // A project without seed images has no media rows yet: add one.
+    await target.db
+      .insert(media)
+      .values({ storageKey: 'uploads/e2e-clone.webp', mime: 'image/webp', size: 1 })
+      .onConflictDoNothing();
     const rows = await target.db.select().from(media);
     expect(rows.length).toBeGreaterThan(0);
     const result = await copyMediaFromUrl(

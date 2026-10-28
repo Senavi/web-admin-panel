@@ -4,6 +4,7 @@ import { expect, test } from './support/test';
 import { login } from './support/auth';
 import { E2E_ADMIN } from './support/users';
 import { admin } from './support/admin';
+import { HOME_PATH, SAMPLE_PATH } from './support/site';
 
 async function kpis(page: Page): Promise<{ visitors: number; views: number }> {
   await page.goto(admin('?range=today'));
@@ -12,7 +13,7 @@ async function kpis(page: Page): Promise<{ visitors: number; views: number }> {
   return { visitors: await read('kpi-visitors'), views: await read('kpi-page-views') };
 }
 
-test('visiting demo pages records page views and a unique visitor; bots are ignored', async ({
+test('visiting site pages records page views and a unique visitor; bots are ignored', async ({
   page,
   browser,
   baseURL,
@@ -28,7 +29,7 @@ test('visiting demo pages records page views and a unique visitor; bots are igno
     locale: 'en-US',
   });
   const visitorPage = await visitor.newPage();
-  for (const path of ['/', '/about']) {
+  for (const path of [HOME_PATH, SAMPLE_PATH]) {
     const beacon = visitorPage.waitForRequest(
       (request) => request.url().endsWith('/api/collect') && request.method() === 'POST',
     );
@@ -42,7 +43,7 @@ test('visiting demo pages records page views and a unique visitor; bots are igno
       origin: baseURL ?? '',
       'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
     },
-    data: JSON.stringify({ p: '/contact' }),
+    data: JSON.stringify({ p: SAMPLE_PATH }),
   });
   expect(bot.status()).toBe(204);
 

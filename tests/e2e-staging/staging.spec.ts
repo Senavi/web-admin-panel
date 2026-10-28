@@ -4,6 +4,7 @@ import path from 'node:path';
 import { admin } from '../e2e/support/admin';
 import { login } from '../e2e/support/auth';
 import { E2E_DATA_DIR, E2E_STAGING_MAIL_TO } from '../e2e/support/env';
+import { DEMO_PRESENT, SAMPLE_PATH } from '../e2e/support/site';
 import { GA_ID, setGoogleAnalytics, submitContact, visitor } from '../e2e/support/integrations';
 import { openSettingsTab, saveSettingsTab, VISITOR_HEADERS } from '../e2e/support/settings';
 import { expect, test } from '../e2e/support/test';
@@ -89,7 +90,7 @@ test.describe.serial('staging safety', () => {
       ]);
       await guest.page.goto('/');
       await expect(guest.page.getByRole('region', { name: 'Cookies' })).toHaveCount(0);
-      await guest.page.goto('/about');
+      await guest.page.goto(SAMPLE_PATH);
       await guest.page.waitForTimeout(2000);
       expect(loaded.filter((url) => url.includes(GA_ID))).toEqual([]);
       await guest.context.close();
@@ -102,6 +103,7 @@ test.describe.serial('staging safety', () => {
     page,
     browser,
   }) => {
+    test.skip(!DEMO_PRESENT, 'Submits the demo contact form.');
     await login(page, E2E_ADMIN);
     const form = await openSettingsTab(page, 'requests', 'Requests');
     await expect(page.getByTestId('staging-mail-note')).toContainText(

@@ -217,9 +217,9 @@ export function DocumentEditor({
         >
           <div className="sticky top-14 z-[5] -mx-4 flex flex-wrap items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
             <div className="min-w-48 flex-1 basis-48">
-              <h1 className="text-xl font-semibold truncate">{data.document.label}</h1>
+              <h1 className="truncate text-xl font-semibold">{data.document.label}</h1>
               {subtitle || data.document.path ? (
-                <p className="text-xs truncate font-mono text-muted-foreground">
+                <p className="truncate font-mono text-xs text-muted-foreground">
                   {subtitle ?? data.document.path}
                 </p>
               ) : null}

@@ -1,26 +1,43 @@
 import { expect, test } from '@playwright/test';
 import { admin } from '../e2e/support/admin';
+import {
+  DEMO_PRESENT,
+  FIRST_PAGE_ID,
+  HOME_PATH,
+  localePath,
+  OTHER_LOCALE,
+  SAMPLE_PATH,
+} from '../e2e/support/site';
+
+/** The demo's blog and seed images (only while the demo is there). */
+const DEMO_PATHS = DEMO_PRESENT ? ['/blog', '/blog/hello-world'] : [];
 
 /** A production build with no database variables: demo site from seeds, admin setup guide. */
 test.describe('preview mode (no DATABASE_URL)', () => {
-  test('serves the demo pages, posts and images from seeds, never indexable', async ({
-    page,
-    request,
-  }) => {
-    for (const path of ['/', '/about', '/uk/about', '/blog', '/blog/hello-world']) {
+  test('serves the pages from seeds, never indexable', async ({ page, request }) => {
+    const paths = [
+      HOME_PATH,
+      SAMPLE_PATH,
+      ...(OTHER_LOCALE ? [localePath(OTHER_LOCALE, SAMPLE_PATH)] : []),
+      ...DEMO_PATHS,
+    ];
+    for (const path of paths) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
       expect(response?.headers()['x-robots-tag'], path).toContain('noindex');
       await expect(page.locator('h1'), path).toHaveCount(1);
     }
-    await page.goto('/');
-    const hero = page.locator('main img').first();
-    await expect(hero).toBeVisible();
-    expect(await hero.getAttribute('src')).toContain('seed-assets');
-    expect(await hero.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
-
-    await page.goto('/blog');
-    await expect(page.getByRole('link', { name: /Hello, world/ }).first()).toBeVisible();
+    if (DEMO_PRESENT) {
+      await page.goto('/');
+      const hero = page.locator('main img').first();
+      await expect(hero).toBeVisible();
+      expect(await hero.getAttribute('src')).toContain('seed-assets');
+      expect(await hero.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(
+        0,
+      );
+      await page.goto('/blog');
+      await expect(page.getByRole('link', { name: /Hello, world/ }).first()).toBeVisible();
+    }
 
     const robots = await (await request.get('/robots.txt')).text();
     expect(robots).toMatch(/Disallow: \/\s*$/m);
@@ -29,7 +46,12 @@ test.describe('preview mode (no DATABASE_URL)', () => {
   });
 
   test('every admin URL shows the setup guide (no login, no data)', async ({ page, request }) => {
-    for (const path of [admin(), admin('/settings'), admin('/login'), admin('/pages/home')]) {
+    for (const path of [
+      admin(),
+      admin('/settings'),
+      admin('/login'),
+      admin(`/pages/${FIRST_PAGE_ID}`),
+    ]) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
       await expect(
@@ -47,6 +69,7 @@ test.describe('preview mode (no DATABASE_URL)', () => {
   });
 
   test('forms render but say they are not connected yet', async ({ page, request, baseURL }) => {
+    test.skip(!DEMO_PRESENT, 'Submits the demo contact form.');
     await page.goto('/contact');
     await expect(page.locator('form#form-contact')).toBeVisible();
     await page.waitForLoadState('networkidle'); // hydrated (the timing token request fails: 503)

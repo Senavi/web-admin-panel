@@ -58,7 +58,7 @@ export function AuditLogTable({
           name="group"
           defaultValue={group}
           aria-label="Event type"
-          className="text-sm h-9 rounded-md border bg-transparent px-2"
+          className="h-9 rounded-md border bg-transparent px-2 text-sm"
         >
           {Object.entries(AUDIT_GROUPS).map(([key, value]) => (
             <option key={key} value={key}>
@@ -120,7 +120,7 @@ export function AuditLogTable({
           </TableBody>
         </Table>
       </div>
-      <div className="text-sm flex items-center justify-between">
+      <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">Page {page}</span>
         <div className="flex gap-2">
           {page > 1 ? (

@@ -12,6 +12,9 @@ import type { Database } from '@/core/db/types';
 import { runSeed } from '@/core/db/seed';
 
 import { createTestDb } from '../support/db';
+import { prefixedPath, SAMPLE_PAGE } from '../support/project';
+
+const LOCALIZED_PATH = prefixedPath('uk', SAMPLE_PAGE.path);
 
 const IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
@@ -65,8 +68,8 @@ describe('collection, rollups and retention', () => {
     expect(await view('/', '1.1.1.1', MAC_CHROME, 'https://www.google.com/search?q=x')).toBe(
       'recorded',
     );
-    expect(await view('/uk/about', '1.1.1.1')).toBe('recorded');
-    expect(await view('/about', '2.2.2.2', IPHONE)).toBe('recorded');
+    expect(await view(LOCALIZED_PATH, '1.1.1.1')).toBe('recorded');
+    expect(await view(SAMPLE_PAGE.path, '2.2.2.2', IPHONE)).toBe('recorded');
     expect(await view('/', '3.3.3.3', 'Googlebot/2.1')).toBe('ignored');
     expect(
       await recordPageView(db, {
@@ -82,8 +85,8 @@ describe('collection, rollups and retention', () => {
     const rows = await db.select().from(analyticsEvents);
     expect(rows).toHaveLength(3);
     expect(JSON.stringify(rows)).not.toContain('1.1.1.1');
-    expect(rows.find((row) => row.path === '/uk/about')).toMatchObject({
-      pageId: 'about',
+    expect(rows.find((row) => row.path === LOCALIZED_PATH)).toMatchObject({
+      pageId: SAMPLE_PAGE.id,
       locale: 'uk',
     });
     expect(rows.find((row) => row.path === '/')?.referrerHost).toBe('google.com');

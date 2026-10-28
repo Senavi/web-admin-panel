@@ -17,9 +17,9 @@ function Change({ value, previous }: { value: number; previous: number }) {
   return (
     <p
       className={cn(
-        'text-sm flex items-center gap-1 text-muted-foreground',
+        'flex items-center gap-1 text-sm text-muted-foreground',
         change !== null && change > 0 && 'text-emerald-600 dark:text-emerald-400',
-        change !== null && change < 0 && 'dark:text-red-400 text-red-600',
+        change !== null && change < 0 && 'text-red-600 dark:text-red-400',
       )}
     >
       <Icon aria-hidden className="size-4" />

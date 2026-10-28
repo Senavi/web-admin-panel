@@ -84,6 +84,29 @@ pnpm e2e          # Playwright against the dev server
 pnpm e2e:prod     # Playwright against a production build
 ```
 
+## Windows
+
+- **Line endings.** The repo is LF-only (`.gitattributes`, Prettier `endOfLine: "lf"`). If a
+  clone made before v1.8.3 still shows hundreds of files in `pnpm format:check`, run once:
+
+  ```bash
+  git add --renormalize .
+  ```
+
+- **`ERR_SWC_NATIVE_CACHE`.** On some Windows machines `next typegen`, `pnpm typecheck` or
+  `pnpm dev` fail with this error. Point the SWC native binding cache to a folder in your
+  user profile (reported fix; not reproducible on macOS/Linux):
+
+  ```powershell
+  setx SWC_NATIVE_BINDING_CACHE "$env:USERPROFILE\.cache\swc"
+  ```
+
+  ```bash
+  echo 'export SWC_NATIVE_BINDING_CACHE="$USERPROFILE/.cache/swc"' >> ~/.bashrc
+  ```
+
+  Open a new terminal afterwards (Git Bash: or `source ~/.bashrc`).
+
 ## Documentation
 
 | Doc                                              | Purpose                                   |

@@ -17,7 +17,7 @@ export function CharCounter({
     <span
       className={cn(
         'text-xs text-muted-foreground tabular-nums',
-        warn && 'dark:text-amber-400 text-amber-600',
+        warn && 'text-amber-600 dark:text-amber-400',
         over && 'text-destructive',
       )}
       aria-live="polite"

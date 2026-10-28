@@ -3,6 +3,13 @@
   "semi": true,
   "trailingComma": "all",
   "printWidth": 100,
+  "endOfLine": "lf",
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindStylesheet": "./src/site/theme/site.css"
+  "tailwindStylesheet": "./src/site/theme/site.css",
+  "overrides": [
+    {
+      "files": ["src/admin/**", "src/core/**", "src/app/\\(admin\\)/**", "src/app/\\(access\\)/**"],
+      "options": { "tailwindStylesheet": "./src/admin/styles/admin.css" }
+    }
+  ]
 }

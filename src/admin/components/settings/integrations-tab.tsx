@@ -565,7 +565,7 @@ function SecretField({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span id={id} className="text-sm font-mono" aria-label={`${label} is saved`}>
+          <span id={id} className="font-mono text-sm" aria-label={`${label} is saved`}>
             {info.hint || '••••'}
           </span>
           <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>

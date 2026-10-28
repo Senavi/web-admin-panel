@@ -156,7 +156,7 @@ export function LanguagesField() {
                 </span>
               </div>
               {warnings.length > 0 ? (
-                <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
+                <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
                   <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
                   {LANGUAGE_WARNING_TEXT}
                 </p>
@@ -186,7 +186,7 @@ export function LanguagesField() {
               <li key={language.code}>
                 <button
                   type="button"
-                  className="text-sm hover:bg-muted focus-visible:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted"
                   onClick={() => {
                     apply(languageTransitions.add(settings, language.code));
                     setQuery('');
@@ -195,7 +195,7 @@ export function LanguagesField() {
                   <PlusIcon className="size-4 text-muted-foreground" aria-hidden />
                   <span>{language.native}</span>
                   <span className="text-muted-foreground">{language.name}</span>
-                  <span className="text-xs ml-auto text-muted-foreground uppercase">
+                  <span className="ml-auto text-xs text-muted-foreground uppercase">
                     {language.code}
                   </span>
                 </button>

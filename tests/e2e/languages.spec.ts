@@ -5,12 +5,19 @@ import { login } from './support/auth';
 import { openSettingsTab, saveSettingsTab, VISITOR_HEADERS } from './support/settings';
 import { expect, test } from './support/test';
 import { E2E_ADMIN } from './support/users';
+import {
+  FIRST_PAGE_ID,
+  localePath,
+  OTHER_LOCALE,
+  OTHER_LOCALE_LABEL,
+  SAMPLE_PATH,
+} from './support/site';
 
 const GERMAN = 'li[data-language="de"]';
 
 test.describe.serial('languages added by the admin', () => {
   test.afterAll(async ({ browser, baseURL }) => {
-    // Leave the demo with its two languages, whatever happened above.
+    // Leave the project's languages as they were, whatever happened above.
     const page = await browser.newPage({ baseURL });
     await login(page, E2E_ADMIN);
     const form = await openSettingsTab(page, 'general', 'General');
@@ -44,11 +51,12 @@ test.describe.serial('languages added by the admin', () => {
     expect((await visitor.get('/sitemap.xml')).status()).toBe(200);
     expect(await (await visitor.get('/sitemap.xml')).text()).not.toContain('/de');
     // Existing languages are untouched.
-    expect((await visitor.get('/about')).status()).toBe(200);
-    expect((await visitor.get('/uk/about')).status()).toBe(200);
+    expect((await visitor.get(SAMPLE_PATH)).status()).toBe(200);
+    if (OTHER_LOCALE)
+      expect((await visitor.get(localePath(OTHER_LOCALE, SAMPLE_PATH))).status()).toBe(200);
     await visitor.dispose();
 
-    await page.goto(admin('/pages/home?locale=de'));
+    await page.goto(admin(`/pages/${FIRST_PAGE_ID}?locale=de`));
     await expect(page.locator('form[data-hydrated]')).toBeVisible();
     await expect(page).toHaveURL(/locale=de/);
   });
@@ -71,13 +79,14 @@ test.describe.serial('languages added by the admin', () => {
       .toBe(true);
     await visitor.dispose();
 
-    await page.goto('/about');
+    await page.goto(SAMPLE_PATH);
     await page
       .getByRole('button', { name: /^Language:/ })
       .first()
       .click();
     const list = page.getByRole('list', { name: 'Language' }).first();
     await expect(list.getByRole('link', { name: 'Deutsch' })).toBeVisible();
-    await expect(list.getByRole('link', { name: 'Українська' })).toBeVisible();
+    if (OTHER_LOCALE_LABEL)
+      await expect(list.getByRole('link', { name: OTHER_LOCALE_LABEL })).toBeVisible();
   });
 });

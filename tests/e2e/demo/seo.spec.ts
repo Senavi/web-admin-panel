@@ -1,15 +1,15 @@
-import { ADMIN } from './support/admin';
+import { ADMIN } from '../support/admin';
 import { request } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test } from '../support/test';
 
-import { login } from './support/auth';
+import { login } from '../support/auth';
 import {
   setEnabledLocales,
   updateSiteStatus,
   VISITOR_HEADERS,
   waitForPublicSite,
-} from './support/settings';
-import { E2E_ADMIN } from './support/users';
+} from '../support/settings';
+import { E2E_ADMIN } from '../support/users';
 
 test.describe.serial('SEO and i18n', () => {
   test('pages carry canonical, hreflang, OG tags and JSON-LD', async ({ page }) => {

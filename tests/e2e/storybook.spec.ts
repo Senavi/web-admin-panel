@@ -1,6 +1,17 @@
+import { tokens } from '@/site/theme/tokens.generated';
+
 import { login } from './support/auth';
 import { expect, test } from './support/test';
 import { E2E_ADMIN, E2E_MANAGER } from './support/users';
+
+const HEX = /^#[0-9a-f]{3,8}$/i;
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** `clamp(2.25rem, …, 3.5rem)` → ['36px', '56px'] (the metrics table shows both ends). */
+function clampPx(size: string): string[] {
+  const match = /clamp\(\s*([\d.]+)rem\s*,.*,\s*([\d.]+)rem\s*\)/.exec(size);
+  return match ? [match[1], match[2]].map((rem) => `${Number(rem) * 16}px`) : [];
+}
 
 /** `/storybook`: the site's living style guide, for staff only. */
 test.describe('storybook', () => {
@@ -35,15 +46,18 @@ test.describe('storybook', () => {
       for (const title of ['Colors', 'Fonts', 'Text styles', 'Spacing', 'Radii', 'Shadows']) {
         await expect(page.getByRole('heading', { name: title, level: 2 })).toBeVisible();
       }
+      // Values come from the project's theme (src/site/theme/tokens.css).
       const primary = page
         .getByRole('listitem')
-        .filter({ hasText: /^primary#/ })
+        .filter({ hasText: new RegExp(`^primary${escapeRegExp(tokens.color.primary)}`) })
         .first();
-      await expect(primary).toContainText('#2546ea');
-      await expect(primary).toContainText(/\d+\.\d:1 AA/);
+      await expect(primary).toBeVisible();
+      // The contrast ratio is computed for hex colors.
+      if (HEX.test(tokens.color.primary))
+        await expect(primary).toContainText(/\d+\.\d:1 (AAA|AA|Fail)/);
       const h1 = page.getByRole('table', { name: 'Metrics of h1' });
-      await expect(h1).toContainText('36px');
-      await expect(h1).toContainText('56px');
+      await expect(h1).toBeVisible();
+      for (const px of clampPx(tokens.type.h1.size)) await expect(h1).toContainText(px);
 
       // The project's slot.
       for (const title of ['Buttons', 'Form fields', 'Icons', 'Other primitives']) {

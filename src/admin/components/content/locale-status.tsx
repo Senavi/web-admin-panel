@@ -32,7 +32,7 @@ export function LocaleStatusChips({
             <TooltipTrigger
               render={<span />}
               className={cn(
-                'rounded font-semibold px-1 text-[10px] uppercase',
+                'rounded px-1 text-[10px] font-semibold uppercase',
                 STATUS_CLASS[status],
               )}
               aria-label={`${locale}: ${STATUS_LABEL[status]}`}

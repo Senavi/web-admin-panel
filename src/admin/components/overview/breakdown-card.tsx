@@ -31,11 +31,11 @@ export function BreakdownCard({
             {rows.map((row) => (
               <li
                 key={row.value}
-                className="text-sm relative flex items-center justify-between gap-3 overflow-hidden rounded-md px-2 py-1.5"
+                className="relative flex items-center justify-between gap-3 overflow-hidden rounded-md px-2 py-1.5 text-sm"
               >
                 <span
                   aria-hidden
-                  className="bg-muted absolute inset-y-0 start-0 rounded-md"
+                  className="absolute inset-y-0 start-0 rounded-md bg-muted"
                   style={{ width: `${(row.views / max) * 100}%` }}
                 />
                 <span className="relative truncate">{row.value}</span>

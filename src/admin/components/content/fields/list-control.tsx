@@ -293,7 +293,7 @@ function TagsList({ name, field, label }: FieldControlProps<ListField>) {
   return (
     <div className="flex flex-col gap-2" role="group" aria-label={label} data-list-display="tags">
       <ListHeader field={field} label={label} count={values.length} id={inputId} />
-      <div className="focus-within:ring-ring/50 flex flex-wrap items-center gap-1.5 rounded-md border bg-transparent p-1.5 focus-within:ring-2">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-transparent p-1.5 focus-within:ring-2 focus-within:ring-ring/50">
         <ul className="contents" aria-label={`${label}: ${values.length} items`}>
           {list.fields.map((item, index) => {
             const text = textOf(values[index]);
@@ -314,7 +314,7 @@ function TagsList({ name, field, label }: FieldControlProps<ListField>) {
                   onKeyDown={(event) => onChipKey(event, index)}
                   {...(list.readOnly ? {} : drag.handle(index))}
                   className={cn(
-                    'text-sm bg-secondary focus-visible:ring-ring inline-flex cursor-grab items-center gap-1 rounded-full px-2.5 py-0.5 outline-none focus-visible:ring-2',
+                    'inline-flex cursor-grab items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     invalid && 'bg-destructive/15 text-destructive',
                   )}
                 >
@@ -516,12 +516,12 @@ function RowsList({ name, field, label }: FieldControlProps<ListField>) {
       <ListHeader field={field} label={label} count={list.fields.length} />
       {list.fields.length > 0 ? (
         <div className="overflow-x-auto rounded-md border">
-          <table className="text-sm w-full">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-muted-foreground">
                 {!list.readOnly ? <th className="w-6" aria-hidden /> : null}
                 {columns.map(([key, child]) => (
-                  <th key={key} scope="col" className="font-medium p-2 text-start">
+                  <th key={key} scope="col" className="p-2 text-start font-medium">
                     {fieldLabel(key, child)}
                   </th>
                 ))}
@@ -612,9 +612,9 @@ function CardPreview({ name, field, index }: { name: string; field: ListField; i
       {imageKey ? (
         preview ? (
           // eslint-disable-next-line @next/next/no-img-element -- admin thumbnail of an uploaded image
-          <img src={preview.src} alt="" className="rounded size-8 shrink-0 object-cover" />
+          <img src={preview.src} alt="" className="size-8 shrink-0 rounded object-cover" />
         ) : (
-          <span className="rounded bg-muted flex size-8 shrink-0 items-center justify-center">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded bg-muted">
             <ImageIcon aria-hidden className="size-4 text-muted-foreground" />
           </span>
         )
@@ -667,7 +667,7 @@ function CardsList({ name, field, label }: FieldControlProps<ListField>) {
                       <GripVerticalIcon className="size-4" />
                     </span>
                   ) : null}
-                  <CollapsibleTrigger className="text-sm font-medium hover:bg-muted flex min-w-0 flex-1 items-center gap-2 rounded-sm p-1 text-start [&[data-panel-open]>svg]:rotate-180">
+                  <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 rounded-sm p-1 text-start text-sm font-medium hover:bg-muted [&[data-panel-open]>svg]:rotate-180">
                     <ChevronDownIcon aria-hidden className="size-4 shrink-0 transition-transform" />
                     <CardPreview name={name} field={field} index={index} />
                   </CollapsibleTrigger>

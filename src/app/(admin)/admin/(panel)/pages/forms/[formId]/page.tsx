@@ -52,8 +52,8 @@ export default async function FormPage({
           href={item.href}
           aria-current={tab === item.id ? 'page' : undefined}
           className={cn(
-            'text-sm -mb-px border-b-2 border-transparent px-3 py-2 text-muted-foreground hover:text-foreground',
-            tab === item.id && 'font-medium border-primary text-foreground',
+            '-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-foreground',
+            tab === item.id && 'border-primary font-medium text-foreground',
           )}
         >
           {item.label}

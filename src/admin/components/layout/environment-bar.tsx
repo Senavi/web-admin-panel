@@ -24,7 +24,7 @@ export async function EnvironmentBar() {
       <div
         role="alert"
         data-testid="database-mismatch-bar"
-        className="text-white text-sm font-semibold flex items-center justify-center gap-2 bg-red-600 px-4 py-2"
+        className="flex items-center justify-center gap-2 bg-red-600 px-4 py-2 text-sm font-semibold text-white"
       >
         <TriangleAlertIcon className="size-4 shrink-0" aria-hidden />
         {warning}
@@ -45,7 +45,7 @@ export async function EnvironmentBar() {
     <div
       role="status"
       data-testid="environment-bar"
-      className="bg-violet-600 text-white text-sm font-medium flex items-center justify-center gap-2 px-4 py-2"
+      className="flex items-center justify-center gap-2 bg-violet-600 px-4 py-2 text-sm font-medium text-white"
     >
       <FlaskConicalIcon className="size-4 shrink-0" aria-hidden />
       {text}

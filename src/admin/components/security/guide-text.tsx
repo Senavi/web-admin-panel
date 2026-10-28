@@ -20,7 +20,7 @@ export function GuideText({ text }: { text: string }) {
 /** Numbered guide steps. */
 export function GuideSteps({ items }: { items: readonly string[] }) {
   return (
-    <ol className="text-sm flex list-decimal flex-col gap-2 ps-5">
+    <ol className="flex list-decimal flex-col gap-2 ps-5 text-sm">
       {items.map((item) => (
         <li key={item}>
           <GuideText text={item} />

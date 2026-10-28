@@ -1,5 +1,6 @@
 import { expect, type Page, request } from '@playwright/test';
 import { ADMIN } from './admin';
+import { SAMPLE_PATH } from './site';
 
 export interface StatusChange {
   readonly maintenance?: boolean;
@@ -87,7 +88,7 @@ export const VISITOR_HEADERS = { 'user-agent': 'Mozilla/5.0 Chrome/150', 'accept
 export async function waitForPublicSite(baseURL: string | undefined): Promise<void> {
   const context = await request.newContext({ baseURL, extraHTTPHeaders: VISITOR_HEADERS });
   await expect
-    .poll(async () => (await context.get('/about', { maxRedirects: 0 })).status(), {
+    .poll(async () => (await context.get(SAMPLE_PATH, { maxRedirects: 0 })).status(), {
       timeout: 15_000,
     })
     .toBe(200);

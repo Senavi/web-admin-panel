@@ -16,13 +16,13 @@ describe('audit target labels', () => {
   it('replaces ids with names and page labels', async () => {
     const labels = await describeAuditTargets(
       fakeDb([{ id: USER_ID, name: 'Ada', email: 'ada@example.com' }]),
-      [`user:${USER_ID}`, 'user:gone', 'page:home:uk', 'ui:blog:uk', null].map((target) => ({
+      [`user:${USER_ID}`, 'user:gone', 'page:home:uk', 'ui:common:uk', null].map((target) => ({
         target,
       })),
     );
     expect(labels.get(`user:${USER_ID}`)).toBe('Ada (ada@example.com)');
     expect(labels.get('user:gone')).toBe('Deleted user');
     expect(labels.get('page:home:uk')).toBe('Home (uk)');
-    expect(labels.get('ui:blog:uk')).toBe('Interface texts · Blog (uk)');
+    expect(labels.get('ui:common:uk')).toBe('Interface texts · General (uk)');
   });
 });

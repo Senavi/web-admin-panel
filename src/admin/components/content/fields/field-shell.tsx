@@ -107,7 +107,7 @@ export function FieldShell({
         {isInherited && !shared && locale !== defaultLocale ? (
           <Badge
             variant="outline"
-            className="border-amber-500/50 text-amber-700 dark:text-amber-300 gap-1"
+            className="gap-1 border-amber-500/50 text-amber-700 dark:text-amber-300"
           >
             <LanguagesIcon aria-hidden />
             Not translated yet

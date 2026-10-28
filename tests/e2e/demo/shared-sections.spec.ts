@@ -1,9 +1,9 @@
 import { type Page } from '@playwright/test';
 
-import { admin } from './support/admin';
-import { login } from './support/auth';
-import { expect, test } from './support/test';
-import { E2E_ADMIN } from './support/users';
+import { admin } from '../support/admin';
+import { login } from '../support/auth';
+import { expect, test } from '../support/test';
+import { E2E_ADMIN } from '../support/users';
 
 /** The demo CTA band is a shared section on Home and About (src/content/shared/cta.ts). */
 const CTA_TITLE = '#field-content-cta-title';

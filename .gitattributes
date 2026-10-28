@@ -1,0 +1,20 @@
+# LF everywhere, whatever core.autocrlf says (Git for Windows defaults to CRLF on
+# checkout, which makes `pnpm format:check` fail locally while CI is clean).
+* text=auto eol=lf
+
+# Binary files: never touch line endings or diff them as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp4 binary
+*.webm binary
+*.pdf binary
+*.zip binary

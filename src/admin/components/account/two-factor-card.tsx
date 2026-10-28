@@ -84,7 +84,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
             Authy…).
           </p>
           <div
-            className="bg-white w-44 rounded-md p-2"
+            className="w-44 rounded-md bg-white p-2"
             aria-label="Two-factor QR code"
             role="img"
             // SVG generated server-side by the `qrcode` library from the TOTP URI.
@@ -99,7 +99,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
           <p className="text-sm">
             2. Store these backup codes somewhere safe. Each code works once.
           </p>
-          <ul className="text-sm grid grid-cols-2 gap-1 rounded-md border p-3 font-mono">
+          <ul className="grid grid-cols-2 gap-1 rounded-md border p-3 font-mono text-sm">
             {setup.backupCodes.map((code) => (
               <li key={code}>{code}</li>
             ))}
@@ -131,7 +131,7 @@ export function TwoFactorCard({ enabled, required }: { enabled: boolean; require
         <div className="flex items-center gap-2">
           <Badge variant="secondary">Off</Badge>
           {required ? (
-            <span className="text-destructive text-sm">
+            <span className="text-sm text-destructive">
               Required for admins. Turn it on to continue.
             </span>
           ) : null}

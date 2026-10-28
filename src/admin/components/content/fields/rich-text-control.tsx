@@ -192,7 +192,7 @@ function RichTextInput({
   }, [editor, value]);
 
   return (
-    <div className="focus-within:ring-ring/50 rounded-md border focus-within:ring-2">
+    <div className="rounded-md border focus-within:ring-2 focus-within:ring-ring/50">
       {editor && !readOnly ? <Toolbar editor={editor} /> : null}
       <EditorContent editor={editor} />
     </div>

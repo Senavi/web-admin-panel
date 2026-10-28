@@ -13,8 +13,8 @@ export function StatusCard({ problems, okText }: { problems: readonly string[]; 
           aria-hidden
           className={
             ok
-              ? 'text-emerald-600 dark:text-emerald-400 mt-0.5 size-5 shrink-0'
-              : 'text-destructive mt-0.5 size-5 shrink-0'
+              ? 'mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400'
+              : 'mt-0.5 size-5 shrink-0 text-destructive'
           }
         />
         <div className="flex flex-col gap-1">
@@ -22,7 +22,7 @@ export function StatusCard({ problems, okText }: { problems: readonly string[]; 
           {ok ? (
             <p className="text-sm text-muted-foreground">{okText}</p>
           ) : (
-            <ul className="text-sm flex flex-col gap-1 text-muted-foreground">
+            <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
               {problems.map((problem) => (
                 <li key={problem}>{problem}</li>
               ))}

@@ -1,6 +1,3 @@
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -13,6 +10,8 @@ import { databaseIdentity } from '@/core/db/connection-info';
 import { migratePostgres, openPostgres, type PostgresConnection } from '@/core/db/drivers/postgres';
 import { users } from '@/core/db/schema';
 import { runSeed } from '@/core/db/seed';
+
+import { runScriptFile } from '../support/script';
 
 /**
  * `db:clone` against a real Postgres (CI sets TEST_POSTGRES_URL): the script as a
@@ -35,23 +34,7 @@ function databaseUrl(name: string): string {
 }
 
 function runClone(from: string, to: string): { status: number | null; output: string } {
-  const env: NodeJS.ProcessEnv = { ...process.env };
-  for (const name of ['DATABASE_URL', 'DIRECT_URL', 'NODE_OPTIONS', 'CI', 'NETLIFY', 'VERCEL_ENV'])
-    delete env[name];
-  const result = spawnSync(
-    process.execPath,
-    [
-      path.resolve('node_modules/tsx/dist/cli.mjs'),
-      '--conditions=react-server',
-      'scripts/db-clone.ts',
-      '--from',
-      from,
-      '--to',
-      to,
-      '--yes',
-    ],
-    { env, encoding: 'utf8', timeout: 120_000 },
-  );
+  const result = runScriptFile('scripts/db-clone.ts', ['--from', from, '--to', to, '--yes']);
   return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
 }
 

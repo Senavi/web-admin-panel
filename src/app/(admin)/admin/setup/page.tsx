@@ -87,8 +87,8 @@ export default function SetupPage() {
         <dl aria-label="Values to copy" className="flex flex-col divide-y rounded-md border">
           {variables.map((name) => (
             <div key={name} className="flex flex-col gap-1 p-3">
-              <dt className="text-sm flex flex-wrap items-baseline gap-x-2">
-                <code className="font-medium font-mono">{name}</code>
+              <dt className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <code className="font-mono font-medium">{name}</code>
                 <span className="text-muted-foreground">{HOSTING_VARIABLE_HELP[name]}</span>
               </dt>
               <dd className="text-xs text-muted-foreground">Where: {WHERE[name]}</dd>
@@ -114,11 +114,11 @@ export default function SetupPage() {
           with the same <code className="font-mono">DATABASE_URL</code>, then sign in at this
           address:
         </p>
-        <pre className="text-xs bg-muted overflow-x-auto rounded-md border p-3 font-mono">
+        <pre className="overflow-x-auto rounded-md border bg-muted p-3 font-mono text-xs">
           DATABASE_URL=&quot;…&quot; pnpm admin:create
         </pre>
       </Step>
-      <p className="text-sm flex items-center gap-2 text-muted-foreground">
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <DatabaseIcon aria-hidden className="size-4" />
         Until then the site stays hidden from search engines and forms don’t send anything.
       </p>

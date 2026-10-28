@@ -71,7 +71,7 @@ export function MediaPicker({
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-      <div className="bg-muted flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+      <div className="flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
         {mediaId && preview ? (
           <Image
             src={preview.src}

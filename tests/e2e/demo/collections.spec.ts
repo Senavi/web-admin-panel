@@ -1,9 +1,9 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './support/test';
+import { expect, test } from '../support/test';
 
-import { login } from './support/auth';
-import { E2E_ADMIN, E2E_MANAGER } from './support/users';
-import { admin, adminRe } from './support/admin';
+import { login } from '../support/auth';
+import { E2E_ADMIN, E2E_MANAGER } from '../support/users';
+import { admin, adminRe } from '../support/admin';
 
 /** Visitor-like request (no cookies from the test page). */
 const VISITOR = { 'user-agent': 'Mozilla/5.0 Chrome/150', 'accept-language': 'en' };

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { registry } from '@/content';
 import { uiTexts as catalog } from '@/content/ui-texts';
 import {
   applyUiTextEdits,
@@ -160,22 +161,17 @@ describe('usage check', () => {
       .filter((name) => /\.tsx?$/.test(name))
       .map((name) => ({ file: name, source: fs.readFileSync(path.join(dir, name), 'utf8') }));
     const usages = findMessageUsages(files);
-    expect(usages.some((usage) => usage.namespace === 'blog' && usage.key === 'readMore')).toBe(
-      true,
-    );
+    expect(usages.some((usage) => usage.namespace === 'common')).toBe(true);
+    const owners: ReadonlyArray<{ readonly uiTexts?: readonly string[] }> = [
+      ...registry.pages,
+      ...registry.globals,
+      ...registry.collections,
+      ...registry.forms,
+    ];
     const problems = checkUiTexts({
       catalog,
       files,
-      declared: new Set([
-        'common',
-        'nav',
-        'footer',
-        'cookie',
-        'notFound',
-        'blog',
-        'contact',
-        'forms',
-      ]),
+      declared: new Set(owners.flatMap((owner) => owner.uiTexts ?? [])),
     });
     expect(problems).toEqual([]);
   });
