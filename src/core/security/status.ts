@@ -7,6 +7,7 @@ import { MailSource } from '@/core/mail/config';
 import { getDb } from '@/core/db/client';
 import { usageProblems } from '@/core/database/usage';
 import { readUsage, type SiteUsage } from '@/core/database/usage-server';
+import { databaseMismatchWarning } from '@/core/deployment/database-check-server';
 
 import { checkDatabase, checkStorage, type DatabaseHealth, type StorageHealth } from './health';
 
@@ -44,6 +45,8 @@ export async function checkSiteHealth(): Promise<SiteHealth> {
   const usesEmail = contentRegistry.forms.length > 0;
 
   const problems: string[] = [];
+  const mismatch = database.ok ? await databaseMismatchWarning() : null;
+  if (mismatch) problems.push(mismatch);
   if (!database.ok) {
     problems.push(
       database.hint ?? 'The database doesn’t answer. Changes can’t be saved right now.',

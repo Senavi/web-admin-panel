@@ -961,3 +961,24 @@ like two databases.
 `db:clone` refuses it as a source (unless `--allow-any-source`) and accepts it as a target only
 when empty. Tested in CI against Postgres 17 (`tests/unit/db-clone-postgres.test.ts`): wrong
 direction refused, unmigrated source refused, mid-copy failure rolled back, happy path.
+
+## v1.8.2: wrong-database warning
+
+### D-099 The admin warns when an environment uses the wrong database
+
+**Context.** With D-098 a staging deploy on the live database only prints a WARNING in the
+build log. On Netlify a variable with one value for all contexts also reaches branch deploys,
+so the staging admin showed the purple "Staging — test database" bar while people edited the
+live site.
+
+**Decision.** Each server instance reads the database marker once (cached promise; a failed
+read is retried) and compares it with `currentEnvironment()` (`detectDatabaseMismatch()`,
+pure): a staging site on a database marked production, or the live site on one marked
+staging, with the same identity. Then a red bar replaces the environment bar on every admin
+page, for every staff role, and the Security status card and the Overview show it as a
+problem. Unmarked databases (before the first v1.8.1 deploy), copied markers (identity
+differs: Neon reset, restored backup), preview mode and local PGlite show nothing.
+
+**Not blocking.** Saving stays possible: locking everyone out of the admin during the fix is
+worse than a loud warning. The marker changes only with a deploy, which starts new instances,
+so the once-per-instance read is current.

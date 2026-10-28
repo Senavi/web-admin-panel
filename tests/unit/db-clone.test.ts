@@ -90,6 +90,9 @@ describe('db:clone refusals', () => {
   }, 60_000);
 });
 
+/** PGlite-based tests: creating and migrating databases takes seconds on a small CI machine. */
+const DB_TEST = { timeout: 20_000 } as const;
+
 const EMPTY = { users: 0, contentRows: 0, items: 0, images: 0, submissions: 0 };
 const LIVE: CloneDatabaseState = {
   marker: 'production',
@@ -107,7 +110,7 @@ const NEW_DB: CloneDatabaseState = {
 };
 const sourceOptions = { expectedMigrations: 9, allowAnySource: false };
 
-describe('db:clone markers (D-098)', () => {
+describe('db:clone markers (D-098)', DB_TEST, () => {
   it('requires a migrated, non-empty source marked production', () => {
     expect(sourceRefusal(LIVE, sourceOptions)).toBeNull();
     expect(sourceRefusal(NEW_DB, sourceOptions)).toMatch(/not migrated/);
@@ -166,7 +169,7 @@ describe('db:clone markers (D-098)', () => {
   });
 });
 
-describe('cloneDatabase', () => {
+describe('cloneDatabase', DB_TEST, () => {
   let source: { db: Database; close: () => Promise<void> };
   let target: { db: Database; close: () => Promise<void> };
 

@@ -109,10 +109,12 @@ jobs:
       - run: npx --yes wait-on@8 http://localhost:3100 --timeout 120000
       - run: pnpm e2e
       # The same build started as STAGING (runtime switch): never indexed, no tracking,
-      # form emails to the team only, staging bar (tests/e2e-staging).
+      # form emails to the team only, and the red wrong-database bar: the database is
+      # marked production, like a staging site connected to the live one (tests/e2e-staging).
       - name: Restart as staging
         run: |
           pkill -f "next start" || true
+          E2E_DATABASE_MARKER=production pnpm e2e:prepare
           DEPLOYMENT_ENVIRONMENT=staging STAGING_MAIL_TO=staging-team@example.test pnpm start --port 3100 > server-staging.log 2>&1 &
       - run: npx --yes wait-on@8 http://localhost:3100 --timeout 120000
       - run: pnpm exec playwright test -c playwright.staging.config.ts

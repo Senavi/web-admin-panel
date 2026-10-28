@@ -7,7 +7,7 @@ import { E2E_DATA_DIR, E2E_STAGING_MAIL_TO } from '../e2e/support/env';
 import { GA_ID, setGoogleAnalytics, submitContact, visitor } from '../e2e/support/integrations';
 import { openSettingsTab, saveSettingsTab, VISITOR_HEADERS } from '../e2e/support/settings';
 import { expect, test } from '../e2e/support/test';
-import { E2E_ADMIN } from '../e2e/support/users';
+import { E2E_ADMIN, E2E_MANAGER } from '../e2e/support/users';
 
 const MAIL_DIR = path.join(E2E_DATA_DIR, 'mail');
 const CLIENT = 'client-owner@example.test';
@@ -17,11 +17,31 @@ const CLIENT = 'client-owner@example.test';
  * production, so it must never act like the live site (D-097).
  */
 test.describe.serial('staging safety', () => {
-  test('the admin shows the staging bar', async ({ page }) => {
+  test('a staging site on the live database shows the red warning instead of the staging bar', async ({
+    page,
+  }) => {
+    // The fixture marks this database production (scripts/e2e-prod.ts, CI): D-099.
     await login(page, E2E_ADMIN);
-    await expect(page.getByTestId('environment-bar')).toHaveText(
-      'Staging — test database. Changes here never reach the live site.',
-    );
+    for (const path of [admin(), admin('/pages'), admin('/settings')]) {
+      await page.goto(path);
+      await expect(page.getByTestId('database-mismatch-bar')).toHaveText(
+        'This staging site is connected to the LIVE database. Changes here change the live site. Fix DATABASE_URL for the staging branch.',
+      );
+      await expect(page.getByTestId('environment-bar')).toHaveCount(0);
+    }
+    await expect(page.getByTestId('database-mismatch-bar')).toBeVisible();
+    await page.goto(admin());
+    await expect(page.getByTestId('database-mismatch-warning')).toBeVisible();
+    await page.goto(admin('/security'));
+    await expect(
+      page.getByRole('region', { name: 'Status' }).getByText('connected to the LIVE database'),
+    ).toBeVisible();
+  });
+
+  test('managers see the warning too', async ({ page }) => {
+    await login(page, E2E_MANAGER);
+    await page.goto(admin());
+    await expect(page.getByTestId('database-mismatch-bar')).toBeVisible();
   });
 
   test('the admin says staging is hidden from Google, whatever the stored setting', async ({

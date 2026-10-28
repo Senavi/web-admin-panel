@@ -18,6 +18,7 @@ import { localeInfo } from '@/core/i18n/locales';
 import { selectedLocales } from '@/core/i18n/language-state';
 import { contentRegistry } from '@/core/content/project-registry';
 import { currentEnvironment } from '@/core/deployment/current';
+import { databaseMismatchWarning } from '@/core/deployment/database-check-server';
 import { indexingLabel } from '@/core/deployment/rules';
 import { getDb } from '@/core/db/client';
 import { countNew } from '@/core/forms/inbox';
@@ -53,7 +54,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
   await runMaintenance(db); // throttled: at most hourly
   const forms = contentRegistry.forms;
   const showRequests = forms.length > 0 && can(user.role, Permission.FormsView);
-  const [overview, settings, unread] = await Promise.all([
+  const [overview, settings, unread, wrongDatabase] = await Promise.all([
     timed('db:overview', () => getOverview(db, range)),
     getRequestSettings(),
     showRequests
@@ -62,6 +63,7 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
           forms.map((form) => form.id),
         )
       : Promise.resolve({} as Record<string, number>),
+    databaseMismatchWarning(),
   ]);
   const { current, previous, breakdowns } = overview;
   const newRequests = Object.values(unread).reduce((sum, value) => sum + value, 0);
@@ -90,6 +92,11 @@ export default async function OverviewPage({ searchParams }: PageProps<'/admin'>
         description={`How the site is doing · ${RANGE_LABELS[range].toLowerCase()}`}
         actions={<RangeSelect value={range} />}
       />
+      {wrongDatabase ? (
+        <Alert variant="destructive" role="alert" data-testid="database-mismatch-warning">
+          <AlertDescription>{wrongDatabase}</AlertDescription>
+        </Alert>
+      ) : null}
       {unemailed ? (
         <Alert role="alert" data-testid="no-recipients-warning">
           <AlertDescription className="flex flex-wrap items-center gap-2">

@@ -1,6 +1,8 @@
 /**
  * Prepares the e2e database: resets the isolated local data dir (PGlite mode),
- * applies migrations + seed, and creates the e2e admin and manager.
+ * applies migrations + seed, and creates the e2e admin and manager. With
+ * E2E_DATABASE_MARKER (staging suite) it also marks the database, e.g. `production`
+ * to simulate a staging site connected to the live database (D-099).
  * With DATABASE_URL (CI Postgres) the database is expected to be fresh.
  */
 import fs from 'node:fs';
@@ -8,6 +10,8 @@ import fs from 'node:fs';
 import { Role } from '@/core/auth/roles';
 import { createUserWithPassword, findUserByEmail } from '@/core/auth/server/users';
 import { DATA_DIR } from '@/core/db/paths';
+import { markDatabaseEnvironment } from '@/core/database/environment-marker';
+import { databaseIdentity } from '@/core/db/connection-info';
 import { runSeed } from '@/core/db/seed';
 import { env } from '@/core/env';
 
@@ -30,6 +34,9 @@ runScript(async () => {
       if (await findUserByEmail(db, user.email)) continue;
       await createUserWithPassword(db, { ...user, role, mustChangePassword: false });
     }
+    const marker = process.env.E2E_DATABASE_MARKER;
+    const url = env().DATABASE_URL;
+    if (marker && url) await markDatabaseEnvironment(db, marker, databaseIdentity(url));
     console.info('E2E database prepared.');
   } finally {
     await close();

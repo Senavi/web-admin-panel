@@ -6,6 +6,29 @@ All notable changes to this template are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-28
+
+Patch release: warn when an environment uses the wrong database. No breaking changes.
+
+### Added
+
+- **Wrong-database warning** (D-099). Each server reads its database's environment marker
+  once and compares it with the environment. A staging site connected to the live database
+  shows a red bar on every admin page instead of the staging bar: "This staging site is
+  connected to the LIVE database. Changes here change the live site. Fix DATABASE_URL for the
+  staging branch." The live site on the staging database gets "The live site is connected to
+  the staging database". Security → status and the Overview show it too; every staff role
+  sees it; saving is not blocked. Unmarked databases and copied markers show nothing.
+
+### Fixed
+
+- `tests/unit/db-clone.test.ts`: PGlite-based tests get a 20 s timeout (one took ~5.2 s on a
+  2-core machine and failed the 5 s default).
+
+### Upgrade notes
+
+- Nothing to do. The check needs the markers written by v1.8.1 deploys.
+
 ## [1.8.1] - 2026-10-27
 
 Patch release: safe `db:clone`, dependency fixes, small staging fixes. No breaking changes.

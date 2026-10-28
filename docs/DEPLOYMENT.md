@@ -121,6 +121,9 @@ time; the second waits up to 10 minutes and says so in the build log.
 disallow, empty sitemap, `noindex`), no tracking integrations, form emails only to
 `STAGING_MAIL_TO` (never the client's recipients, webhooks or Telegram), maintenance deletes
 nothing, and the admin shows a "Staging" bar. Previews show "Preview — read only".
+If a deploy uses the wrong database (staging on the live one, e.g. a Netlify variable set
+for all contexts, or the reverse), the admin shows a red warning bar on every page instead
+(D-099): give each context its own `DATABASE_URL`.
 
 **Refreshing staging:** Neon → the staging branch → **Reset from parent**. Supabase/R2:
 `pnpm db:clone --from <production url> --to <staging url>` on your computer. It reads both

@@ -11,7 +11,8 @@
  * CI runs the same flow against a real Postgres service container.
  *
  *   pnpm e2e:staging   (= e2e-prod.ts --staging) starts the same build as STAGING
- *   (DEPLOYMENT_ENVIRONMENT=staging, STAGING_MAIL_TO) and runs tests/e2e-staging.
+ *   (DEPLOYMENT_ENVIRONMENT=staging, STAGING_MAIL_TO) on a database marked production
+ *   (a staging site connected to the live database by mistake) and runs tests/e2e-staging.
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -23,6 +24,8 @@ const STAGING = process.argv.includes('--staging');
 const PLAYWRIGHT_ARGS = process.argv.slice(2).filter((arg) => arg !== '--staging');
 /** Runtime-only: the build is the same as production; staging is chosen when the server starts. */
 const STAGING_RUNTIME = { DEPLOYMENT_ENVIRONMENT: 'staging', STAGING_MAIL_TO: E2E_STAGING_MAIL_TO };
+/** The staging suite runs on a database marked production: the wrong-database warning (D-099). */
+const STAGING_PREPARE = { E2E_DATABASE_MARKER: 'production' };
 
 const DB_PORT = Number(process.env.E2E_DB_PORT ?? 54339);
 const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3400);
@@ -67,7 +70,7 @@ async function main(): Promise<number> {
   fs.rmSync(DATA_DIR, { recursive: true, force: true });
   start('pnpm', ['db:serve'], { DATABASE_URL: '', PGLITE_PORT: String(DB_PORT) });
   await waitForPort(DB_PORT);
-  run('pnpm', ['e2e:prepare']);
+  run('pnpm', ['e2e:prepare'], STAGING ? STAGING_PREPARE : {});
   run('pnpm', ['build']);
   start('pnpm', ['start', '--port', String(APP_PORT)], STAGING ? STAGING_RUNTIME : {});
   await waitForPort(APP_PORT);
